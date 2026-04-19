@@ -19,7 +19,7 @@ import { resumeService } from "../lib/resumeService";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshCredits } = useAuth();
   const [isImporting, setIsImporting] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -61,9 +61,12 @@ export function OnboardingPage() {
         formData.append("is_linkedin", "true");
         res = await fetch("/api/parse-resume", {
           method: "POST",
+          headers: { "X-User-ID": user.uid },
           body: formData,
         });
       }
+
+      if (res.ok) refreshCredits();
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to import");
@@ -106,8 +109,11 @@ export function OnboardingPage() {
 
       const res = await fetch("/api/parse-resume", {
         method: "POST",
+        headers: { "X-User-ID": user.uid },
         body: formData,
       });
+
+      if (res.ok) refreshCredits();
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to parse");

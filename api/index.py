@@ -57,37 +57,42 @@ parser = AIParserEngine()
 
 def check_and_deduct_credits(uid, cost=5):
     """Verifies and deducts credits from Firestore."""
-    if not db_admin: return True # Bypass if Firestore not ready
-    
-    user_ref = db_admin.collection('users').document(uid)
-    user_doc = user_ref.get()
-    
-    if not user_doc.exists:
-        # Initialize new user with 50 credits
-        user_ref.set({
-            'credits': 50,
-            'email': auth.get_user(uid).email if auth else "unknown",
-            'createdAt': firestore.SERVER_TIMESTAMP
-        })
-        credits = 50
-    else:
-        credits = user_doc.to_dict().get('credits', 0)
-    
-    if credits < cost:
+    if not db_admin: 
+        print("❌ Firestore not initialized. Blocking request.")
         return False
+    
+    try:
+        user_ref = db_admin.collection('users').document(uid)
+        user_doc = user_ref.get()
         
-    user_ref.update({'credits': credits - cost})
-    return True
+        if not user_doc.exists:
+            # Initialize new user with 50 credits
+            user_ref.set({
+                'credits': 50,
+                'email': auth.get_user(uid).email if auth else "unknown",
+                'createdAt': firestore.SERVER_TIMESTAMP
+            })
+            credits = 50
+        else:
+            credits = user_doc.to_dict().get('credits', 0)
+        
+        if credits < cost:
+            return False
+            
+        user_ref.update({'credits': credits - cost})
+        return True
+    except Exception as e:
+        print(f"❌ Credit deduction error: {e}")
+        return False
 
 @app.route('/api/user/credits', methods=['GET'])
 def get_user_credits():
     try:
-        # In a real app, we'd verify the Firebase ID Token
-        # For simplicity in this demo, we'll expect a 'uid' header
-        # or just use the current user from auth if possible
         uid = request.headers.get("X-User-ID")
         if not uid: return jsonify({"credits": 0})
         
+        if not db_admin: return jsonify({"error": "DB error"}), 500
+
         user_ref = db_admin.collection('users').document(uid)
         user_doc = user_ref.get()
         
@@ -105,6 +110,8 @@ def get_user_profile():
         uid = request.headers.get("X-User-ID")
         if not uid: return jsonify({"error": "Auth required"}), 401
         
+        if not db_admin: return jsonify({"error": "DB error"}), 500
+
         user_ref = db_admin.collection('users').document(uid)
         user_doc = user_ref.get()
         
@@ -121,8 +128,8 @@ def delete_account():
         uid = request.headers.get("X-User-ID")
         if not uid: return jsonify({"error": "Auth required"}), 401
         
-        # Delete from Firestore
-        db_admin.collection('users').document(uid).delete()
+        if db_admin:
+            db_admin.collection('users').document(uid).delete()
         
         # Delete from Firebase Auth
         auth.delete_user(uid)

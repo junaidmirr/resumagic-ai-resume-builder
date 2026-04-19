@@ -94,7 +94,7 @@ const EXP_LEVELS = [
 
 export function WizardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshCredits } = useAuth();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<WizardData>(INITIAL_DATA);
   const totalSteps = 6;
@@ -181,9 +181,21 @@ export function WizardPage() {
       console.log("[Wizard] Sending data for AI Design pass...");
       const response = await fetch("/api/generate-design", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "",
+        },
         body: JSON.stringify(data),
       });
+
+      if (!response.ok) {
+        if (response.status === 402)
+          throw new Error("Insufficient credits. Please recharge.");
+        throw new Error("Failed to generate design");
+      }
+
+      // Background credit update
+      refreshCredits();
 
       if (!response.ok) throw new Error("Failed to generate design");
 
@@ -236,12 +248,23 @@ export function WizardPage() {
     try {
       const response = await fetch("/api/generate-skills", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "",
+        },
         body: JSON.stringify({
           category: skillCategory,
           load_more: loadMore,
         }),
       });
+
+      if (!response.ok) {
+        if (response.status === 402) throw new Error("Insufficient credits.");
+        throw new Error("Failed to fetch skills");
+      }
+
+      // Background credit update
+      refreshCredits();
 
       if (!response.ok) throw new Error("Failed to fetch skills");
 
@@ -264,9 +287,20 @@ export function WizardPage() {
     try {
       const response = await fetch("/api/generate-summary", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "",
+        },
         body: JSON.stringify(data),
       });
+
+      if (!response.ok) {
+        if (response.status === 402) throw new Error("Insufficient credits.");
+        throw new Error("Failed to fetch summary");
+      }
+
+      // Background credit update
+      refreshCredits();
 
       if (!response.ok) throw new Error("Failed to fetch summary");
 

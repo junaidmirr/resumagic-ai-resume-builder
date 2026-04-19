@@ -479,7 +479,7 @@ function ActionBtn({
 }
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 export function EditorPage() {
-  const { user } = useAuth();
+  const { user, refreshCredits } = useAuth();
   const [elements, setElements] = useState<EditorElement[]>([]);
   const [resumeId] = useState<string | null>(
     localStorage.getItem("current_resume_id"),
@@ -955,9 +955,21 @@ export function EditorPage() {
       try {
         const resp = await fetch("/api/remove-bg", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-User-ID": user?.uid || "",
+          },
           body: JSON.stringify({ image_path: el.image_path }),
         });
+
+        if (!resp.ok) {
+          if (resp.status === 402)
+            alert("Insufficient credits for BG removal.");
+          throw new Error("BG removal failed");
+        }
+
+        // Refresh credits in background
+        refreshCredits();
         const data = await resp.json();
         if (data.new_path) {
           _snapshot();
@@ -1046,9 +1058,23 @@ export function EditorPage() {
       setIsExporting(true);
       const res = await fetch("/api/render", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "",
+        },
         body: JSON.stringify(elements),
       });
+
+      if (!res.ok) {
+        if (res.status === 402) {
+          alert("Insufficient credits to export PDF. Please recharge.");
+          return;
+        }
+        throw new Error();
+      }
+
+      // Refresh credits in background
+      refreshCredits();
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

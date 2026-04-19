@@ -10,7 +10,11 @@ import {
   Loader2,
   Send,
   CheckCircle2,
+  ChevronLeft,
+  Settings,
+  LogOut,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function ProfilePage() {
   const { user, credits, logout, verifyAccount } = useAuth();
@@ -85,7 +89,6 @@ export default function ProfilePage() {
       if (success) {
         setMessage({ type: "success", text: "Account verified successfully!" });
         setShowOtpInput(false);
-        // Refresh page to update Firebase auth state
         setTimeout(() => window.location.reload(), 2000);
       } else {
         throw new Error("Invalid code");
@@ -101,32 +104,93 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-teal-600 px-8 py-10 text-white">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 bg-teal-500 rounded-full flex items-center justify-center border-4 border-teal-400/30">
-                <User size={40} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">
-                  {user?.displayName || "User Profile"}
-                </h1>
-                <p className="text-teal-100 flex items-center gap-2 mt-1">
-                  <Mail size={16} /> {user?.email}
-                </p>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+      {/* Background Decor */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-teal-500/10 dark:bg-teal-500/5 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-indigo-500/10 dark:bg-indigo-500/5 blur-[100px] rounded-full" />
+      </div>
+
+      <div className="relative max-w-4xl mx-auto pt-24 pb-20 px-4 sm:px-6">
+        {/* Navigation Hero */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            to="/dashboard"
+            className="group flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors font-medium"
+          >
+            <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 group-hover:border-teal-500/30 transition-all shadow-sm">
+              <ChevronLeft size={20} />
+            </div>
+            Back to Dashboard
+          </Link>
+          <div className="flex items-center gap-3">
+            <button className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-teal-600 transition-all shadow-sm">
+              <Settings size={20} />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Profile Card */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-8">
+              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-teal-500 to-indigo-600 opacity-10" />
+              <div className="relative flex flex-col items-center">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-3xl bg-teal-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-teal-500/40 relative z-10">
+                    {user?.displayName?.[0] || user?.email?.[0] || "?"}
+                  </div>
+                  <div className="absolute -inset-1 bg-gradient-to-tr from-teal-400 to-indigo-400 rounded-[1.75rem] blur opacity-20 group-hover:opacity-40 transition duration-500" />
+                </div>
+
+                <h2 className="mt-6 text-xl font-bold text-slate-900 dark:text-white text-center truncate w-full">
+                  {user?.displayName || "Adventurer"}
+                </h2>
+                <div className="mt-2 px-3 py-1 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg text-xs font-bold uppercase tracking-wider">
+                  Premium Member
+                </div>
+
+                <div className="w-full mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                    <Mail size={16} />
+                    <span className="text-sm truncate">{user?.email}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                    <ShieldCheck
+                      size={16}
+                      className={
+                        user?.emailVerified
+                          ? "text-emerald-500"
+                          : "text-amber-500"
+                      }
+                    />
+                    <span className="text-sm font-medium">
+                      {user?.emailVerified
+                        ? "Verified Account"
+                        : "Pending Verification"}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={logout}
+                  className="w-full mt-8 py-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-2xl hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400 transition-all flex items-center justify-center gap-2"
+                >
+                  <LogOut size={18} />
+                  Sign Out
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="p-8 space-y-8">
+          {/* Right Column: Details & Actions */}
+          <div className="lg:col-span-2 space-y-8">
             {message && (
               <div
-                className={`p-4 rounded-xl flex items-center gap-3 ${
+                className={`p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-500 ${
                   message.type === "success"
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                    : "bg-rose-50 text-rose-700 border border-rose-100"
+                    ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50"
+                    : "bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-800/50"
                 }`}
               >
                 {message.type === "success" ? (
@@ -134,132 +198,154 @@ export default function ProfilePage() {
                 ) : (
                   <AlertCircle size={20} />
                 )}
-                <p className="font-medium">{message.text}</p>
+                <p className="font-semibold">{message.text}</p>
               </div>
             )}
 
-            {/* Credits Section */}
-            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-xl flex items-center justify-center">
-                  <CreditCard size={24} />
+            {/* Credit Hub */}
+            <div className="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-8 transition-all hover:border-teal-500/30">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 bg-gradient-to-tr from-teal-500/20 to-indigo-500/20 text-teal-600 dark:text-teal-400 rounded-3xl flex items-center justify-center relative">
+                    <CreditCard size={32} />
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full border-2 border-white dark:border-slate-900" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                      Power Balance
+                    </p>
+                    <p className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                      {credits} Credits
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500">
-                    Available Credits
-                  </p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {credits} Credits
-                  </p>
-                </div>
+                <Link
+                  to="/pricing"
+                  className="w-full sm:w-auto px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl hover:scale-105 transition-all shadow-lg active:scale-95"
+                >
+                  UPGRADE
+                </Link>
               </div>
-              <button
-                onClick={() => (window.location.href = "/pricing")}
-                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
-              >
-                Recharge
-              </button>
             </div>
 
-            {/* Verification Status */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-slate-900 px-1">
-                Account Security
-              </h2>
-              <div className="p-6 border border-slate-200 rounded-2xl space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {user?.emailVerified ? (
-                      <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center">
-                        <ShieldCheck size={20} />
+            {/* Security Section */}
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-8 space-y-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ShieldCheck size={20} className="text-teal-500" />
+                Security & Verification
+              </h3>
+
+              <div
+                className={`p-6 rounded-3xl border-2 transition-all ${
+                  user?.emailVerified
+                    ? "bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30"
+                    : "bg-amber-50/30 dark:bg-amber-900/10 border-amber-100 dark:border-amber-800/30"
+                }`}
+              >
+                {!user?.emailVerified ? (
+                  <div className="space-y-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-bold text-slate-900 dark:text-white">
+                          Email Identification
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed uppercase tracking-wide font-medium">
+                          Verify your email to unlock all AI features and secure
+                          your drafts.
+                        </p>
                       </div>
-                    ) : (
-                      <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center">
-                        <AlertCircle size={20} />
+                      {!showOtpInput && (
+                        <button
+                          onClick={handleSendCode}
+                          disabled={isVerifying}
+                          className="px-6 py-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                        >
+                          {isVerifying ? (
+                            <Loader2 className="animate-spin" size={16} />
+                          ) : (
+                            <Send size={16} />
+                          )}
+                          SEND
+                        </button>
+                      )}
+                    </div>
+
+                    {showOtpInput && (
+                      <div className="space-y-6 pt-6 border-t border-amber-200/50 dark:border-amber-800/50 animate-in zoom-in-95 duration-500">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            placeholder="6-DIGIT CODE"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                            className="flex-1 px-6 py-4 bg-white dark:bg-slate-950 border-2 border-amber-200 dark:border-amber-800/50 rounded-2xl text-center text-2xl font-black tracking-[0.4em] outline-none focus:border-amber-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-200 dark:placeholder:text-slate-800"
+                          />
+                          <button
+                            onClick={handleVerifyCode}
+                            disabled={isVerifying || otp.length !== 6}
+                            className="px-10 py-4 bg-teal-600 text-white font-black rounded-2xl hover:bg-teal-700 transition-all flex items-center justify-center gap-2 shadow-xl shadow-teal-500/20 disabled:opacity-50"
+                          >
+                            {isVerifying ? (
+                              <Loader2 className="animate-spin" size={20} />
+                            ) : (
+                              <CheckCircle2 size={20} />
+                            )}
+                            ACTIVATE
+                          </button>
+                        </div>
+                        <p
+                          className="text-center text-xs font-bold text-amber-600/60 uppercase tracking-widest cursor-pointer hover:text-amber-600 transition-colors"
+                          onClick={handleSendCode}
+                        >
+                          Resend Verification Code
+                        </p>
                       </div>
                     )}
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        Email Verification
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {user?.emailVerified
-                          ? "Your account is fully verified."
-                          : "Verification is pending."}
-                      </p>
-                    </div>
                   </div>
-                  {!user?.emailVerified && !showOtpInput && (
-                    <button
-                      onClick={handleSendCode}
-                      disabled={isVerifying}
-                      className="px-4 py-2 bg-teal-50 text-teal-600 font-bold rounded-xl hover:bg-teal-100 transition-all flex items-center gap-2 disabled:opacity-50"
-                    >
-                      {isVerifying ? (
-                        <Loader2 className="animate-spin" size={16} />
-                      ) : (
-                        <Send size={16} />
-                      )}
-                      Verify Now
-                    </button>
-                  )}
-                </div>
-
-                {!user?.emailVerified && showOtpInput && (
-                  <div className="space-y-4 pt-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-300">
-                    <p className="text-sm text-slate-600 font-medium">
-                      Enter the 6-digit code sent to your email:
-                    </p>
-                    <div className="flex gap-4">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="000000"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-2xl font-bold tracking-[0.5em] outline-none focus:ring-2 ring-teal-500/20 focus:border-teal-500 transition-all"
-                      />
-                      <button
-                        onClick={handleVerifyCode}
-                        disabled={isVerifying || otp.length !== 6}
-                        className="px-6 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-teal-500/20"
-                      >
-                        {isVerifying ? (
-                          <Loader2 className="animate-spin" size={20} />
-                        ) : (
-                          <CheckCircle2 size={20} />
-                        )}
-                        Verify
-                      </button>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                      <ShieldCheck size={24} />
                     </div>
-                    <button
-                      onClick={handleSendCode}
-                      className="text-xs text-slate-400 hover:text-teal-600 font-medium transition-colors"
-                    >
-                      Didn't receive code? Resend
-                    </button>
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-white text-lg leading-none">
+                        Security Verified
+                      </p>
+                      <p className="text-xs font-bold text-emerald-600/70 uppercase tracking-widest mt-1">
+                        Full access granted
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Danger Zone */}
-            <div className="pt-4 border-t border-slate-100">
-              <h2 className="text-lg font-bold text-rose-600 px-1 mb-4">
-                Danger Zone
-              </h2>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={isDeleting}
-                className="w-full sm:w-auto px-6 py-3 bg-rose-50 text-rose-600 font-semibold rounded-xl hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
-              >
-                {isDeleting ? (
-                  <Loader2 className="animate-spin" size={20} />
-                ) : (
-                  <Trash2 size={20} />
-                )}
-                Delete Account PERMANENTLY
-              </button>
+            <div className="bg-rose-50/50 dark:bg-rose-950/10 rounded-[2rem] border border-rose-100 dark:border-rose-900/30 p-8">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold text-rose-600 flex items-center gap-2">
+                    <AlertCircle size={20} />
+                    Danger Zone
+                  </h3>
+                  <p className="text-sm text-rose-700/60 dark:text-rose-400 font-medium">
+                    Permanently delete your account and all associated data.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting}
+                  className="px-6 py-3 border-2 border-rose-200 dark:border-rose-800 text-rose-600 font-bold rounded-2xl hover:bg-rose-600 hover:text-white transition-all flex items-center gap-2"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <Trash2 size={18} />
+                  )}
+                  Delete Account
+                </button>
+              </div>
             </div>
           </div>
         </div>

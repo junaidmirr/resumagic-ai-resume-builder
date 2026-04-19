@@ -31,7 +31,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshCredits = async () => {
     if (!auth.currentUser) return;
     try {
-      const response = await fetch("/api/user/credits");
+      const response = await fetch("/api/user/credits", {
+        headers: { "X-User-ID": auth.currentUser.uid },
+      });
       if (response.ok) {
         const data = await response.json();
         setCredits(data.credits);

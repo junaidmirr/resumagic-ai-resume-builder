@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Loader2, Sparkles, X } from "lucide-react";
 import type { EditorElement } from "../types/editor";
+import { useAuth } from "../context/AuthContext";
 
 interface ChatbotProps {
   elements?: EditorElement[];
@@ -8,6 +9,7 @@ interface ChatbotProps {
 }
 
 export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
+  const { user, refreshCredits } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<
     { role: "user" | "bot"; text: string; isSystem?: boolean }[]
@@ -40,14 +42,24 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
       // Call our backend Architect which has the 2-stage planning logic
       const resp = await fetch("/api/ai-chat-edit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "",
+        },
         body: JSON.stringify({
           elements,
           prompt: userMsg,
         }),
       });
 
-      if (!resp.ok) throw new Error("Backend failed to process request");
+      if (!resp.ok) {
+        if (resp.status === 402)
+          throw new Error("Insufficient credits. Please recharge.");
+        throw new Error("Backend failed to process request");
+      }
+
+      // Trigger background credit refresh
+      refreshCredits();
 
       setStage("Executing...");
       const result = await resp.json();

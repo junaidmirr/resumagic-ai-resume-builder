@@ -84,13 +84,18 @@ export function DashboardPage() {
           <div className="flex items-center gap-4">
             <Link
               to="/pricing"
-              className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-full border border-amber-100 dark:border-amber-800 hover:bg-amber-100 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 dark:from-amber-500/5 dark:to-orange-500/5 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 hover:border-amber-500/40 transition-all shadow-sm group"
             >
-              <CreditCard size={14} />
-              <span className="text-xs font-bold">{credits} Credits</span>
+              <CreditCard
+                size={14}
+                className="group-hover:scale-110 transition-transform"
+              />
+              <span className="text-xs font-black tracking-tight uppercase">
+                {credits} Credits
+              </span>
             </Link>
 
-            <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full">
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
               <Link
                 to="/profile"
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -99,23 +104,23 @@ export function DashboardPage() {
                   <img
                     src={user.photoURL}
                     alt="Profile"
-                    className="w-6 h-6 rounded-full border border-white dark:border-slate-700"
+                    className="w-7 h-7 rounded-xl border border-white dark:border-slate-700 shadow-sm"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                  <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-teal-500 to-indigo-600 flex items-center justify-center text-[10px] font-black text-white uppercase shadow-sm">
                     {user?.email?.[0] || "?"}
                   </div>
                 )}
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mr-2 max-sm:hidden">
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300 mr-2 max-sm:hidden">
                   {user?.displayName?.split(" ")[0] ||
                     user?.email?.split("@")[0] ||
                     "User"}
                 </span>
               </Link>
-              <div className="w-[1px] h-4 bg-slate-300 dark:bg-slate-600 mx-1" />
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
               <button
                 onClick={logout}
-                className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                className="p-1.5 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20"
                 title="Log out"
               >
                 <LogOut size={16} />
@@ -127,19 +132,29 @@ export function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-10">
         {!user?.emailVerified && (
-          <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between">
-            <div className="flex items-center gap-3 text-amber-700">
-              <ShieldAlert size={20} />
-              <p className="text-sm font-medium">
-                Your email is not verified. Some features may be restricted.
-              </p>
+          <div className="group mb-12 p-1 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 rounded-[2rem] border border-amber-500/10 animate-in slide-in-from-top-4 duration-700">
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-5 rounded-[1.75rem] flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4 text-amber-700 dark:text-amber-400">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center shadow-inner">
+                  <ShieldAlert size={24} className="animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-lg font-black tracking-tight">
+                    Account Protection Required
+                  </p>
+                  <p className="text-sm font-medium opacity-70 leading-tight">
+                    Verify your email to unlock multi-device syncing and
+                    advanced AI features.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/profile"
+                className="w-full sm:w-auto px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl hover:scale-105 transition-all shadow-xl active:scale-95 text-center"
+              >
+                VERIFY NOW
+              </Link>
             </div>
-            <Link
-              to="/profile"
-              className="px-4 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors"
-            >
-              Verify Now
-            </Link>
           </div>
         )}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">

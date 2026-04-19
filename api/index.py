@@ -55,9 +55,89 @@ except Exception as e:
 # Global Parser Instance
 parser = AIParserEngine()
 
+def check_and_deduct_credits(uid, cost=5):
+    """Verifies and deducts credits from Firestore."""
+    if not db_admin: return True # Bypass if Firestore not ready
+    
+    user_ref = db_admin.collection('users').document(uid)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
+        # Initialize new user with 50 credits
+        user_ref.set({
+            'credits': 50,
+            'email': auth.get_user(uid).email if auth else "unknown",
+            'createdAt': firestore.SERVER_TIMESTAMP
+        })
+        credits = 50
+    else:
+        credits = user_doc.to_dict().get('credits', 0)
+    
+    if credits < cost:
+        return False
+        
+    user_ref.update({'credits': credits - cost})
+    return True
+
+@app.route('/api/user/credits', methods=['GET'])
+def get_user_credits():
+    try:
+        # In a real app, we'd verify the Firebase ID Token
+        # For simplicity in this demo, we'll expect a 'uid' header
+        # or just use the current user from auth if possible
+        uid = request.headers.get("X-User-ID")
+        if not uid: return jsonify({"credits": 0})
+        
+        user_ref = db_admin.collection('users').document(uid)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            user_ref.set({'credits': 50, 'createdAt': firestore.SERVER_TIMESTAMP})
+            return jsonify({"credits": 50})
+            
+        return jsonify({"credits": user_doc.to_dict().get('credits', 0)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/user/profile', methods=['GET'])
+def get_user_profile():
+    try:
+        uid = request.headers.get("X-User-ID")
+        if not uid: return jsonify({"error": "Auth required"}), 401
+        
+        user_ref = db_admin.collection('users').document(uid)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return jsonify({"error": "User not found"}), 404
+            
+        return jsonify(user_doc.to_dict())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/user/delete', methods=['POST'])
+def delete_account():
+    try:
+        uid = request.headers.get("X-User-ID")
+        if not uid: return jsonify({"error": "Auth required"}), 401
+        
+        # Delete from Firestore
+        db_admin.collection('users').document(uid).delete()
+        
+        # Delete from Firebase Auth
+        auth.delete_user(uid)
+        
+        return jsonify({"success": True, "message": "Account deleted successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/parse-resume', methods=['POST'])
 def parse_resume():
     try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
             
@@ -81,6 +161,10 @@ def parse_resume():
 @app.route('/api/render', methods=['POST'])
 def render_pdf():
     try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
         elements = request.json
         if not elements:
             return jsonify({"error": "No JSON payload provided"}), 400
@@ -136,8 +220,11 @@ def render_pdf():
 
 @app.route('/api/remove-bg', methods=['POST'])
 def remove_bg_route():
-    print("[Server] Received remove-bg request")
     try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
         data = request.json
         path = data.get('image_path', '')
         print(f"[Server] Requested image path: {path[:50]}...") # Log first 50 chars for base64
@@ -228,8 +315,11 @@ def remove_bg_route():
 
 @app.route('/api/generate-design', methods=['POST'])
 def generate_design_route():
-    print("[Server] Received generate-design request")
     try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
         data = request.json
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -245,6 +335,10 @@ def generate_design_route():
 @app.route('/api/generate-skills', methods=['POST'])
 def generate_skills_route():
     try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
         data = request.json
         category = data.get("category", "")
         load_more = data.get("load_more", False)
@@ -257,6 +351,10 @@ def generate_skills_route():
 @app.route('/api/generate-summary', methods=['POST'])
 def generate_summary_route():
     try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
         data = request.json
         parser = AIParserEngine()
         summary = parser.get_summary(data)
@@ -283,13 +381,20 @@ def import_linkedin_url():
 
 @app.route('/api/ai-chat-edit', methods=['POST'])
 def ai_chat_edit():
-    data = request.json
-    elements = data.get('elements', [])
-    prompt = data.get('prompt', '')
-    if not prompt: return jsonify({"error": "No prompt provided"}), 400
-    
-    result = parser.ai_chat_edit(elements, prompt)
-    return jsonify(result)
+    try:
+        uid = request.headers.get("X-User-ID")
+        if uid and not check_and_deduct_credits(uid, 5):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
+        data = request.json
+        elements = data.get('elements', [])
+        prompt = data.get('prompt', '')
+        if not prompt: return jsonify({"error": "No prompt provided"}), 400
+        
+        result = parser.ai_chat_edit(elements, prompt)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/verify-turnstile', methods=['POST'])
 def verify_turnstile():

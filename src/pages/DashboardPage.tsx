@@ -7,13 +7,16 @@ import {
   LogOut,
   Sparkles,
   Search,
-  Trash2,
   ExternalLink,
+  Trash2,
+  User as UserIcon,
+  ShieldAlert,
+  CreditCard,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, credits } = useAuth();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,23 +82,37 @@ export function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-4">
+            <Link
+              to="/pricing"
+              className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-full border border-amber-100 dark:border-amber-800 hover:bg-amber-100 transition-colors"
+            >
+              <CreditCard size={14} />
+              <span className="text-xs font-bold">{credits} Credits</span>
+            </Link>
+
             <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full">
-              {user?.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt="Profile"
-                  className="w-6 h-6 rounded-full border border-white dark:border-slate-700"
-                />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                  {user?.email?.[0] || "?"}
-                </div>
-              )}
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mr-2 max-sm:hidden">
-                {user?.displayName?.split(" ")[0] ||
-                  user?.email?.split("@")[0] ||
-                  "User"}
-              </span>
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                {user?.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt="Profile"
+                    className="w-6 h-6 rounded-full border border-white dark:border-slate-700"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                    {user?.email?.[0] || "?"}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 mr-2 max-sm:hidden">
+                  {user?.displayName?.split(" ")[0] ||
+                    user?.email?.split("@")[0] ||
+                    "User"}
+                </span>
+              </Link>
+              <div className="w-[1px] h-4 bg-slate-300 dark:bg-slate-600 mx-1" />
               <button
                 onClick={logout}
                 className="p-1 text-slate-400 hover:text-red-500 transition-colors"
@@ -109,6 +126,22 @@ export function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-10">
+        {!user?.emailVerified && (
+          <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center gap-3 text-amber-700">
+              <ShieldAlert size={20} />
+              <p className="text-sm font-medium">
+                Your email is not verified. Some features may be restricted.
+              </p>
+            </div>
+            <Link
+              to="/profile"
+              className="px-4 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors"
+            >
+              Verify Now
+            </Link>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">

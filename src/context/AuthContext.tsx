@@ -17,6 +17,8 @@ interface AuthContextType {
   signup: (email: string, pass: string) => Promise<void>;
   verifyAccount: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  credits: number;
+  refreshCredits: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +26,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [credits, setCredits] = useState<number>(0);
+
+  const refreshCredits = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const response = await fetch("/api/user/credits");
+      if (response.ok) {
+        const data = await response.json();
+        setCredits(data.credits);
+      }
+    } catch (error) {
+      console.error("[Auth] Failed to refresh credits:", error);
+    }
+  };
 
   useEffect(() => {
     console.log("[Auth] Setting up onAuthStateChanged listener...");
@@ -31,6 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("[Auth] State changed. User:", user ? user.email : "none");
       setUser(user);
       setLoading(false);
+      if (user) {
+        refreshCredits();
+      } else {
+        setCredits(0);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -53,18 +74,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       const user = userCredential.user;
 
-      // Enforce email verification for manual signups
+      // Relax email verification - we no longer block login
+      // We will show a notice in the Profile/Dashboard instead
       if (!user.emailVerified) {
-        // Send a fresh verification code via our backend
-        await fetch("/api/auth/send-verification-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        await signOut(auth); // Sign them back out
-        throw new Error(
-          "Unverified account. A fresh verification code has been sent to your email. Please verify your account to continue.",
-        );
+        console.log("[Auth] User logged in but email is unverified.");
       }
     } catch (error) {
       console.error("Login Error:", error);
@@ -121,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         verifyAccount,
         logout,
+        credits,
+        refreshCredits,
       }}
     >
       {children}

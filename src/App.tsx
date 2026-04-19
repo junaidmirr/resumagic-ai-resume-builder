@@ -11,6 +11,8 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { AuthModalProvider } from "./components/onboarding/AuthModalContext";
 import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { TermsOfService } from "./pages/TermsOfService";
+import ProfilePage from "./pages/ProfilePage";
+import PricingPage from "./pages/PricingPage";
 
 function App() {
   return (
@@ -52,6 +54,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <WizardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pricing"
+                element={
+                  <ProtectedRoute>
+                    <PricingPage />
                   </ProtectedRoute>
                 }
               />

@@ -208,9 +208,9 @@ Return ONLY a JSON object:
         page=doc[0]
         PH,PW=page.rect.height,page.rect.width  # PH≈792, PW≈612
 
-        # PRE-PHASE: Extract Images
-        img_dir = os.path.join(os.path.dirname(__file__), "..", "public", "temp_uploads")
-        os.makedirs(img_dir, exist_ok=True)
+        # PRE-PHASE: Extract Images (Use /tmp for Vercel compatibility)
+        import tempfile
+        img_dir = tempfile.gettempdir()
         
         elements = []
         
@@ -235,6 +235,9 @@ Return ONLY a JSON object:
             
             # Aspect ratio sanity check to prevent "massive dark box" issues
             # If the image is extremely stretched compared to its native size, skip or bound it
+            # Convert to Base64 for Vercel/Cloud to avoid filesystem path issues
+            img_b64 = base64.b64encode(image_bytes).decode("utf-8")
+            
             elements.append({
                 "id": f"image_{len(elements)}",
                 "element_type": "image",
@@ -242,7 +245,7 @@ Return ONLY a JSON object:
                 "y": round(PH - y1, 1),
                 "width": round(w, 1),
                 "height": round(h, 1),
-                "image_path": f"/temp_uploads/extracted_{img_index}.{ext}",
+                "image_path": f"data:image/{ext};base64,{img_b64}",
                 "z_index": len(elements)
             })
 

@@ -520,12 +520,19 @@ class PDFEngine:
 
     def _draw_image(self, c: rl_canvas.Canvas, el: ImageElement):
         try:
-            # Skip icons for now if they don't have a path, or draw a placeholder
             if getattr(el, 'is_icon', False) or not el.image_path:
-                # Optional: draw placeholder
                 return
 
             c.saveState()
+            
+            # Handle Base64 Data URIs (Vercel/Cloud Compatibility)
+            img_source = el.image_path
+            if img_source.startswith("data:image"):
+                import base64, io
+                header, encoded = img_source.split(",", 1)
+                img_data = base64.b64decode(encoded)
+                img_source = io.BytesIO(img_data)
+
             if el.mask_shape == "circle":
                 p = c.beginPath()
                 p.circle(el.x + el.width/2, el.y + el.height/2, min(el.width, el.height)/2)

@@ -4,6 +4,7 @@ import base64
 import tempfile
 import os
 import json
+import requests
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from dotenv import load_dotenv
@@ -294,6 +295,8 @@ def ai_chat_edit():
 def verify_turnstile():
     try:
         data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No JSON payload provided"}), 400
         token = data.get("token")
         if not token:
             return jsonify({"success": False, "error": "Missing token"}), 400

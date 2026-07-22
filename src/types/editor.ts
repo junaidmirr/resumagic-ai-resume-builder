@@ -1,11 +1,20 @@
+export interface Page {
+  id: string;
+  width: number;
+  height: number;
+}
+
 export interface ElementBase {
   id: string;
   element_type: 'text' | 'shape' | 'image';
+  page_id?: string;
   x: number;
   y: number;
   z_index: number;
   groupId?: string;
   locked?: boolean;
+  rotation?: number;
+  opacity?: number;
 }
 
 export interface TextElement extends ElementBase {
@@ -17,13 +26,16 @@ export interface TextElement extends ElementBase {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
+  align?: 'left' | 'center' | 'right' | 'justify';
+  line_height?: number;
+  letter_spacing?: number;
   width?: number;
   height?: number;
 }
 
 export interface ShapeElement extends ElementBase {
   element_type: 'shape';
-  shape_type: 'rectangle' | 'circle' | 'line' | 'arrow';
+  shape_type: 'rectangle' | 'circle' | 'line' | 'arrow' | 'path' | 'polygon';
   width?: number;
   height?: number;
   fill_color?: string;
@@ -34,6 +46,8 @@ export interface ShapeElement extends ElementBase {
   y2?: number;
   control_x?: number; // Quadratic Bezier control point X
   control_y?: number; // Quadratic Bezier control point Y
+  path_d?: string; // For custom SVG paths (e.g. bezier waves)
+  points?: number[]; // For polygons: [x1, y1, x2, y2, ...]
 }
 
 export interface ImageElement extends ElementBase {
@@ -47,6 +61,27 @@ export interface ImageElement extends ElementBase {
   border_color?: string;
   mask_shape?: 'circle' | 'rounded' | 'heart' | 'none';
   remove_bg?: boolean;
+  opacity?: number;
+  shadow?: boolean;
+  rotation?: number;
+  border_radius?: number;
 }
 
 export type EditorElement = TextElement | ShapeElement | ImageElement;
+
+export interface AIFixItem {
+  id: string;
+  title: string;
+  description: string;
+  target_field?: string;
+  suggested_value?: string;
+  target_element_id?: string;
+}
+
+export interface AIResponsePayload {
+  status: 'success' | 'rejected' | 'error';
+  result?: string;
+  reason?: string;
+  fixes?: AIFixItem[];
+  error?: string;
+}

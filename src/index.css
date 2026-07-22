@@ -1,15 +1,91 @@
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+  
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-card: var(--app-card);
+  --color-app-border: var(--app-border);
+  
+  --color-app-text: var(--app-text);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-app-text-secondary: var(--app-text-secondary);
+
+  --font-sans: "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+:root {
+  --brand-primary: #6D5DF6;
+  --brand-secondary: #4F46E5;
+  --brand-accent: #8B5CF6;
+  --brand-success: #22C55E;
+  --brand-warning: #F59E0B;
+  --brand-danger: #EF4444;
+
+  --app-bg: #F8FAFC;
+  --app-surface: #FFFFFF;
+  --app-card: #FFFFFF;
+  --app-border: rgba(0, 0, 0, 0.08);
+
+  --app-text: #0F172A;
+  --app-text-secondary: #475569;
+  --app-text-muted: #94A3B8;
+}
+
+.dark {
+  --app-bg: #0B1020;
+  --app-surface: #131A2E;
+  --app-card: #1A2238;
+  --app-border: rgba(255, 255, 255, 0.08);
+
+  --app-text: #FFFFFF;
+  --app-text-secondary: #A8B3CF;
+  --app-text-muted: #7A859E;
+}
 
 @layer base {
   html {
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-slate-50 text-slate-900 transition-colors duration-300 antialiased;
-  }
-  .dark body {
-    @apply bg-slate-950 text-slate-50;
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    @apply transition-colors duration-300 antialiased selection:bg-brand-primary/20 selection:text-brand-primary;
   }
 }
+
+@layer utilities {
+  .glass {
+    background-color: color-mix(in srgb, var(--app-surface) 60%, transparent);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--app-border);
+  }
+  
+  .glass-card {
+    background-color: color-mix(in srgb, var(--app-card) 80%, transparent);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--app-border);
+    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.1);
+  }
+  
+  .text-gradient {
+    background-image: linear-gradient(to right, var(--brand-primary), var(--brand-accent), var(--brand-secondary));
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-brand-primary/20;
+  }
+}
+
+/* Theme Logo Toggle */
+.logo-dark { display: none; }
+.logo-light { display: block; }
+.dark .logo-dark { display: block; }
+.dark .logo-light { display: none; }

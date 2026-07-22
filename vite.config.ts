@@ -12,6 +12,15 @@ export default defineConfig({
     cssMinify: 'esbuild', // Use esbuild for minification as lightningcss has issues with Tailwind 4 @theme
   },
   server: {
+    watch: {
+      ignored: [
+        '**/*.txt',
+        '**/*.log',
+        '**/backend/**',
+        '**/performance_metrics.txt',
+        '**/logs/**',
+      ],
+    },
     allowedHosts: [
       'sheldon-unexcerpted-overwillingly.ngrok-free.dev',
     ],

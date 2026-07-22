@@ -6,13 +6,16 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { EditorElement } from "../../types/editor";
+import type { EditorElement, Page } from "../../types/editor";
 import * as Lucide from "lucide-react";
 import { Sparkles, Loader2 } from "lucide-react";
 
 interface EditorCanvasProps {
   elements: EditorElement[];
   setElements: Dispatch<SetStateAction<EditorElement[]>>;
+  pages: Page[];
+  activePageId: string;
+  setActivePageId: (id: string) => void;
   selectedIds: string[];
   setSelectedIds: (ids: string[]) => void;
   pageWidth: number;
@@ -22,6 +25,7 @@ interface EditorCanvasProps {
   snapEnabled?: boolean;
   isGroupingMode?: boolean;
   processingIds: string[];
+  onContextMenu?: (e: React.MouseEvent, elId: string | null) => void;
 }
 
 const MIN_DIM_PDF = 10;
@@ -31,6 +35,9 @@ const HANDLE_OFFSET = -HANDLE_SIZE / 2;
 export function EditorCanvas({
   elements,
   setElements,
+  pages = [{ id: "page-1", width: 612, height: 792 }],
+  activePageId = "page-1",
+  setActivePageId = () => {},
   selectedIds,
   setSelectedIds,
   pageWidth,
@@ -40,6 +47,7 @@ export function EditorCanvas({
   snapEnabled = true,
   isGroupingMode = false,
   processingIds,
+  onContextMenu,
 }: EditorCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   // baseScale = scale that fits the page into the wrapper at 100% zoom
@@ -49,9 +57,26 @@ export function EditorCanvas({
   const [handleType, setHandleType] = useState("");
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [origEls, setOrigEls] = useState<EditorElement[]>([]);
+  const [snapTargets, setSnapTargets] = useState<{ x: number[]; y: number[] }>({
+    x: [],
+    y: [],
+  });
   const [guides, setGuides] = useState<{ axis: "x" | "y"; coord: number }[]>(
     [],
   );
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+
+  // Local state for dragging to prevent full app re-renders
+  const [localElements, setLocalElements] = useState<EditorElement[]>(elements);
+  const localElementsRef = useRef<EditorElement[]>(elements);
+  
+  useEffect(() => {
+    // Only sync if not actively dragging, to avoid stuttering
+    if (!action) {
+      setLocalElements(elements);
+      localElementsRef.current = elements;
+    }
+  }, [elements, action]);
 
   // ── Measure wrapper → baseScale ───────────────────────────
   useEffect(() => {
@@ -86,6 +111,7 @@ export function EditorCanvas({
   // ── Pointer handlers ──────────────────────────────────────
   const startDrag = (e: ReactPointerEvent, el: EditorElement) => {
     e.stopPropagation();
+    if (el.locked) return; // Prevent interaction if locked
 
     let nextIds = [...selectedIds];
     if (e.shiftKey || isGroupingMode) {
@@ -103,9 +129,9 @@ export function EditorCanvas({
     // Expand selection to include whole groups
     const expanded = new Set<string>();
     nextIds.forEach((id) => {
-      const item = elements.find((x) => x.id === id);
+      const item = localElements.find((x) => x.id === id);
       if (item?.groupId) {
-        elements
+        localElements
           .filter((x) => x.groupId === item.groupId)
           .forEach((g) => expanded.add(g.id));
       } else {
@@ -115,9 +141,22 @@ export function EditorCanvas({
     const finalIds = Array.from(expanded);
     setSelectedIds(finalIds);
 
+    if (snapEnabled) {
+      const xT: number[] = [pageWidth / 2];
+      const yT: number[] = [pageHeight / 2];
+      localElements.forEach((x) => {
+        if (finalIds.includes(x.id)) return;
+        const ew = (x as any).width || 100;
+        const eh = (x as any).height || 100;
+        xT.push(x.x, x.x + ew / 2, x.x + ew);
+        yT.push(x.y, x.y + eh / 2, x.y + eh);
+      });
+      setSnapTargets({ x: xT, y: yT });
+    }
+
     onSnapshot();
     setAction("move");
-    setOrigEls(elements.filter((x) => finalIds.includes(x.id)));
+    setOrigEls(localElements.filter((x) => finalIds.includes(x.id)));
     setDragStart({ x: e.clientX, y: e.clientY });
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -128,7 +167,21 @@ export function EditorCanvas({
     handle: string,
   ) => {
     e.stopPropagation();
+    if (el.locked) return; // Prevent interaction if locked
     setSelectedIds([el.id]); // Resize stays single-element for now or group-aware late
+    if (snapEnabled) {
+      const xT: number[] = [pageWidth / 2];
+      const yT: number[] = [pageHeight / 2];
+      localElements.forEach((x) => {
+        if (x.id === el.id) return;
+        const ew = (x as any).width || 100;
+        const eh = (x as any).height || 100;
+        xT.push(x.x, x.x + ew / 2, x.x + ew);
+        yT.push(x.y, x.y + eh / 2, x.y + eh);
+      });
+      setSnapTargets({ x: xT, y: yT });
+    }
+
     onSnapshot();
     setAction("resize");
     setHandleType(handle);
@@ -154,27 +207,14 @@ export function EditorCanvas({
       let newGuides: { axis: "x" | "y"; coord: number }[] = [];
       if (snapEnabled) {
         const threshold = 5 / scale;
-        const xTargets: number[] = [pageWidth / 2];
-        const yTargets: number[] = [pageHeight / 2];
-
-        const movingIds = origEls.map((x) => x.id);
-        elements.forEach((el) => {
-          if (movingIds.includes(el.id)) return;
-          const ex = el.x;
-          const ey = el.y;
-          const ew = (el as any).width || 100;
-          const eh = (el as any).height || 100;
-          xTargets.push(ex, ex + ew / 2, ex + ew);
-          yTargets.push(ey, ey + eh / 2, ey + eh);
-        });
-
+        
         const myX = [nx, nx + nw / 2, nx + nw];
         const myY = [ny, ny + nh / 2, ny + nh];
 
         let bestX = nx;
         let minDx = Infinity;
         let snapXCoord = -1;
-        for (const t of xTargets) {
+        for (const t of snapTargets.x) {
           for (let i = 0; i < 3; i++) {
             const d = Math.abs(myX[i] - t);
             if (d < threshold && d < minDx) {
@@ -192,7 +232,7 @@ export function EditorCanvas({
         let bestY = ny;
         let minDy = Infinity;
         let snapYCoord = -1;
-        for (const t of yTargets) {
+        for (const t of snapTargets.y) {
           for (let i = 0; i < 3; i++) {
             const d = Math.abs(myY[i] - t);
             if (d < threshold && d < minDy) {
@@ -213,15 +253,15 @@ export function EditorCanvas({
       const finalDpx = nx - primaryOrig.x;
       const finalDpy = ny - primaryOrig.y;
 
-      setElements((prev) =>
-        prev.map((el) => {
+      setLocalElements((prev) => {
+        const nextState = prev.map((el) => {
           const orig = origEls.find((x) => x.id === el.id);
           if (!orig) return el;
 
           const nex = orig.x + finalDpx;
           const ney = orig.y + finalDpy;
 
-          if (el.element_type === "shape" && el.shape_type === "line") {
+          if (el.element_type === "shape" && (el.shape_type === "line" || el.shape_type === "arrow")) {
             return {
               ...el,
               x: nex,
@@ -229,28 +269,32 @@ export function EditorCanvas({
               x2: (orig as any).x2 + finalDpx,
               y2: (orig as any).y2 + finalDpy,
               control_x:
-                ((orig as any).control_x ?? (orig.x + (orig as any).x2) / 2) +
-                finalDpx,
+                (orig as any).control_x !== undefined
+                  ? (orig as any).control_x + finalDpx
+                  : undefined,
               control_y:
-                ((orig as any).control_y ?? (orig.y + (orig as any).y2) / 2) +
-                finalDpy,
+                (orig as any).control_y !== undefined
+                  ? (orig as any).control_y + finalDpy
+                  : undefined,
             };
           }
           return { ...el, x: nex, y: ney };
-        }),
-      );
+        });
+        localElementsRef.current = nextState;
+        return nextState;
+      });
     } else {
-      doResize(origEls[0], dpx, dpy, handleType);
+      doResize(origEls[0], dpx, dpy, handleType, e.shiftKey);
     }
   };
 
-  const doResize = (o: any, dpx: number, dpy: number, handle: string) => {
-    setElements((prev) =>
-      prev.map((el) => {
+  const doResize = (o: any, dpx: number, dpy: number, handle: string, shiftKey: boolean = false) => {
+    setLocalElements((prev) => {
+      const nextState = prev.map((el) => {
         if (el.id !== o.id) return el;
         const copy = { ...el } as any;
 
-        if (copy.element_type === "shape" && copy.shape_type === "line") {
+        if (copy.element_type === "shape" && (copy.shape_type === "line" || copy.shape_type === "arrow")) {
           if (handle === "start") {
             copy.x = o.x + dpx;
             copy.y = o.y + dpy;
@@ -260,6 +304,22 @@ export function EditorCanvas({
           } else if (handle === "bezier") {
             copy.control_x = (o.control_x ?? (o.x + o.x2) / 2) + dpx;
             copy.control_y = (o.control_y ?? (o.y + o.y2) / 2) + dpy;
+          }
+
+          if (shiftKey && (handle === "start" || handle === "end")) {
+            const dx = copy.x2 - copy.x;
+            const dy = copy.y2 - copy.y;
+            const angle = Math.atan2(dy, dx);
+            const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (handle === "end") {
+                copy.x2 = copy.x + Math.cos(snapAngle) * dist;
+                copy.y2 = copy.y + Math.sin(snapAngle) * dist;
+            } else {
+                copy.x = copy.x2 - Math.cos(snapAngle) * dist;
+                copy.y = copy.y2 - Math.sin(snapAngle) * dist;
+            }
           }
           return copy;
         }
@@ -308,12 +368,15 @@ export function EditorCanvas({
         copy.width = nw;
         copy.height = nh;
         return copy;
-      }),
-    );
+      });
+      localElementsRef.current = nextState;
+      return nextState;
+    });
   };
 
   const handlePointerUp = (e: ReactPointerEvent) => {
     if (action) {
+      setElements(localElementsRef.current);
       try {
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
       } catch {}
@@ -420,29 +483,36 @@ export function EditorCanvas({
         the page is centred even when zoomed out, but scrollable when zoomed in.
       */}
       <div
-        className="flex items-center justify-center"
+        className="flex flex-col items-center py-12 gap-12"
         style={{
           minWidth: "100%",
           minHeight: "100%",
-          // When zoomed in the page is bigger than the wrapper, so give
-          // the flex container enough room to hold it with padding.
-          width: scale !== null ? Math.max(pageWidth * scale + 32, 0) : "100%",
-          height:
-            scale !== null ? Math.max(pageHeight * scale + 32, 0) : "100%",
+          width: scale !== null ? Math.max(pageWidth * scale + 64, 0) : "100%",
         }}
       >
         {scale === null ? (
           <div style={{ width: pageWidth, height: pageHeight, opacity: 0 }} />
         ) : (
-          <div
-            className="bg-white shadow-2xl relative select-none flex-shrink-0"
-            onPointerDown={() => setSelectedIds([])}
-            style={{
-              width: pageWidth * scale,
-              height: pageHeight * scale,
-            }}
-          >
-            {elements.map((el) => {
+          pages.map((page) => {
+            const isActive = page.id === activePageId;
+            const pageElements = localElements.filter(el => pages.length === 1 || (el.page_id || pages[0].id) === page.id);
+            
+            return (
+              <div
+                key={page.id}
+                id={`page-${page.id}`}
+                className={`bg-white shadow-2xl relative select-none flex-shrink-0 transition-all overflow-hidden ${isActive ? 'ring-2 ring-teal-500 ring-offset-4 ring-offset-[#1e1e1e]' : 'opacity-90 hover:opacity-100'}`}
+                onPointerDown={() => {
+                  setActivePageId(page.id);
+                  setSelectedIds([]);
+                }}
+                onContextMenu={(e) => onContextMenu?.(e, null)}
+                style={{
+                  width: page.width * scale,
+                  height: page.height * scale,
+                }}
+              >
+                {pageElements.map((el) => {
               const isSel = selectedIds.includes(el.id);
               const baseStyle: React.CSSProperties = {
                 position: "absolute",
@@ -455,11 +525,17 @@ export function EditorCanvas({
 
               // ── TEXT ──────────────────────────────────────
               if (el.element_type === "text") {
+                const isEditing = editingTextId === el.id;
+
                 return (
                   <div
                     key={el.id}
-                    onPointerDown={(e) => startDrag(e, el)}
-                    className={`absolute cursor-move
+                    onPointerDown={(e) => {
+                      if (!isEditing) startDrag(e, el);
+                    }}
+                    onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
+                    onDoubleClick={() => setEditingTextId(el.id)}
+                    className={`absolute ${!isEditing ? "cursor-move" : ""}
                       ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                     style={{
                       ...baseStyle,
@@ -473,20 +549,73 @@ export function EditorCanvas({
                       fontFamily:
                         el.font_name || "Helvetica, Arial, sans-serif",
                       textDecorationLine: el.underline ? "underline" : "none",
-                      lineHeight: 1.4,
+                      lineHeight: el.line_height ?? 1.4,
+                      letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
                       whiteSpace: "normal",
                       wordBreak: "break-word",
                       overflowWrap: "anywhere",
                     }}
                   >
-                    <div
-                      style={{
-                        width: "100%",
-                        textAlign: (el as any).align || "left",
-                      }}
-                    >
-                      {el.text}
-                    </div>
+                    {isEditing ? (
+                      <textarea
+                        autoFocus
+                        defaultValue={el.text}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onBlur={(e) => {
+                          const newText = e.target.value;
+                          if (newText !== el.text) {
+                            onSnapshot();
+                            setElements((prev) =>
+                              prev.map((x) =>
+                                x.id === el.id ? ({ ...x, text: newText } as any) : x
+                              )
+                            );
+                          }
+                          setEditingTextId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setEditingTextId(null);
+                          }
+                        }}
+                        onChange={(e) => {
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        ref={(ref) => {
+                          if (ref) {
+                            ref.style.height = "auto";
+                            ref.style.height = `${ref.scrollHeight}px`;
+                          }
+                        }}
+                        style={{
+                          width: "100%",
+                          minHeight: "100%",
+                          background: "transparent",
+                          border: "none",
+                          outline: "none",
+                          resize: "none",
+                          color: "inherit",
+                          font: "inherit",
+                          padding: 0,
+                          margin: 0,
+                          textAlign: (el as any).align || "left",
+                          lineHeight: el.line_height ?? 1.4,
+                          letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          textAlign: (el as any).align || "left",
+                          lineHeight: el.line_height ?? 1.4,
+                          letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
+                        }}
+                      >
+                        {el.text}
+                      </div>
+                    )}
                     {renderHandles(el)}
                   </div>
                 );
@@ -499,6 +628,7 @@ export function EditorCanvas({
                     <div
                       key={el.id}
                       onPointerDown={(e) => startDrag(e, el)}
+                      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       className={`absolute cursor-move
                         ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                       style={{
@@ -511,6 +641,51 @@ export function EditorCanvas({
                       {renderHandles(el)}
                     </div>
                   );
+                }                if (el.shape_type === "path" || el.shape_type === "polygon") {
+                  return (
+                    <div
+                      key={el.id}
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: 0,
+                        bottom: 0,
+                        width: pageWidth * scale,
+                        height: pageHeight * scale,
+                        zIndex: el.z_index,
+                      }}
+                    >
+                      <svg
+                        className="w-full h-full overflow-visible"
+                        viewBox={`0 0 ${pageWidth} ${pageHeight}`}
+                        style={{ display: "block" }}
+                      >
+                        <g transform={`scale(1, -1) translate(${el.x || 0}, -${pageHeight - (el.y || 0)})`}>
+                          {el.shape_type === "path" && el.path_d && (
+                            <path
+                              className={`pointer-events-auto cursor-move ${isSel ? 'stroke-teal-500' : ''}`}
+                              onPointerDown={(e) => startDrag(e, el)}
+                              onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
+                              d={el.path_d}
+                              fill={el.fill_color || "transparent"}
+                              stroke={isSel ? "#14b8a6" : (el.border_color || "transparent")}
+                              strokeWidth={isSel ? Math.max((el.border_width || 0) + 2, 2) : (el.border_width || 0)}
+                            />
+                          )}
+                          {el.shape_type === "polygon" && el.points && (
+                            <polygon
+                              className={`pointer-events-auto cursor-move ${isSel ? 'stroke-teal-500' : ''}`}
+                              onPointerDown={(e) => startDrag(e, el)}
+                              onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
+                              points={Array.isArray(el.points) ? el.points.reduce((acc, val, i) => acc + (i % 2 === 0 ? val + "," : val + " "), "") : el.points}
+                              fill={el.fill_color || "transparent"}
+                              stroke={isSel ? "#14b8a6" : (el.border_color || "transparent")}
+                              strokeWidth={isSel ? Math.max((el.border_width || 0) + 2, 2) : (el.border_width || 0)}
+                            />
+                          )}
+                        </g>
+                      </svg>
+                    </div>
+                  );
                 }
 
                 if (el.shape_type === "circle") {
@@ -519,6 +694,7 @@ export function EditorCanvas({
                     <div
                       key={el.id}
                       onPointerDown={(e) => startDrag(e, el)}
+                      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       className={`absolute cursor-move rounded-full
                         ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                       style={{
@@ -560,6 +736,7 @@ export function EditorCanvas({
                     <div
                       key={el.id}
                       className="absolute"
+                      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       style={{
                         left: minX * scale,
                         bottom: minY * scale,
@@ -596,9 +773,9 @@ export function EditorCanvas({
                           <>
                             <path
                               d={`M ${px1} ${sy1} Q ${
-                                (el.control_x as number) * scale
+                                ((el.control_x as number) - minX) * scale
                               } ${
-                                (pageHeight - (el.control_y as number)) * scale
+                                bh * scale - ((el.control_y as number) - minY) * scale
                               } ${px2} ${sy2}`}
                               stroke="transparent"
                               strokeWidth={Math.max(
@@ -611,9 +788,9 @@ export function EditorCanvas({
                             />
                             <path
                               d={`M ${px1} ${sy1} Q ${
-                                (el.control_x as number) * scale
+                                ((el.control_x as number) - minX) * scale
                               } ${
-                                (pageHeight - (el.control_y as number)) * scale
+                                bh * scale - ((el.control_y as number) - minY) * scale
                               } ${px2} ${sy2}`}
                               stroke={
                                 isSel ? "#0d9488" : el.border_color || "#000"
@@ -678,18 +855,30 @@ export function EditorCanvas({
                           />
                           <div
                             onPointerDown={(e) => startResize(e, el, "bezier")}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setElements((prev) =>
+                                prev.map((x) =>
+                                  x.id === el.id
+                                    ? { ...x, control_x: undefined, control_y: undefined }
+                                    : x
+                                )
+                              );
+                              onSnapshot();
+                            }}
+                            title="Double-click to straighten line"
                             className="absolute bg-white border-2 border-teal-500 shadow-md z-50 cursor-crosshair rounded-full hover:bg-teal-50 touch-none"
                             style={{
                               width: HANDLE_SIZE,
                               height: HANDLE_SIZE,
                               left:
                                 (el.control_x !== undefined
-                                  ? el.control_x * scale
+                                  ? (el.control_x - minX) * scale
                                   : (px1 + px2) / 2) -
                                 HANDLE_SIZE / 2,
                               top:
                                 (el.control_y !== undefined
-                                  ? (pageHeight - el.control_y) * scale
+                                  ? bh * scale - (el.control_y - minY) * scale
                                   : (sy1 + sy2) / 2) -
                                 HANDLE_SIZE / 2,
                             }}
@@ -717,9 +906,15 @@ export function EditorCanvas({
                   <div
                     key={el.id}
                     onPointerDown={(e) => startDrag(e, el)}
-                    className={`absolute cursor-move overflow-hidden
+                    onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
+                    className={`absolute cursor-move
                       ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
-                    style={baseStyle}
+                    style={{
+                      ...baseStyle,
+                      opacity: el.opacity ?? 1,
+                      filter: el.shadow ? "drop-shadow(0px 4px 12px rgba(0,0,0,0.35))" : "none",
+                      transform: `rotate(${el.rotation || 0}deg)`,
+                    }}
                   >
                     {el.is_icon && el.icon_name ? (
                       (() => {
@@ -745,10 +940,11 @@ export function EditorCanvas({
                         alt=""
                         className="w-full h-full object-contain pointer-events-none"
                         style={{
+                          borderRadius: el.border_radius ? `${el.border_radius * scale}px` : undefined,
                           clipPath:
                             el.mask_shape === "circle"
                               ? "circle(50% at 50% 50%)"
-                              : el.mask_shape === "rounded"
+                              : el.mask_shape === "rounded" && !el.border_radius
                                 ? "inset(0 0 0 0 round 15px)"
                                 : el.mask_shape === "heart"
                                   ? "path('M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.41,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.59,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z')"
@@ -808,6 +1004,8 @@ export function EditorCanvas({
               />
             ))}
           </div>
+            );
+          })
         )}
       </div>
     </div>

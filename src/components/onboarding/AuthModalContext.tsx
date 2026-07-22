@@ -1,8 +1,15 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
+export interface AuthModalConfig {
+  title?: string;
+  subtitle?: string;
+  showBlankOption?: boolean;
+}
+
 type AuthModalContextType = {
   isOpen: boolean;
-  openModal: () => void;
+  config?: AuthModalConfig;
+  openModal: (config?: AuthModalConfig) => void;
   closeModal: () => void;
 };
 
@@ -10,11 +17,17 @@ const AuthModalContext = createContext<AuthModalContextType | undefined>(undefin
 
 export function AuthModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const openModal = () => setIsOpen(true);
+  const [config, setConfig] = useState<AuthModalConfig | undefined>(undefined);
+
+  const openModal = (newConfig?: AuthModalConfig) => {
+    setConfig(newConfig);
+    setIsOpen(true);
+  };
+  
   const closeModal = () => setIsOpen(false);
 
   return (
-    <AuthModalContext.Provider value={{ isOpen, openModal, closeModal }}>
+    <AuthModalContext.Provider value={{ isOpen, config, openModal, closeModal }}>
       {children}
     </AuthModalContext.Provider>
   );

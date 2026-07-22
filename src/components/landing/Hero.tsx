@@ -1,117 +1,296 @@
-import { ArrowRight, Sparkles, FileText, Wand2, Briefcase } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, Upload, ChevronRight, Wand2, Cpu, Zap, Activity, CheckCircle2, Layout, Layers, ShieldCheck } from 'lucide-react';
+import { useAuthModal } from '../onboarding/AuthModalContext';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export function Hero() {
+  const { openModal } = useAuthModal();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'architect' | 'import' | 'canvas' | 'assistant' | 'pdf'>('architect');
+
+  const handleCTA = () => {
+    if (user) {
+      navigate('/build');
+    } else {
+      openModal({ title: "Log In to Build Your Resume" });
+    }
+  };
 
   return (
-    <div className="relative border-b border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950 transition-colors duration-300 pt-24 pb-32">
-      {/* Background decoration */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-teal-500/10 dark:bg-teal-500/20 blur-3xl rounded-full mix-blend-multiply dark:mix-blend-screen opacity-70 animate-blob" />
-        <div
-          className="absolute top-48 -right-24 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/20 blur-3xl rounded-full mix-blend-multiply dark:mix-blend-screen opacity-70 animate-blob"
-          style={{ animationDelay: "2s" }}
-        />
-        <div
-          className="absolute -bottom-24 left-1/2 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/20 blur-3xl rounded-full mix-blend-multiply dark:mix-blend-screen opacity-70 animate-blob"
-          style={{ animationDelay: "4s" }}
-        />
+    <section className="relative pt-32 pb-20 md:pt-44 md:pb-28 overflow-hidden flex flex-col items-center justify-center min-h-[92vh]">
+      {/* Dynamic Ambient Background Glows */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-brand-primary/20 rounded-full blur-[140px] opacity-60 dark:opacity-45 animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-brand-accent/20 rounded-full blur-[120px] opacity-40 dark:opacity-30"></div>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="lg:grid lg:grid-cols-12 lg:gap-16 items-center">
-          <div className="md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left text-center">
-            <div className="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold text-teal-600 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-400 mb-6 ring-1 ring-inset ring-teal-600/20 dark:ring-teal-400/20">
-              <Sparkles className="mr-2 h-4 w-4" />
-              AI-Powered Resume Builder
-            </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
-              <span className="block xl:inline">Land your dream job with</span>{" "}
-              <span className="block text-transparent bg-clip-text bg-linear-to-r from-teal-600 to-cyan-500 dark:from-teal-400 dark:to-cyan-300 pb-2">
-                ResuMagic.AI
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div className="text-center max-w-4xl mx-auto">
+          {/* Badge */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs md:text-sm font-bold mb-8 shadow-sm"
+          >
+            <Sparkles className="w-4 h-4 text-brand-primary animate-spin-slow" />
+            <span>AI-Powered Resume Studio & ATS Optimization</span>
+          </motion.div>
+
+          {/* Main Headline */}
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-5xl md:text-7xl font-black tracking-tight text-app-text mb-8 leading-[1.08]"
+          >
+            Create High-Impact Resumes <br className="hidden md:block" />
+            <span className="text-gradient">That Land Top Interviews</span>
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-lg md:text-xl text-app-text-secondary mb-10 max-w-3xl mx-auto leading-relaxed"
+          >
+            Intelligent career content generation, instant LinkedIn & PDF resume import, visual drag-and-drop design customization, and 99%+ ATS pass rates.
+          </motion.p>
+
+          {/* CTA Buttons */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+          >
+            <button 
+              onClick={handleCTA}
+              className="relative group px-8 py-4 rounded-2xl font-bold text-white overflow-hidden w-full sm:w-auto shadow-xl shadow-brand-primary/25 hover:shadow-brand-primary/40 transition-all hover:scale-[1.02]"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-accent"></div>
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <span className="relative flex items-center justify-center gap-2 text-lg">
+                Create Your Resume Now
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
-            </h1>
-            <p className="mt-6 text-lg text-slate-600 dark:text-slate-300 sm:max-w-xl mx-auto lg:mx-0">
-              Create professional, ATS-optimized resumes in minutes. Let our AI
-              write compelling bullet points, format flawlessly, and help you
-              stand out to top employers.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <button
-                onClick={() => navigate("/login")}
-                className="inline-flex items-center justify-center rounded-full border border-transparent bg-slate-900 px-8 py-3.5 text-base font-medium text-white shadow-sm hover:bg-slate-800 dark:bg-teal-500 dark:hover:bg-teal-600 transition-all focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 dark:focus:ring-teal-500 hover:scale-105 cursor-pointer"
-              >
-                Start Building Free
-                <ArrowRight className="ml-2 -mr-1 h-5 w-5" />
-              </button>
-              <a
-                href="#features"
-                className="inline-flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-8 py-3.5 text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
-              >
-                See Features
-              </a>
-            </div>
-            <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-              No credit card required. Build your first resume free.
-            </p>
+            </button>
 
-            <div className="mt-8 flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-500 dark:text-slate-400 font-medium">
-              <span>Powered by</span>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800/50 ring-1 ring-slate-200 dark:ring-slate-700/50">
-                <Sparkles className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                <span className="font-bold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-violet-600 dark:from-blue-400 dark:to-violet-400">
-                  Gemini
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-20 lg:mt-0 lg:col-span-6 relative hidden md:block">
-            {/* Beautiful abstract visual using lucide icons as art */}
-            <div className="relative mx-auto w-full rounded-2xl shadow-2xl lg:max-w-md ring-1 ring-slate-200 dark:ring-slate-800 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl aspect-square overflow-hidden flex items-center justify-center">
-              {/* Grid Pattern */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-size-[1rem_1rem] mask-[radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] opacity-50" />
-
-              {/* Floating elements */}
-              <div
-                className="absolute top-1/4 left-1/4 animate-bounce"
-                style={{ animationDuration: "3s" }}
-              >
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 hover:scale-110 transition-transform cursor-pointer">
-                  <FileText className="w-10 h-10 text-teal-500" />
-                </div>
-              </div>
-
-              <div
-                className="absolute bottom-1/3 right-1/4 animate-bounce"
-                style={{ animationDuration: "4s", animationDelay: "1s" }}
-              >
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 hover:scale-110 transition-transform cursor-pointer">
-                  <Wand2 className="w-12 h-12 text-cyan-500" />
-                </div>
-              </div>
-
-              <div
-                className="absolute top-1/2 left-3/4 transform -translate-x-1/2 -translate-y-1/2 animate-bounce"
-                style={{ animationDuration: "3.5s", animationDelay: "0.5s" }}
-              >
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 hover:scale-110 transition-transform cursor-pointer">
-                  <Briefcase className="w-8 h-8 text-emerald-500" />
-                </div>
-              </div>
-
-              {/* Central Focus Circle */}
-              <div className="w-48 h-48 rounded-full border border-teal-200 dark:border-teal-900/50 absolute flex items-center justify-center shadow-inner">
-                <div className="w-32 h-32 rounded-full border border-cyan-200 dark:border-cyan-900/50 absolute z-0" />
-                <div className="w-16 h-16 rounded-full bg-linear-to-tr from-teal-400 to-cyan-400 dark:from-teal-500 dark:to-cyan-500 flex items-center justify-center z-10 shadow-lg glow">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
+            <button
+              onClick={handleCTA}
+              className="px-8 py-4 rounded-2xl font-bold text-app-text bg-app-surface border border-app-border shadow-sm hover:border-brand-primary/50 transition-all w-full sm:w-auto flex items-center justify-center gap-2 hover:scale-[1.02]"
+            >
+              <Upload className="w-5 h-5 text-brand-primary" />
+              Import Existing PDF
+            </button>
+          </motion.div>
         </div>
+
+        {/* Live Interactive Feature Mockup Showcase */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.4 }}
+          className="max-w-5xl mx-auto glass-card rounded-3xl border border-app-border shadow-2xl overflow-hidden bg-app-surface/90"
+        >
+          {/* Feature Tabs */}
+          <div className="flex items-center justify-between border-b border-app-border bg-app-bg/50 px-4 pt-3 overflow-x-auto scrollbar-none gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActiveTab('architect')}
+                className={`px-4 py-2.5 rounded-t-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border-b-2 ${
+                  activeTab === 'architect'
+                    ? 'border-brand-primary text-brand-primary bg-app-surface'
+                    : 'border-transparent text-app-text-muted hover:text-app-text'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" /> AI Content Builder
+              </button>
+              <button
+                onClick={() => setActiveTab('import')}
+                className={`px-4 py-2.5 rounded-t-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border-b-2 ${
+                  activeTab === 'import'
+                    ? 'border-brand-primary text-brand-primary bg-app-surface'
+                    : 'border-transparent text-app-text-muted hover:text-app-text'
+                }`}
+              >
+                <Upload className="w-4 h-4" /> Resume PDF Importer
+              </button>
+              <button
+                onClick={() => setActiveTab('canvas')}
+                className={`px-4 py-2.5 rounded-t-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border-b-2 ${
+                  activeTab === 'canvas'
+                    ? 'border-brand-primary text-brand-primary bg-app-surface'
+                    : 'border-transparent text-app-text-muted hover:text-app-text'
+                }`}
+              >
+                <Layout className="w-4 h-4" /> Visual Layout Editor
+              </button>
+              <button
+                onClick={() => setActiveTab('assistant')}
+                className={`px-4 py-2.5 rounded-t-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border-b-2 ${
+                  activeTab === 'assistant'
+                    ? 'border-brand-primary text-brand-primary bg-app-surface'
+                    : 'border-transparent text-app-text-muted hover:text-app-text'
+                }`}
+              >
+                <Wand2 className="w-4 h-4" /> Smart Career Assistant
+              </button>
+              <button
+                onClick={() => setActiveTab('pdf')}
+                className={`px-4 py-2.5 rounded-t-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border-b-2 ${
+                  activeTab === 'pdf'
+                    ? 'border-brand-primary text-brand-primary bg-app-surface'
+                    : 'border-transparent text-app-text-muted hover:text-app-text'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" /> ATS Optimization
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content Display */}
+          <div className="p-6 md:p-10 min-h-[360px] flex items-center justify-center relative bg-app-bg/40">
+            <AnimatePresence mode="wait">
+              {activeTab === 'architect' && (
+                <motion.div
+                  key="architect"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 items-center"
+                >
+                  <div className="space-y-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-brand-primary/10 text-brand-primary inline-flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> Intelligent Section Synthesis
+                    </span>
+                    <h3 className="text-2xl font-black text-app-text">Automated Resume Generation</h3>
+                    <p className="text-xs text-app-text-secondary leading-relaxed">
+                      Transform your job title and background into custom structured sections, quantifiable achievement metrics, and executive summaries.
+                    </p>
+                    <div className="p-3 rounded-xl bg-app-surface border border-app-border text-xs space-y-1 text-brand-primary font-semibold">
+                      <div>✓ Professional Summary Generated</div>
+                      <div>✓ Work History & Key Achievements Formatted</div>
+                      <div>✓ Technical & Soft Skills Categorized</div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-2xl bg-app-surface border border-app-border shadow-lg space-y-3 text-xs text-app-text-secondary">
+                    <div className="text-teal-500 font-bold text-sm">Generated Resume Preview</div>
+                    <div className="p-4 rounded-xl bg-app-bg border border-app-border space-y-2">
+                      <div className="font-bold text-app-text text-sm">Senior Full Stack Engineer</div>
+                      <p className="text-app-text-secondary leading-relaxed">
+                        Led cloud infrastructure migration reducing system response times by 84% and scaling architecture to support 2M+ active users.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'import' && (
+                <motion.div
+                  key="import"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full text-center space-y-6 max-w-xl mx-auto"
+                >
+                  <div className="p-8 rounded-3xl border-2 border-dashed border-brand-primary/40 bg-brand-primary/5 flex flex-col items-center justify-center">
+                    <Upload className="w-12 h-12 text-brand-primary mb-3" />
+                    <h4 className="font-bold text-lg text-app-text mb-1">Instant Resume Import</h4>
+                    <p className="text-xs text-app-text-secondary max-w-md">
+                      Upload your existing PDF or LinkedIn resume to instantly extract work experience, skills, and contact details into your editable layout.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'canvas' && (
+                <motion.div
+                  key="canvas"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full space-y-4"
+                >
+                  <div className="flex items-center justify-between text-xs font-bold text-app-text-muted pb-2 border-b border-app-border">
+                    <span>VISUAL CANVAS EDITOR</span>
+                    <span className="text-teal-500">What You See Is What You Export</span>
+                  </div>
+                  <div className="h-56 rounded-2xl bg-app-surface border border-app-border p-6 flex flex-col justify-between shadow-inner">
+                    <div className="flex items-center justify-between">
+                      <div className="h-6 w-48 bg-brand-primary/20 rounded-md"></div>
+                      <div className="h-4 w-24 bg-brand-accent/20 rounded-md"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-3 w-full bg-app-border rounded"></div>
+                      <div className="h-3 w-5/6 bg-app-border rounded"></div>
+                      <div className="h-3 w-4/6 bg-app-border rounded"></div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded bg-brand-primary/10 text-brand-primary text-xs font-bold">Drag & Drop Positioning</span>
+                      <span className="px-2.5 py-1 rounded bg-brand-primary/10 text-brand-primary text-xs font-bold">Multi-Page Support</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'assistant' && (
+                <motion.div
+                  key="assistant"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full max-w-lg mx-auto p-5 rounded-2xl bg-app-surface border border-app-border shadow-xl space-y-4"
+                >
+                  <div className="flex items-center gap-3 text-sm font-bold text-app-text">
+                    <Wand2 className="w-5 h-5 text-brand-primary" />
+                    AI Assistant Recommendation
+                  </div>
+                  <p className="text-xs text-app-text-secondary leading-relaxed bg-app-bg p-3 rounded-xl border border-app-border">
+                    "Architected microservice caching layer, reducing p99 response times by 84% with zero downtime."
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={handleCTA} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-brand-primary text-white">Apply Bullet Point</button>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'pdf' && (
+                <motion.div
+                  key="pdf"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  className="w-full grid grid-cols-1 md:grid-cols-3 gap-4"
+                >
+                  <div className="p-5 rounded-xl bg-app-surface border border-app-border text-center">
+                    <Zap className="w-6 h-6 text-brand-primary mx-auto mb-2" />
+                    <div className="text-xl font-black text-app-text">Instant Export</div>
+                    <div className="text-xs text-app-text-muted mt-1">High-Resolution PDF Downloads</div>
+                  </div>
+                  <div className="p-5 rounded-xl bg-app-surface border border-app-border text-center">
+                    <ShieldCheck className="w-6 h-6 text-brand-accent mx-auto mb-2" />
+                    <div className="text-xl font-black text-app-text">99.4% Pass Rate</div>
+                    <div className="text-xs text-app-text-muted mt-1">ATS Scanner Compliance</div>
+                  </div>
+                  <div className="p-5 rounded-xl bg-app-surface border border-app-border text-center">
+                    <CheckCircle2 className="w-6 h-6 text-teal-500 mx-auto mb-2" />
+                    <div className="text-xl font-black text-app-text">Perfect Layout</div>
+                    <div className="text-xs text-app-text-muted mt-1">Clean Vector Printing</div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </section>
   );
 }
+
+export default Hero;

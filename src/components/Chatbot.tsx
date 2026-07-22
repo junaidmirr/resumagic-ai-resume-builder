@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, Sparkles, X } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, X, Copy, Check, Square } from "lucide-react";
 import type { EditorElement } from "../types/editor";
 import { useAuth } from "../context/AuthContext";
+import { useDialog } from "../context/DialogContext";
 
 interface ChatbotProps {
   elements?: EditorElement[];
@@ -9,8 +10,10 @@ interface ChatbotProps {
 }
 
 export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
-  const { user, refreshCredits } = useAuth();
+  const { user, refreshCredits, deductCredits } = useAuth();
+  const { alert } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [messages, setMessages] = useState<
     { role: "user" | "bot"; text: string; isSystem?: boolean }[]
   >([
@@ -25,26 +28,55 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
     null,
   );
   const endRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, stage]);
 
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoading(false);
+    setStage(null);
+    setMessages((p) => [
+      ...p,
+      {
+        role: "bot",
+        text: "Task cancelled.",
+      },
+    ]);
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
     const userMsg = input.trim();
+    
+    // Check credits before processing
+    const success = await deductCredits(10);
+    if (!success) {
+      alert("Insufficient credits. Please recharge.");
+      return;
+    }
+
     setMessages((p) => [...p, { role: "user", text: userMsg }]);
     setInput("");
     setLoading(true);
     setStage("Planning...");
 
+    abortControllerRef.current = new AbortController();
+
     try {
       // Call our backend Architect which has the 2-stage planning logic
       const resp = await fetch("/api/ai-chat-edit", {
         method: "POST",
+        signal: abortControllerRef.current.signal,
         headers: {
           "Content-Type": "application/json",
           "X-User-ID": user?.uid || "",
+          "X-Skip-Credit-Check": "true"
         },
         body: JSON.stringify({
           elements,
@@ -83,17 +115,24 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         ]);
       }
     } catch (err: any) {
-      console.error("AI Architect Error:", err);
-      setMessages((p) => [
-        ...p,
-        {
-          role: "bot",
-          text: `Error: ${err.message || "Failed to connect to the AI Architect. Is the backend running?"}`,
-        },
-      ]);
+      if (err.name === "AbortError") {
+        console.log("AI Architect request aborted");
+      } else {
+        console.error("AI Architect Error:", err);
+        setMessages((p) => [
+          ...p,
+          {
+            role: "bot",
+            text: `Error: ${err.message || "Failed to connect to the AI Architect. Is the backend running?"}`,
+          },
+        ]);
+      }
     } finally {
-      setLoading(false);
-      setStage(null);
+      if (abortControllerRef.current) {
+        setLoading(false);
+        setStage(null);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -112,15 +151,15 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-[90vw] sm:w-[420px] flex flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] transition-all border-teal-500/20">
-      <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+    <div className="fixed bottom-6 right-6 w-[90vw] sm:w-[420px] flex flex-col bg-app-bg rounded-2xl shadow-2xl border border-app-border overflow-hidden z-[100] transition-all">
+      <div className="flex items-center justify-between p-4 border-b border-app-border bg-app-surface/50">
+        <div className="flex items-center gap-2 text-app-text">
           <Sparkles size={20} className="text-teal-500 animate-pulse" />
           <h3 className="font-semibold text-sm">AI Editor Architect</h3>
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+          className="text-app-text-muted hover:text-app-text transition-colors p-1 rounded-md hover:bg-app-surface"
         >
           <X size={18} />
         </button>
@@ -133,16 +172,29 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
             className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
           >
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${m.role === "user" ? "bg-teal-100 text-teal-600" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300"}`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${m.role === "user" ? "bg-teal-100 text-teal-600" : "bg-app-surface text-app-text-muted"}`}
             >
               {m.role === "user" ? <User size={14} /> : <Bot size={14} />}
             </div>
             <div
-              className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm ${m.role === "user" ? "bg-teal-500 text-white rounded-tr-none" : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-100 dark:border-slate-700 rounded-tl-none"}`}
+              className={`p-3 rounded-2xl max-w-[85%] text-sm shadow-sm relative group ${m.role === "user" ? "bg-teal-500 text-white rounded-tr-none" : "bg-app-surface text-app-text border border-app-border rounded-tl-none"}`}
             >
               <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap leading-relaxed">
                 {m.text}
               </div>
+              {m.role === "bot" && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(m.text);
+                    setCopiedIndex(i);
+                    setTimeout(() => setCopiedIndex(null), 2000);
+                  }}
+                  className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors"
+                >
+                  {copiedIndex === i ? <Check size={12} className="text-teal-500" /> : <Copy size={12} />}
+                  {copiedIndex === i ? "Copied!" : "Copy block"}
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -162,26 +214,37 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         <div ref={endRef} />
       </div>
 
-      <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded-xl p-1 pr-1.5 border border-slate-200 dark:border-slate-700 focus-within:ring-2 ring-teal-500/50 transition-all">
+      <div className="p-4 border-t border-app-border bg-app-bg">
+        <div className="flex items-center gap-2 bg-app-surface rounded-xl p-1 pr-1.5 border border-app-border focus-within:ring-2 ring-teal-500/50 transition-all">
           <input
             type="text"
-            className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400"
+            className="flex-1 bg-transparent px-3 py-2.5 text-sm outline-none text-app-text placeholder:text-app-text-muted"
             placeholder="Tell me what to redesign..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             disabled={loading}
           />
-          <button
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            className="p-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 disabled:text-slate-500 text-white rounded-lg transition-all flex items-center justify-center shadow-lg active:scale-95"
-          >
-            <Send size={16} />
-          </button>
+          {loading ? (
+            <button
+              onClick={handleCancel}
+              className="p-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg transition-all flex items-center justify-center shadow-lg active:scale-95"
+              title="Cancel request"
+            >
+              <Square size={16} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="p-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-500 text-white rounded-lg transition-all flex items-center justify-center shadow-lg active:scale-95"
+              title="Send"
+            >
+              <Send size={16} />
+            </button>
+          )}
         </div>
-        <p className="mt-2 text-[10px] text-center text-slate-400">
+        <p className="mt-2 text-[10px] text-center text-app-text-muted">
           AI Architect will mathematically plan and execute designs live on your
           canvas.
         </p>

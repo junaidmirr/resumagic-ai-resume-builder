@@ -1,81 +1,108 @@
-import { Bot, CheckCircle2, Layout, FileSearch, Zap, Share2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Bot, FileEdit, Zap, Layout, Search, Sparkles, Cpu, Upload, Layers, CheckCircle2 } from 'lucide-react';
 
 const features = [
   {
-    name: 'AI-Powered Writing',
-    description: 'Overcome writer\'s block. Our AI generates impactful bullet points tailored to your industry and role.',
-    icon: Bot,
-    color: 'text-indigo-500 dark:text-indigo-400',
-    bgColor: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+    icon: <Sparkles className="w-6 h-6" />,
+    title: "AI Resume Architect",
+    description: "Generate professionally formatted resume drafts instantly. Type your job title and background to create tailored summary sections and achievement bullet points.",
+    color: "from-brand-primary/20 text-brand-primary"
   },
   {
-    name: 'ATS-Friendly Templates',
-    description: 'Our beautifully designed templates are rigorously tested to pass Applicant Tracking Systems.',
-    icon: Layout,
-    color: 'text-teal-500 dark:text-teal-400',
-    bgColor: 'bg-teal-500/10 dark:bg-teal-500/20',
+    icon: <Upload className="w-6 h-6" />,
+    title: "Resume & LinkedIn PDF Importer",
+    description: "Upload existing PDF resumes or LinkedIn profiles to extract work experience, skills, and education into editable design elements automatically.",
+    color: "from-brand-accent/20 text-brand-accent"
   },
   {
-    name: 'Keyword Optimization',
-    description: 'Analyze job descriptions and automatically insert the missing keywords to get you noticed.',
-    icon: FileSearch,
-    color: 'text-cyan-500 dark:text-cyan-400',
-    bgColor: 'bg-cyan-500/10 dark:bg-cyan-500/20',
+    icon: <Layout className="w-6 h-6" />,
+    title: "Visual Drag-and-Drop Editor",
+    description: "Interactive canvas editor with drag-and-drop element positioning, custom font controls, multi-page support, and full undo/redo stack.",
+    color: "from-brand-secondary/20 text-brand-secondary"
   },
   {
-    name: 'Lightning Fast',
-    description: 'Go from blank page to a hired-ready resume in less than 15 minutes with our intelligent wizard.',
-    icon: Zap,
-    color: 'text-emerald-500 dark:text-emerald-400',
-    bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/20',
+    icon: <Bot className="w-6 h-6" />,
+    title: "Smart Career Assistant",
+    description: "Integrated AI writing coach that enhances bullet points into STAR-format achievements, polishes executive summaries, and checks grammar.",
+    color: "from-teal-500/20 text-teal-500"
   },
   {
-    name: 'Real-time Analytics',
-    description: 'Get an instant score on your resume\'s strength, readability, and impact as you build it.',
-    icon: CheckCircle2,
-    color: 'text-blue-500 dark:text-blue-400',
-    bgColor: 'bg-blue-500/10 dark:bg-blue-500/20',
+    icon: <CheckCircle2 className="w-6 h-6" />,
+    title: "99%+ ATS Score Optimization",
+    description: "Built-in ATS scanner validation ensuring your resume structure, keyword density, and formatting pass recruiter screening systems flawlessly.",
+    color: "from-purple-500/20 text-purple-500"
   },
   {
-    name: 'Easy Export & Share',
-    description: 'Download as a pixel-perfect PDF, or share a live web link directly with recruiters and managers.',
-    icon: Share2,
-    color: 'text-violet-500 dark:text-violet-400',
-    bgColor: 'bg-violet-500/10 dark:bg-violet-500/20',
-  },
+    icon: <Layers className="w-6 h-6" />,
+    title: "20+ Professional Design Templates",
+    description: "Choose from modern, minimal, executive, and creative theme presets designed to make a memorable impression.",
+    color: "from-pink-500/20 text-pink-500"
+  }
 ];
 
 export function Features() {
   return (
-    <div id="features" className="py-24 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-base font-semibold leading-7 text-teal-600 dark:text-teal-400">Build Better, Faster</h2>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl">
-            Everything you need to land the interview
-          </p>
-          <p className="mt-6 text-lg leading-8 text-slate-600 dark:text-slate-300">
-            ResuMagic.AI combines beautiful design with powerful artificial intelligence to give you an unfair advantage in the job market.
-          </p>
+    <section id="features" className="py-24 bg-app-surface border-y border-app-border relative overflow-hidden">
+      {/* Background blobs */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-app-border bg-app-bg text-app-text-secondary text-sm font-semibold mb-6"
+          >
+            <Zap className="w-4 h-4 text-brand-warning" />
+            <span>Complete Resume Platform</span>
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-3xl md:text-5xl font-extrabold text-app-text mb-6"
+          >
+            Everything Needed to Build Winning Resumes
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="text-lg text-app-text-secondary"
+          >
+            An intelligent suite of career writing tools, visual design controls, and ATS optimization.
+          </motion.p>
         </div>
-        <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-          <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-            {features.map((feature) => (
-              <div key={feature.name} className="flex flex-col bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                <dt className="flex items-center gap-x-4 text-lg font-semibold leading-7 text-slate-900 dark:text-white">
-                  <div className={`rounded-xl p-3 ${feature.bgColor} transition-transform duration-300 group-hover:scale-110`}>
-                    <feature.icon className={`h-6 w-6 ${feature.color}`} aria-hidden="true" />
-                  </div>
-                  {feature.name}
-                </dt>
-                <dd className="mt-6 flex flex-auto flex-col text-base leading-7 text-slate-600 dark:text-slate-400">
-                  <p className="flex-auto">{feature.description}</p>
-                </dd>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {features.map((feature, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ delay: index * 0.1, duration: 0.5 }}
+              className="group glass-card p-8 rounded-3xl hover-lift relative overflow-hidden border border-app-border hover:border-brand-primary/40 transition-all"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.color} border border-app-border flex items-center justify-center mb-6 shadow-sm`}>
+                {feature.icon}
               </div>
-            ))}
-          </dl>
+              <h3 className="text-xl font-bold text-app-text mb-3">{feature.title}</h3>
+              <p className="text-sm text-app-text-secondary leading-relaxed">
+                {feature.description}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
+
+export default Features;

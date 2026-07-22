@@ -5,20 +5,29 @@ import {
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
   type User,
 } from "firebase/auth";
-import { auth, googleProvider } from "../lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, googleProvider, db } from "../lib/firebase";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAdmin: boolean;
+  claimedSignupCredits: boolean;
   login: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
-  signup: (email: string, pass: string) => Promise<void>;
+  signup: (email: string, pass: string, name?: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
+  claimSignupCredits: () => Promise<boolean>;
   verifyAccount: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
   credits: number;
   refreshCredits: () => Promise<void>;
+  deductCredits: (amount: number) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,30 +36,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<number>(0);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [claimedSignupCredits, setClaimedSignupCredits] = useState<boolean>(false);
+
+  const initUserInDB = async (uid: string, email: string | null, name: string | null) => {
+    try {
+      const userRef = doc(db, "users", uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          email: email || "",
+          name: name || "",
+          credits: 0,
+          claimedSignupCredits: false,
+          admin: false,
+          createdAt: serverTimestamp(),
+        });
+        console.log("[Auth] User initialized in Firestore with 0 credits.");
+      }
+    } catch (error) {
+      console.error("[Auth] Error initializing user in DB:", error);
+    }
+  };
 
   const refreshCredits = async () => {
     if (!auth.currentUser) return;
     try {
-      const response = await fetch("/api/user/credits", {
-        headers: { "X-User-ID": auth.currentUser.uid },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits);
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        setCredits(data.credits || 0);
+        setIsAdmin(!!data.admin);
+        setClaimedSignupCredits(!!data.claimedSignupCredits);
       }
     } catch (error) {
       console.error("[Auth] Failed to refresh credits:", error);
     }
   };
 
+  const claimSignupCredits = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    try {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (!data.claimedSignupCredits) {
+          const newCredits = (data.credits || 0) + 50;
+          await setDoc(userRef, { credits: newCredits, claimedSignupCredits: true }, { merge: true });
+          setCredits(newCredits);
+          setClaimedSignupCredits(true);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("[Auth] Failed to claim signup credits:", error);
+      return false;
+    }
+  };
+
+  const deductCredits = async (amount: number): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    try {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const currentCredits = snap.data().credits || 0;
+        if (currentCredits >= amount) {
+          await setDoc(userRef, { credits: currentCredits - amount }, { merge: true });
+          setCredits(currentCredits - amount);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("[Auth] Failed to deduct credits:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
-    console.log("[Auth] Setting up onAuthStateChanged listener...");
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("[Auth] State changed. User:", user ? user.email : "none");
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
       if (user) {
-        refreshCredits();
+        await refreshCredits();
       } else {
         setCredits(0);
       }
@@ -60,7 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      await initUserInDB(result.user.uid, result.user.email, result.user.displayName);
+      await refreshCredits();
     } catch (error) {
       console.error("Login Error:", error);
       throw error;
@@ -76,21 +150,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       const user = userCredential.user;
 
-      // Relax email verification - we no longer block login
-      // We will show a notice in the Profile/Dashboard instead
       if (!user.emailVerified) {
         console.log("[Auth] User logged in but email is unverified.");
       }
+      await refreshCredits();
     } catch (error) {
       console.error("Login Error:", error);
       throw error;
     }
   };
 
-  const signup = async (email: string, pass: string) => {
+  const signup = async (email: string, pass: string, name?: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, pass);
-      // Call our backend to send the Mailjet verification code
+      const result = await createUserWithEmailAndPassword(auth, email, pass);
+      await initUserInDB(result.user.uid, email, name || "");
+      await refreshCredits();
+
+      // Trigger official Firebase Email Verification
+      try {
+        await sendEmailVerification(result.user);
+        console.log("[Auth] Firebase verification email sent to", email);
+      } catch (e) {
+        console.warn("[Auth] Firebase verification email warning:", e);
+      }
+
+      // Call backend verification OTP as fallback
       await fetch("/api/auth/send-verification-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,6 +182,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error("Signup Error:", error);
+      throw error;
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      console.log("[Auth] Firebase password reset email sent to", email);
+    } catch (error) {
+      console.error("Password Reset Error:", error);
+      throw error;
+    }
+  };
+
+  const sendVerificationEmail = async () => {
+    try {
+      if (auth.currentUser) {
+        await sendEmailVerification(auth.currentUser);
+        console.log("[Auth] Firebase verification email resent.");
+      } else {
+        throw new Error("No authenticated user found.");
+      }
+    } catch (error) {
+      console.error("Verification Email Error:", error);
       throw error;
     }
   };
@@ -120,6 +228,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await signOut(auth);
+      localStorage.clear();
+      sessionStorage.clear();
+      // Hard redirect to landing page to fully reset all React state
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout Error:", error);
       throw error;
@@ -131,16 +243,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        isAdmin,
+        claimedSignupCredits,
         login,
         loginWithEmail,
         signup,
+        resetPassword,
+        sendVerificationEmail,
+        claimSignupCredits,
         verifyAccount,
         logout,
         credits,
         refreshCredits,
+        deductCredits,
       }}
     >
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

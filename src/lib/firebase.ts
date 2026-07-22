@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 
 // These values must be provided in your .env file
 const firebaseConfig = {
@@ -12,19 +13,16 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-console.log("[Firebase] Config loaded:", {
-  hasApiKey: !!firebaseConfig.apiKey,
-  hasProjectId: !!firebaseConfig.projectId
-});
-
 let app;
 try {
   app = initializeApp(firebaseConfig);
-  console.log("[Firebase] Initialized successfully");
 } catch (error) {
   console.error("[Firebase] Initialization failed:", error);
 }
 
 export const auth = getAuth(app!);
 export const db = getFirestore(app!);
+export const rtdb = getDatabase(app!);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+

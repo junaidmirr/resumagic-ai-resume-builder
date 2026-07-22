@@ -104,7 +104,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500">
+    <div className="min-h-screen bg-app-bg transition-colors duration-500">
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-teal-500/10 dark:bg-teal-500/5 blur-[120px] rounded-full animate-pulse" />
@@ -116,15 +116,15 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-8">
           <Link
             to="/dashboard"
-            className="group flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors font-medium"
+            className="group flex items-center gap-2 text-app-text-muted hover:text-teal-600 dark:hover:text-teal-400 transition-colors font-medium"
           >
-            <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 group-hover:border-teal-500/30 transition-all shadow-sm">
+            <div className="p-2 rounded-xl bg-app-surface border border-app-border group-hover:border-teal-500/30 transition-all shadow-sm">
               <ChevronLeft size={20} />
             </div>
             Back to Dashboard
           </Link>
           <div className="flex items-center gap-3">
-            <button className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-teal-600 transition-all shadow-sm">
+            <button className="p-2.5 rounded-xl bg-app-surface border border-app-border text-slate-500 hover:text-teal-600 transition-all shadow-sm">
               <Settings size={20} />
             </button>
           </div>
@@ -133,7 +133,7 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Profile Card */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-8">
+            <div className="relative overflow-hidden bg-app-surface rounded-[2rem] border border-app-border shadow-xl shadow-slate-200/50 dark:shadow-none p-8">
               <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-teal-500 to-indigo-600 opacity-10" />
               <div className="relative flex flex-col items-center">
                 <div className="relative group">
@@ -143,19 +143,19 @@ export default function ProfilePage() {
                   <div className="absolute -inset-1 bg-gradient-to-tr from-teal-400 to-indigo-400 rounded-[1.75rem] blur opacity-20 group-hover:opacity-40 transition duration-500" />
                 </div>
 
-                <h2 className="mt-6 text-xl font-bold text-slate-900 dark:text-white text-center truncate w-full">
+                <h2 className="mt-6 text-xl font-bold text-app-text text-center truncate w-full">
                   {user?.displayName || "Adventurer"}
                 </h2>
                 <div className="mt-2 px-3 py-1 bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-lg text-xs font-bold uppercase tracking-wider">
                   Premium Member
                 </div>
 
-                <div className="w-full mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
-                  <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                <div className="w-full mt-8 pt-6 border-t border-app-border space-y-4">
+                  <div className="flex items-center gap-3 text-app-text-muted">
                     <Mail size={16} />
                     <span className="text-sm truncate">{user?.email}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-3 text-app-text-muted">
                     <ShieldCheck
                       size={16}
                       className={
@@ -172,13 +172,22 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={logout}
-                  className="w-full mt-8 py-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-2xl hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400 transition-all flex items-center justify-center gap-2"
-                >
-                  <LogOut size={18} />
-                  Sign Out
-                </button>
+                {user ? (
+                  <button
+                    onClick={logout}
+                    className="w-full mt-8 py-3 bg-app-surface text-app-text-secondary font-bold rounded-2xl hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400 transition-all flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={18} />
+                    Sign Out
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="w-full mt-8 py-3 bg-app-surface text-app-text-secondary font-bold rounded-2xl hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-900/20 dark:hover:text-teal-400 transition-all flex items-center justify-center gap-2"
+                  >
+                    Sign In
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -203,7 +212,7 @@ export default function ProfilePage() {
             )}
 
             {/* Credit Hub */}
-            <div className="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-8 transition-all hover:border-teal-500/30">
+            <div className="group relative overflow-hidden bg-app-surface rounded-[2rem] border border-app-border shadow-xl shadow-slate-200/50 dark:shadow-none p-8 transition-all hover:border-teal-500/30">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-5">
                   <div className="w-16 h-16 bg-gradient-to-tr from-teal-500/20 to-indigo-500/20 text-teal-600 dark:text-teal-400 rounded-3xl flex items-center justify-center relative">
@@ -214,7 +223,7 @@ export default function ProfilePage() {
                     <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
                       Power Balance
                     </p>
-                    <p className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    <p className="text-4xl font-extrabold text-app-text tracking-tight">
                       {credits} Credits
                     </p>
                   </div>
@@ -229,8 +238,8 @@ export default function ProfilePage() {
             </div>
 
             {/* Security Section */}
-            <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-8 space-y-6">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <div className="bg-app-surface rounded-[2rem] border border-app-border shadow-xl shadow-slate-200/50 dark:shadow-none p-8 space-y-6">
+              <h3 className="text-lg font-bold text-app-text flex items-center gap-2">
                 <ShieldCheck size={20} className="text-teal-500" />
                 Security & Verification
               </h3>
@@ -242,14 +251,28 @@ export default function ProfilePage() {
                     : "bg-amber-50/30 dark:bg-amber-900/10 border-amber-100 dark:border-amber-800/30"
                 }`}
               >
-                {!user?.emailVerified ? (
+                {!user ? (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/30">
+                      <AlertCircle size={24} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-app-text text-lg leading-none">
+                        Guest Account
+                      </p>
+                      <p className="text-xs font-bold text-amber-600/70 uppercase tracking-widest mt-1">
+                        Sign in to secure data
+                      </p>
+                    </div>
+                  </div>
+                ) : !user.emailVerified ? (
                   <div className="space-y-6">
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <p className="font-bold text-slate-900 dark:text-white">
+                        <p className="font-bold text-app-text">
                           Email Identification
                         </p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed uppercase tracking-wide font-medium">
+                        <p className="text-sm text-app-text-muted leading-relaxed uppercase tracking-wide font-medium">
                           Verify your email to unlock all AI features and secure
                           your drafts.
                         </p>
@@ -279,7 +302,7 @@ export default function ProfilePage() {
                             placeholder="6-DIGIT CODE"
                             value={otp}
                             onChange={(e) => setOtp(e.target.value)}
-                            className="flex-1 px-6 py-4 bg-white dark:bg-slate-950 border-2 border-amber-200 dark:border-amber-800/50 rounded-2xl text-center text-2xl font-black tracking-[0.4em] outline-none focus:border-amber-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-200 dark:placeholder:text-slate-800"
+                            className="flex-1 px-6 py-4 bg-app-bg border-2 border-amber-200 dark:border-amber-800/50 rounded-2xl text-center text-2xl font-black tracking-[0.4em] outline-none focus:border-amber-500 transition-all text-app-text placeholder:text-slate-200 dark:placeholder:text-slate-800"
                           />
                           <button
                             onClick={handleVerifyCode}
@@ -309,7 +332,7 @@ export default function ProfilePage() {
                       <ShieldCheck size={24} />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 dark:text-white text-lg leading-none">
+                      <p className="font-bold text-app-text text-lg leading-none">
                         Security Verified
                       </p>
                       <p className="text-xs font-bold text-emerald-600/70 uppercase tracking-widest mt-1">

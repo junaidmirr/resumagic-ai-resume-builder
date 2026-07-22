@@ -13,9 +13,14 @@ import {
   Globe,
 } from "lucide-react";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
+import { templates } from "../lib/templates";
+import { MiniPreview } from "../components/ui/MiniPreview";
 import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { resumeService } from "../lib/resumeService";
+import { generateWizardElements } from "../lib/wizardGenerator";
+import defaultLogoLight from '../assets/default.png';
+import defaultLogoDark from '../assets/default-dark.png';
 
 // Types
 export interface WizardData {
@@ -56,6 +61,7 @@ export interface WizardData {
     awards: string;
     other: string;
   };
+  templateLevel: "level1" | "level2" | "level3" | "level4";
 }
 
 const INITIAL_DATA: WizardData = {
@@ -81,6 +87,7 @@ const INITIAL_DATA: WizardData = {
     awards: "",
     other: "",
   },
+  templateLevel: "level1",
 };
 
 const EXP_LEVELS = [
@@ -97,13 +104,14 @@ export function WizardPage() {
   const { user, refreshCredits } = useAuth();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<WizardData>(INITIAL_DATA);
-  const totalSteps = 6;
+  const totalSteps = 8;
 
   // AI states
   const [skillCategory, setSkillCategory] = useState("Software Engineering");
   const [aiSkills, setAiSkills] = useState<string[]>([]);
   const [generatingSkills, setGeneratingSkills] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [extendingSummary, setExtendingSummary] = useState(false);
   const [isDesigning, setIsDesigning] = useState(false);
 
   useEffect(() => {
@@ -171,53 +179,28 @@ export function WizardPage() {
   const handleCancel = () => navigate("/build");
 
   const handleFinish = async () => {
-    if (!user) {
-      alert("Please sign in to save your resume.");
-      navigate("/login");
-      return;
-    }
     setIsDesigning(true);
     try {
-      console.log("[Wizard] Sending data for AI Design pass...");
-      const response = await fetch("/api/generate-design", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user?.uid || "",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        if (response.status === 402)
-          throw new Error("Insufficient credits. Please recharge.");
-        throw new Error("Failed to generate design");
-      }
-
-      // Background credit update
-      refreshCredits();
-
-      if (!response.ok) throw new Error("Failed to generate design");
-
-      const result = await response.json();
-      if (result.elements && result.elements.length > 0) {
-        // Save to Cloud
-        const title = data.contact.firstName
+      // Mock AI Layout Design Pass
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      
+      const selectedTemplate = templates.find(t => t.id === data.templateId) || templates[0];
+      const elements = selectedTemplate.generateElements(data);
+      
+      const title = data.contact.firstName
           ? `${data.contact.firstName}'s Resume`
           : "My AI Resume";
-        const id = await resumeService.createResume(
-          user.uid,
-          title,
-          result.elements,
-        );
-        localStorage.setItem("current_resume_id", id);
-        navigate("/editor");
-      } else {
-        throw new Error("AI returned no elements");
-      }
+          
+      const id = await resumeService.createResume(
+        user?.uid || "guest",
+        title,
+        elements
+      );
+      localStorage.setItem("current_resume_id", id);
+      navigate("/editor");
     } catch (error) {
       console.error("[Wizard] AI Error:", error);
-      alert("AI Design failed. Please try again or use the Import option.");
+      alert("AI Design failed. Please try again.");
     } finally {
       setIsDesigning(false);
     }
@@ -246,85 +229,92 @@ export function WizardPage() {
   const fetchAiSkills = async (loadMore = false) => {
     setGeneratingSkills(true);
     try {
-      const response = await fetch("/api/generate-skills", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user?.uid || "",
-        },
-        body: JSON.stringify({
-          category: skillCategory,
-          load_more: loadMore,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 402) throw new Error("Insufficient credits.");
-        throw new Error("Failed to fetch skills");
+      // Mock AI Delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      
+      const categoryLower = skillCategory.toLowerCase();
+      let mockSkills = [];
+      if (categoryLower.includes("software") || categoryLower.includes("engineer")) {
+        mockSkills = ["React.js", "Node.js", "TypeScript", "Python", "Docker", "AWS", "GraphQL", "System Design"];
+      } else if (categoryLower.includes("design") || categoryLower.includes("ui")) {
+        mockSkills = ["Figma", "User Research", "Wireframing", "Prototyping", "Adobe Creative Suite", "Design Systems"];
+      } else if (categoryLower.includes("product") || categoryLower.includes("manager")) {
+        mockSkills = ["Agile/Scrum", "Product Roadmapping", "Jira", "A/B Testing", "Data Analysis", "Stakeholder Management"];
+      } else {
+        mockSkills = ["Project Management", "Leadership", "Communication", "Problem Solving", "Strategic Planning", "Data Analysis", "Public Speaking", "Negotiation"];
       }
 
-      // Background credit update
-      refreshCredits();
-
-      if (!response.ok) throw new Error("Failed to fetch skills");
-
-      const result = await response.json();
-      const newSkills = result.skills || [];
-
-      if (loadMore)
-        setAiSkills((prev) => Array.from(new Set([...prev, ...newSkills])));
-      else setAiSkills(newSkills);
+      if (loadMore) {
+        mockSkills = mockSkills.map(s => "Advanced " + s); // just to show different ones
+        setAiSkills((prev) => Array.from(new Set([...prev, ...mockSkills])));
+      } else {
+        setAiSkills(mockSkills);
+      }
     } catch (e) {
       console.error(e);
-      alert("Failed to generate skills.");
     } finally {
       setGeneratingSkills(false);
+    }
+  };
+
+  
+  const extendSummary = async () => {
+    if (!data.summary) return;
+    setExtendingSummary(true);
+    try {
+      const resp = await fetch("/api/ai-assistant", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "anonymous",
+          "X-Skip-Credit-Check": "true"
+        },
+        body: JSON.stringify({ action: "enhance", text: data.summary }),
+      });
+      if (resp.ok) {
+        const result = await resp.json();
+        setData((p) => ({ ...p, summary: result.result || p.summary }));
+      }
+    } catch (e) {
+      console.error("Failed to extend summary:", e);
+    } finally {
+      setExtendingSummary(false);
     }
   };
 
   const generateSummary = async () => {
     setGeneratingSummary(true);
     try {
-      const response = await fetch("/api/generate-summary", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user?.uid || "",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        if (response.status === 402) throw new Error("Insufficient credits.");
-        throw new Error("Failed to fetch summary");
+      // Mock AI Delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      const role = data.experiences?.length > 0 ? data.experiences[0].role : "Professional";
+      const exp = data.experienceLevel;
+      const skills = (data.skills || []).slice(0, 3).join(", ");
+      
+      let mockSummary = `Highly motivated and detail-oriented ${role} with a strong foundation in their field. Proven ability to adapt quickly and deliver high-quality results.`;
+      
+      if (exp === "Senior" || exp === "Executive") {
+        mockSummary = `Accomplished ${role} with extensive experience driving strategic initiatives and leading cross-functional teams. Expert in ${skills || 'industry best practices'}, with a proven track record of optimizing processes and exceeding performance metrics.`;
+      } else if (exp === "Entry Level" || exp === "Fresher") {
+        mockSummary = `Ambitious ${role} eager to leverage strong academic background and foundational knowledge to contribute to a dynamic team. Passionate about learning and growing within the industry.`;
       }
 
-      // Background credit update
-      refreshCredits();
-
-      if (!response.ok) throw new Error("Failed to fetch summary");
-
-      const result = await response.json();
-      setData((p) => ({ ...p, summary: result.summary || "" }));
+      setData((p) => ({ ...p, summary: mockSummary }));
     } catch (e) {
       console.error(e);
-      alert("Failed to generate summary.");
     } finally {
       setGeneratingSummary(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans transition-colors duration-300">
+    <div className="min-h-screen bg-app-bg flex flex-col font-sans transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-app-border bg-white/80 dark:bg-slate-950/80 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="rounded-xl bg-teal-500/10 p-1.5 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400 group-hover:bg-teal-500/20 transition-colors">
-            <FileText className="h-5 w-5" strokeWidth={2.5} />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50">
-            ResuMagic Wizard
-          </span>
+          <img src={defaultLogoLight} alt="Resumagic" className="h-8 logo-light" />
+            <img src={defaultLogoDark} alt="Resumagic" className="h-8 logo-dark" />
         </Link>
         <ThemeToggle />
       </header>
@@ -333,7 +323,7 @@ export function WizardPage() {
       <div className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
         {/* Progress Bar */}
         <div className="mb-8">
-          <div className="flex justify-between items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+          <div className="flex justify-between items-center text-sm font-medium text-app-text-muted mb-2">
             <span>
               Step {step} of {totalSteps}
             </span>
@@ -348,7 +338,7 @@ export function WizardPage() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 sm:p-8 mb-8 overflow-hidden flex flex-col relative animate-in fade-in slide-in-from-bottom-4">
+        <div className="flex-1 bg-app-surface rounded-2xl shadow-sm border border-app-border p-6 sm:p-8 mb-8 overflow-hidden flex flex-col relative animate-in fade-in slide-in-from-bottom-4">
           {isDesigning && (
             <div className="absolute inset-0 z-[60] bg-white/90 dark:bg-slate-900/90 flex flex-col items-center justify-center p-8 text-center backdrop-blur-sm animate-in fade-in duration-300">
               <div className="relative mb-8">
@@ -358,10 +348,10 @@ export function WizardPage() {
                   size={24}
                 />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+              <h3 className="text-xl font-bold text-app-text mb-2">
                 Designing Your Dream Resume...
               </h3>
-              <p className="text-slate-500 dark:text-slate-400 max-w-sm">
+              <p className="text-app-text-muted max-w-sm">
                 Our AI Architect is planning your layout, selecting professional
                 typography, and aligning every detail perfectly.
               </p>
@@ -369,7 +359,7 @@ export function WizardPage() {
           )}
 
           {/* Scraper Restriction Warning */}
-          {data.summary.includes("LinkedIn has restricted") && (
+          {data?.summary?.includes("LinkedIn has restricted") && (
             <div className="mb-8 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl flex gap-4 animate-in slide-in-from-top-2">
               <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg h-fit">
                 <Globe
@@ -402,103 +392,103 @@ export function WizardPage() {
           {step === 1 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-bold tracking-tight text-app-text mb-2">
                   Contact Details
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-app-text-muted">
                   Let's start with the basics. How can employers reach you?
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     First Name *
                   </label>
                   <input
                     type="text"
                     value={data.contact.firstName}
                     onChange={(e) => updateContact("firstName", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Last Name
                   </label>
                   <input
                     type="text"
                     value={data.contact.lastName}
                     onChange={(e) => updateContact("lastName", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Email *
                   </label>
                   <input
                     type="email"
                     value={data.contact.email}
                     onChange={(e) => updateContact("email", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Phone No *
                   </label>
                   <input
                     type="tel"
                     value={data.contact.phone}
                     onChange={(e) => updateContact("phone", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     LinkedIn URL
                   </label>
                   <input
                     type="url"
                     value={data.contact.linkedin}
                     onChange={(e) => updateContact("linkedin", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Personal Website
                   </label>
                   <input
                     type="url"
                     value={data.contact.website}
                     onChange={(e) => updateContact("website", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Country
                   </label>
                   <input
                     type="text"
                     value={data.contact.country}
                     onChange={(e) => updateContact("country", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     State/Region
                   </label>
                   <input
                     type="text"
                     value={data.contact.state}
                     onChange={(e) => updateContact("state", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                   />
                 </div>
               </div>
@@ -509,16 +499,16 @@ export function WizardPage() {
           {step === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-bold tracking-tight text-app-text mb-2">
                   Work Experience
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-app-text-muted">
                   Tell us about your professional background.
                 </p>
               </div>
 
               <div className="w-full max-w-sm">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-app-text-secondary mb-1">
                   Experience Level
                 </label>
                 <select
@@ -526,7 +516,7 @@ export function WizardPage() {
                   onChange={(e) =>
                     setData((p) => ({ ...p, experienceLevel: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
+                  className="w-full rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white"
                 >
                   {EXP_LEVELS.map((l) => (
                     <option key={l} value={l}>
@@ -538,10 +528,10 @@ export function WizardPage() {
 
               {data.experienceLevel !== "Fresher" ? (
                 <div className="space-y-6 mt-6">
-                  {data.experiences.map((exp, i) => (
+                  {(data.experiences || []).map((exp, i) => (
                     <div
                       key={exp.id}
-                      className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 relative"
+                      className="p-4 rounded-xl border border-app-border bg-app-surface/50 relative"
                     >
                       <button
                         onClick={() =>
@@ -556,12 +546,12 @@ export function WizardPage() {
                       >
                         <Trash2 size={18} />
                       </button>
-                      <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">
+                      <h4 className="font-semibold text-app-text mb-4">
                         Experience #{i + 1}
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          <label className="block text-xs font-medium text-app-text-secondary mb-1">
                             Role / Job Title
                           </label>
                           <input
@@ -570,11 +560,11 @@ export function WizardPage() {
                             onChange={(e) =>
                               updateExperience(exp.id, "role", e.target.value)
                             }
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                            className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          <label className="block text-xs font-medium text-app-text-secondary mb-1">
                             Company Name
                           </label>
                           <input
@@ -587,11 +577,11 @@ export function WizardPage() {
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                            className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          <label className="block text-xs font-medium text-app-text-secondary mb-1">
                             Duration
                           </label>
                           <input
@@ -605,11 +595,11 @@ export function WizardPage() {
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                            className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          <label className="block text-xs font-medium text-app-text-secondary mb-1">
                             Location
                           </label>
                           <input
@@ -622,11 +612,11 @@ export function WizardPage() {
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                            className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                           />
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                          <label className="block text-xs font-medium text-app-text-secondary mb-1">
                             Work Done / Highlights
                           </label>
                           <textarea
@@ -638,7 +628,7 @@ export function WizardPage() {
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                            className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                             placeholder="Summarize your achievements..."
                           />
                         </div>
@@ -680,19 +670,19 @@ export function WizardPage() {
           {step === 3 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-bold tracking-tight text-app-text mb-2">
                   Education Background
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-app-text-muted">
                   List your degrees, certifications, or schools.
                 </p>
               </div>
 
               <div className="space-y-6">
-                {data.educations.map((edu, i) => (
+                {(data.educations || []).map((edu, i) => (
                   <div
                     key={edu.id}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 relative"
+                    className="p-4 rounded-xl border border-app-border bg-app-surface/50 relative"
                   >
                     <button
                       onClick={() =>
@@ -707,12 +697,12 @@ export function WizardPage() {
                     >
                       <Trash2 size={18} />
                     </button>
-                    <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-4">
+                    <h4 className="font-semibold text-app-text mb-4">
                       Education #{i + 1}
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label className="block text-xs font-medium text-app-text-secondary mb-1">
                           Degree / Qualification
                         </label>
                         <input
@@ -721,11 +711,11 @@ export function WizardPage() {
                           onChange={(e) =>
                             updateEducation(edu.id, "degree", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                          className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label className="block text-xs font-medium text-app-text-secondary mb-1">
                           School / University
                         </label>
                         <input
@@ -734,11 +724,11 @@ export function WizardPage() {
                           onChange={(e) =>
                             updateEducation(edu.id, "school", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                          className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label className="block text-xs font-medium text-app-text-secondary mb-1">
                           Start Date
                         </label>
                         <input
@@ -748,11 +738,11 @@ export function WizardPage() {
                           onChange={(e) =>
                             updateEducation(edu.id, "startDate", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                          className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label className="block text-xs font-medium text-app-text-secondary mb-1">
                           End Date
                         </label>
                         <input
@@ -762,11 +752,11 @@ export function WizardPage() {
                           onChange={(e) =>
                             updateEducation(edu.id, "endDate", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                          className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label className="block text-xs font-medium text-app-text-secondary mb-1">
                           GPA / Grade (Optional)
                         </label>
                         <input
@@ -775,11 +765,11 @@ export function WizardPage() {
                           onChange={(e) =>
                             updateEducation(edu.id, "gpa", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                          className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <label className="block text-xs font-medium text-app-text-secondary mb-1">
                           Additional Note (Awards, honors, etc)
                         </label>
                         <textarea
@@ -787,7 +777,7 @@ export function WizardPage() {
                           onChange={(e) =>
                             updateEducation(edu.id, "note", e.target.value)
                           }
-                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[60px]"
+                          className="w-full rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[60px]"
                         />
                       </div>
                     </div>
@@ -823,10 +813,10 @@ export function WizardPage() {
           {step === 4 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-bold tracking-tight text-app-text mb-2">
                   Technical & Soft Skills
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-app-text-muted">
                   Add skills that match your target role. Use AI to generate
                   suggestions.
                 </p>
@@ -843,7 +833,7 @@ export function WizardPage() {
                       value={skillCategory}
                       onChange={(e) => setSkillCategory(e.target.value)}
                       placeholder="e.g. Software Engineer, Marketing, Design..."
-                      className="flex-1 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:text-white"
+                      className="flex-1 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-app-bg p-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:text-white"
                     />
                     <button
                       onClick={() => fetchAiSkills()}
@@ -872,7 +862,7 @@ export function WizardPage() {
                     </p>
                     <div className="flex flex-wrap gap-2 text-sm">
                       {aiSkills.map((skill) => {
-                        const added = data.skills.includes(skill);
+                        const added = (data.skills || []).includes(skill);
                         return (
                           <button
                             key={skill}
@@ -902,10 +892,10 @@ export function WizardPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                <label className="block text-sm font-medium text-app-text-secondary mb-3">
                   Your Selected Skills
                 </label>
-                <div className="flex flex-wrap gap-2 p-4 min-h-[120px] rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <div className="flex flex-wrap gap-2 p-4 min-h-[120px] rounded-xl border-2 border-dashed border-app-border bg-app-surface/50">
                   {data.skills.length === 0 && (
                     <span className="text-slate-400 text-sm m-auto">
                       No skills added yet. Select from above or type below.
@@ -949,7 +939,7 @@ export function WizardPage() {
                         e.currentTarget.value = "";
                       }
                     }}
-                    className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2.5 text-sm outline-none focus:border-teal-500 dark:text-white"
+                    className="flex-1 rounded-lg border border-app-border bg-app-bg p-2.5 text-sm outline-none focus:border-teal-500 dark:text-white"
                   />
                   <button
                     onClick={() => {
@@ -961,7 +951,7 @@ export function WizardPage() {
                         setData((p) => ({ ...p, skills: [...p.skills, val] }));
                       el.value = "";
                     }}
-                    className="px-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm font-semibold transition-colors"
+                    className="px-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-app-text rounded-lg text-sm font-semibold transition-colors"
                   >
                     Add
                   </button>
@@ -974,16 +964,17 @@ export function WizardPage() {
           {step === 5 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-bold tracking-tight text-app-text mb-2">
                   Professional Summary
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-app-text-muted">
                   Write a quick summary. You can use AI to build a strong
                   professional profile based on your inputs.
                 </p>
               </div>
 
               <div className="space-y-4">
+                <div className="flex gap-2">
                 <button
                   onClick={generateSummary}
                   disabled={generatingSummary}
@@ -997,12 +988,27 @@ export function WizardPage() {
                   )}
                   AI Generate Summary
                 </button>
+
+                <button
+                  onClick={extendSummary}
+                  disabled={extendingSummary || !data.summary}
+                  className="flex items-center gap-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800/50"
+                >
+                  {extendingSummary ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={18} />
+                  )}
+                  Extend AI
+                </button>
+
+              </div>
                 <textarea
                   value={data.summary}
                   onChange={(e) =>
                     setData((p) => ({ ...p, summary: e.target.value }))
                   }
-                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-4 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white min-h-[200px] leading-relaxed resize-y"
+                  className="w-full rounded-xl border border-app-border bg-app-bg p-4 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:text-white min-h-[200px] leading-relaxed resize-y"
                   placeholder="A highly motivated professional with..."
                 />
               </div>
@@ -1013,10 +1019,10 @@ export function WizardPage() {
           {step === 6 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-bold tracking-tight text-app-text mb-2">
                   Additional Information
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-app-text-muted">
                   Fill in any extra details that add value to your resume.
                 </p>
               </div>
@@ -1024,7 +1030,7 @@ export function WizardPage() {
               <div className="space-y-6">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <label className="block text-sm font-semibold text-app-text-secondary">
                       Languages
                     </label>
                     <button
@@ -1049,7 +1055,7 @@ export function WizardPage() {
                       + Add Language
                     </button>
                   </div>
-                  {data.additional.languages.map((lang) => (
+                  {(data.additional?.languages || []).map((lang, index) => (
                     <div key={lang.id} className="flex gap-2 mb-2">
                       <input
                         type="text"
@@ -1068,7 +1074,7 @@ export function WizardPage() {
                             },
                           }))
                         }
-                        className="w-1/2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                        className="w-1/2 rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                       />
                       <input
                         type="text"
@@ -1087,7 +1093,7 @@ export function WizardPage() {
                             },
                           }))
                         }
-                        className="w-1/2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
+                        className="w-1/2 rounded-lg border border-app-border bg-app-bg p-2 text-sm outline-none focus:border-teal-500 dark:text-white"
                       />
                       <button
                         onClick={() =>
@@ -1110,21 +1116,21 @@ export function WizardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Certificates (URLs or Names)
                   </label>
                   <textarea
-                    value={data.additional.certificates}
+                    value={data.additional?.certificates || ""}
                     onChange={(e) =>
                       updateAdditional("certificates", e.target.value)
                     }
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                     placeholder="AWS Certified Architect, https://..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Extracurricular Activities
                   </label>
                   <textarea
@@ -1132,49 +1138,197 @@ export function WizardPage() {
                     onChange={(e) =>
                       updateAdditional("extracurriculars", e.target.value)
                     }
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Awards
                   </label>
                   <textarea
                     value={data.additional.awards}
                     onChange={(e) => updateAdditional("awards", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-medium text-app-text-secondary mb-1">
                     Other (Hobbies, Volunteering)
                   </label>
                   <textarea
                     value={data.additional.other}
                     onChange={(e) => updateAdditional("other", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                   />
                 </div>
               </div>
             </div>
           )}
+
+          
+          {/* STEP 7: ADDITIONAL */}
+          {step === 7 && (
+            <div className="space-y-6 animate-in slide-in-from-right">
+              <div>
+                <h2 className="text-2xl font-bold text-app-text mb-2">
+                  Additional Information (Optional)
+                </h2>
+                <p className="text-app-text-secondary">
+                  Add any other sections you'd like on your resume.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-app-text mb-1">
+                    Languages
+                  </label>
+                  <p className="text-xs text-app-text-secondary mb-3">
+                    Click "Next" to skip if not applicable.
+                  </p>
+                  
+                  {data.additional.languages.map((lang, index) => (
+                    <div key={lang.id} className="flex items-center gap-3 mb-3">
+                      <input
+                        value={lang.language}
+                        onChange={(e) => {
+                          const newLangs = [...data.additional.languages];
+                          newLangs[index].language = e.target.value;
+                          setData((p) => ({ ...p, additional: { ...p.additional, languages: newLangs } }));
+                        }}
+                        className="flex-1 rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white"
+                        placeholder="e.g. Spanish"
+                      />
+                      <select
+                        value={lang.proficiency}
+                        onChange={(e) => {
+                          const newLangs = [...data.additional.languages];
+                          newLangs[index].proficiency = e.target.value;
+                          setData((p) => ({ ...p, additional: { ...p.additional, languages: newLangs } }));
+                        }}
+                        className="w-40 rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white"
+                      >
+                        <option>Native</option>
+                        <option>Fluent</option>
+                        <option>Intermediate</option>
+                        <option>Basic</option>
+                      </select>
+                      <button
+                        onClick={() => {
+                          const newLangs = data.additional.languages.filter(l => l.id !== lang.id);
+                          setData((p) => ({ ...p, additional: { ...p.additional, languages: newLangs } }));
+                        }}
+                        className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  <button
+                    onClick={() => {
+                      setData((p) => ({
+                        ...p,
+                        additional: {
+                          ...p.additional,
+                          languages: [...p.additional.languages, { id: generateId(), language: "", proficiency: "Fluent" }]
+                        }
+                      }));
+                    }}
+                    className="flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"
+                  >
+                    <Plus size={16} /> Add Language
+                  </button>
+                </div>
+
+                <div className="pt-4 border-t border-app-border">
+                  <label className="block text-sm font-medium text-app-text mb-1">
+                    Certifications & Awards
+                  </label>
+                  <textarea
+                    value={data.additional.certificates}
+                    onChange={(e) => updateAdditional("certificates", e.target.value)}
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                    placeholder="e.g. AWS Certified Solutions Architect (2023)"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-app-border">
+                  <label className="block text-sm font-medium text-app-text mb-1">
+                    Extracurriculars / Volunteering
+                  </label>
+                  <textarea
+                    value={data.additional.extracurriculars}
+                    onChange={(e) => updateAdditional("extracurriculars", e.target.value)}
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-app-border">
+                  <label className="block text-sm font-medium text-app-text mb-1">
+                    Other Notes
+                  </label>
+                  <textarea
+                    value={data.additional.other}
+                    onChange={(e) => updateAdditional("other", e.target.value)}
+                    className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 8: TEMPLATE SELECTION */}
+          {step === 8 && (
+            <div className="space-y-6 animate-in slide-in-from-right">
+              <div>
+                <h2 className="text-2xl font-bold text-app-text mb-2">
+                  Select Template Design
+                </h2>
+                <p className="text-app-text-secondary">
+                  Choose a visual layout for your resume.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => setData({ ...data, templateId: tpl.id })}
+                    className={`flex flex-col text-left p-3 rounded-xl bg-app-surface border shadow-sm transition-all group overflow-hidden relative ${
+                      data.templateId === tpl.id
+                        ? "border-teal-500 ring-2 ring-teal-500 ring-offset-2 ring-offset-app-bg"
+                        : "border-app-border hover:border-app-accent hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex justify-center bg-white dark:bg-slate-700/50 rounded overflow-hidden w-full relative pt-2 border border-slate-200 dark:border-slate-600 mb-3">
+                      <MiniPreview elements={tpl.elements("preview-page", data)} />
+                    </div>
+                    <h4 className={`text-sm font-semibold ${data.templateId === tpl.id ? "text-teal-600 dark:text-teal-400" : "text-app-text"}`}>{tpl.name}</h4>
+                    <p className="text-xs text-app-text-secondary line-clamp-1">{tpl.category}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 z-10 sticky bottom-4">
+        <div className="flex justify-between items-center bg-app-surface p-4 rounded-2xl shadow-sm border border-app-border z-10 sticky bottom-4">
           {step === 1 ? (
             <button
               onClick={handleCancel}
-              className="px-6 py-2.5 rounded-xl font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-6 py-2.5 rounded-xl font-semibold text-app-text-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               Cancel
             </button>
           ) : (
             <button
               onClick={handleBack}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-app-text-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <ChevronLeft size={18} /> Back
             </button>

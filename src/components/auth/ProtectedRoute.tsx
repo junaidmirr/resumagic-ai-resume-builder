@@ -7,7 +7,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-app-bg">
         <Loader2 className="w-8 h-8 text-teal-500 animate-spin mb-4" />
         <p className="text-slate-500 text-sm font-medium animate-pulse">
           Securing session...

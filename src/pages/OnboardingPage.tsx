@@ -9,6 +9,7 @@ import {
   X,
   Sparkles,
   Upload,
+  ArrowLeft,
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
@@ -16,6 +17,17 @@ import { LinkedInImportModal } from "../components/onboarding/LinkedInImportModa
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { resumeService } from "../lib/resumeService";
+import {
+  extractTextFromPDF,
+  parseResumeTextToWizardData,
+  extractVisualElementsFromPDF
+} from "../lib/pdfParser";
+import { generateWizardElements } from "../lib/wizardGenerator";
+import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
+import { buildResumeFromImportedText, normalizeEditorElements } from "../lib/aiArchitect";
+import defaultLogoLight from '../assets/default.png';
+import defaultLogoDark from '../assets/default-dark.png';
+
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -25,7 +37,25 @@ export function OnboardingPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [enhancementPrompt, setEnhancementPrompt] = useState("");
   const [showLinkedInModal, setShowLinkedInModal] = useState(false);
+  const [showAIArchitectModal, setShowAIArchitectModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAIArchitectSuccess = async (elements: any[], title: string) => {
+    try {
+      const id = await resumeService.createResume(
+        user?.uid || "guest",
+        title || "AI Architect Resume",
+        elements
+      );
+      localStorage.setItem("current_resume_id", id);
+      navigate("/editor");
+    } catch (err) {
+      console.error("Failed to create resume:", err);
+      const localId = "local_" + Math.random().toString(36).substring(2, 9);
+      localStorage.setItem("current_resume_id", localId);
+      navigate("/editor");
+    }
+  };
 
   const handleImportClick = () => {
     setShowImportModal(true);
@@ -41,51 +71,22 @@ export function OnboardingPage() {
   };
 
   const handleLinkedInImport = async (
-    type: "url" | "pdf",
-    value: string | File,
+    type: "pdf",
+    value: File,
   ) => {
-    if (!user) return;
     setShowLinkedInModal(false);
     setIsImporting(true);
     try {
-      let res;
-      if (type === "url") {
-        res = await fetch("/api/import-linkedin-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ linkedin_url: value }),
-        });
-      } else {
-        const formData = new FormData();
-        formData.append("file", value as File);
-        formData.append("is_linkedin", "true");
-        res = await fetch("/api/parse-resume", {
-          method: "POST",
-          headers: { "X-User-ID": user.uid },
-          body: formData,
-        });
-      }
-
-      if (res.ok) refreshCredits();
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to import");
-
-      if (data.wizard_data) {
-        sessionStorage.setItem("wizardData", JSON.stringify(data.wizard_data));
-        navigate("/wizard");
-      } else if (data.elements) {
-        const title = data.wizard_data?.personal_info?.first_name
-          ? `${data.wizard_data.personal_info.first_name}'s Resume`
-          : "LinkedIn Import";
-        const id = await resumeService.createResume(
-          user.uid,
-          title,
-          data.elements,
-        );
-        localStorage.setItem("current_resume_id", id);
-        navigate("/editor");
-      }
+      const rawText = await extractTextFromPDF(value);
+      const result = await buildResumeFromImportedText(rawText, "Imported LinkedIn PDF Profile");
+      const title = result.title || `${value.name.replace(/\.[^/.]+$/, "")}'s Resume`;
+      const id = await resumeService.createResume(
+        user?.uid || "guest",
+        title,
+        result.elements,
+      );
+      localStorage.setItem("current_resume_id", id);
+      navigate("/editor");
     } catch (err: any) {
       console.error(err);
       alert(
@@ -97,32 +98,32 @@ export function OnboardingPage() {
   };
 
   const handleStartImport = async () => {
-    if (!selectedFile || !user) return;
+    if (!selectedFile) return;
     setShowImportModal(false);
     setIsImporting(true);
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      if (enhancementPrompt.trim()) {
-        formData.append("prompt", enhancementPrompt.trim());
+      // 1. Extract raw text from the uploaded PDF/document
+      const rawText = await extractTextFromPDF(selectedFile);
+      
+      let elements: any[] = [];
+      let title = selectedFile.name.replace(/\.[^/.]+$/, "");
+
+      if (rawText && rawText.trim().length > 20) {
+        // 2. Use AI Distiller to extract all details & build structured graphics
+        const result = await buildResumeFromImportedText(rawText, enhancementPrompt);
+        elements = result.elements;
+        if (result.title) title = result.title;
+      } else {
+        // Fallback: visual coordinate extraction if text is minimal
+        elements = await extractVisualElementsFromPDF(selectedFile);
       }
 
-      const res = await fetch("/api/parse-resume", {
-        method: "POST",
-        headers: { "X-User-ID": user.uid },
-        body: formData,
-      });
-
-      if (res.ok) refreshCredits();
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to parse");
-
       const id = await resumeService.createResume(
-        user.uid,
-        selectedFile.name.replace(/\.[^/.]+$/, ""),
-        data.elements,
+        user?.uid || "guest",
+        title,
+        elements,
       );
+      
       localStorage.setItem("current_resume_id", id);
       navigate("/editor");
     } catch (err: any) {
@@ -137,9 +138,8 @@ export function OnboardingPage() {
   };
 
   const handleCreateBlank = async () => {
-    if (!user) return;
     const id = await resumeService.createResume(
-      user.uid,
+      user?.uid || "guest",
       "Untitled Resume",
       [],
     );
@@ -148,6 +148,17 @@ export function OnboardingPage() {
   };
 
   const options = [
+    {
+      id: "architect",
+      title: "AI Architect",
+      description:
+        "Describe your dream resume. The AI will outline a plan, let you refine it, and build your bespoke design.",
+      action: () => setShowAIArchitectModal(true),
+      icon: Sparkles,
+      color: "text-indigo-500",
+      bgColor: "bg-indigo-500/10",
+      ringColor: "hover:ring-indigo-500/50",
+    },
     {
       id: "scratch",
       title: "Create from Scratch",
@@ -186,6 +197,7 @@ export function OnboardingPage() {
       title: "Use Templates",
       description:
         "Browse our beautiful ATS-friendly designs and pick your favorite to start.",
+      action: () => navigate("/dashboard?tab=templates"),
       icon: LayoutTemplate,
       color: "text-indigo-500",
       bgColor: "bg-indigo-500/10",
@@ -205,17 +217,22 @@ export function OnboardingPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="flex min-h-screen flex-col bg-app-bg transition-colors duration-300">
       {/* Header */}
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="rounded-xl bg-teal-500/10 p-1.5 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400 group-hover:bg-teal-500/20 transition-colors">
-            <FileText className="h-5 w-5" strokeWidth={2.5} />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50">
-            ResuMagic
-          </span>
-        </Link>
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-app-border bg-white/80 dark:bg-slate-950/80 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-app-surface border border-app-border text-app-text hover:bg-slate-50 dark:hover:bg-slate-900 transition-all shadow-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Dashboard</span>
+          </button>
+          <Link to="/" className="flex items-center gap-2 group">
+            <img src={defaultLogoLight} alt="Resumagic" className="h-7 lg:h-8 w-auto logo-light" />
+            <img src={defaultLogoDark} alt="Resumagic" className="h-7 lg:h-8 w-auto logo-dark" />
+          </Link>
+        </div>
         <ThemeToggle />
       </header>
 
@@ -228,10 +245,10 @@ export function OnboardingPage() {
 
         <div className="relative z-10 w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="text-center mb-12">
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl text-balance">
+            <h1 className="text-3xl font-extrabold tracking-tight text-app-text sm:text-4xl text-balance">
               How would you like to create your resume?
             </h1>
-            <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-400">
+            <p className="mt-4 text-base sm:text-lg text-app-text-secondary">
               Select an option below to jumpstart your career profile.
             </p>
           </div>
@@ -241,17 +258,17 @@ export function OnboardingPage() {
               <button
                 key={option.id}
                 onClick={option.action}
-                className={`group relative flex flex-col items-start p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 text-left focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-950 ${option.ringColor}`}
+                className={`group relative flex flex-col items-start p-6 sm:p-8 rounded-2xl bg-app-surface border border-app-border shadow-sm hover:shadow-xl transition-all duration-300 text-left focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-950 ${option.ringColor}`}
               >
                 <div
                   className={`rounded-xl p-3 mb-5 inline-flex ${option.bgColor} transition-transform group-hover:scale-110 duration-300`}
                 >
                   <option.icon className={`h-8 w-8 ${option.color}`} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                <h3 className="text-xl font-bold text-app-text mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                   {option.title}
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                <p className="text-sm text-app-text-muted leading-relaxed">
                   {option.description}
                 </p>
               </button>
@@ -279,14 +296,14 @@ export function OnboardingPage() {
             }}
           >
             <div
-              className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden"
+              className="bg-app-surface rounded-2xl shadow-2xl border border-app-border w-full max-w-lg overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-app-border">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-teal-500" />
-                  <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                  <h3 className="font-bold text-lg text-app-text">
                     AI Resume Import
                   </h3>
                 </div>
@@ -306,7 +323,7 @@ export function OnboardingPage() {
               <div className="p-6 space-y-5">
                 {/* File Upload Area */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                  <label className="block text-sm font-semibold text-app-text-secondary mb-2">
                     Resume File
                   </label>
                   <button
@@ -315,7 +332,7 @@ export function OnboardingPage() {
                       ${
                         selectedFile
                           ? "border-teal-400 bg-teal-50 dark:bg-teal-900/20"
-                          : "border-slate-300 dark:border-slate-700 hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                          : "border-app-border hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                       }`}
                   >
                     {selectedFile ? (
@@ -341,7 +358,7 @@ export function OnboardingPage() {
 
                 {/* Enhancement Prompt */}
                 <div>
-                  <label className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                  <label className="flex items-center gap-1.5 text-sm font-semibold text-app-text-secondary mb-2">
                     <Sparkles size={14} className="text-indigo-500" />
                     Enhancement Instructions
                     <span className="text-xs font-normal text-slate-400">
@@ -353,20 +370,20 @@ export function OnboardingPage() {
                     onChange={(e) => setEnhancementPrompt(e.target.value)}
                     placeholder='e.g. "Make the design more modern with a dark header", "Refine the professional summary to be more impactful", "Use a blue accent colour scheme"...'
                     rows={3}
-                    className="w-full px-4 py-3 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-all resize-none placeholder:text-slate-400"
+                    className="w-full px-4 py-3 text-sm bg-app-surface border border-app-border rounded-xl outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-all resize-none placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-app-border bg-app-bg/50">
                 <button
                   onClick={() => {
                     setShowImportModal(false);
                     setSelectedFile(null);
                     setEnhancementPrompt("");
                   }}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-app-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
@@ -393,15 +410,21 @@ export function OnboardingPage() {
           />
         )}
 
+        <AIArchitectModal
+          isOpen={showAIArchitectModal}
+          onClose={() => setShowAIArchitectModal(false)}
+          onSuccess={handleAIArchitectSuccess}
+        />
+
         {/* Loading Overlay */}
         {isImporting && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center">
-            <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center">
+            <div className="bg-app-surface p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center">
               <Loader2 className="h-12 w-12 text-teal-500 animate-spin mb-4" />
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+              <h3 className="text-xl font-bold text-app-text mb-2">
                 Analysing Resume...
               </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-app-text-muted">
                 Our AI engine is scanning the layout, matching fonts, and
                 building your enhanced template. This may take up to a minute.
               </p>

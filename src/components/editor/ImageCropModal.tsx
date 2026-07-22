@@ -17,6 +17,8 @@ export function ImageCropModal({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [baseScale, setBaseScale] = useState(1);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -49,10 +51,10 @@ export function ImageCropModal({
     const nh = img.naturalHeight;
 
     // Display dimensions of the image on screen
-    const displayWidth = img.width * zoom;
-    const displayHeight = img.height * zoom;
+    const displayWidth = img.width * baseScale * zoom;
+    const displayHeight = img.height * baseScale * zoom;
 
-    // Calculate scale bitween display and natural
+    // Calculate scale between display and natural
     const scaleX = nw / displayWidth;
     const scaleY = nh / displayHeight;
 
@@ -83,8 +85,8 @@ export function ImageCropModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+      <div className="bg-app-surface w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-app-border">
+        <div className="p-6 border-b border-app-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-teal-500/10 rounded-xl flex items-center justify-center text-teal-500">
               <Maximize size={20} />
@@ -119,13 +121,30 @@ export function ImageCropModal({
               ref={imageRef}
               src={imageSrc}
               alt="To crop"
-              className="max-w-none pointer-events-none transition-transform duration-75 select-none"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                const viewSize = 320;
+                // Scale needed to cover the viewSize
+                const scaleToCover = Math.max(
+                  viewSize / img.naturalWidth,
+                  viewSize / img.naturalHeight
+                );
+                setBaseScale(scaleToCover);
+                setImageLoaded(true);
+              }}
+              className={`max-w-none pointer-events-none transition-transform duration-75 select-none ${
+                imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
               style={{
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                width: imageRef.current ? imageRef.current.naturalWidth : "auto",
+                height: imageRef.current ? imageRef.current.naturalHeight : "auto",
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${
+                  baseScale * zoom
+                })`,
               }}
             />
             {/* Guide Overlay */}
-            <div className="absolute inset-0 border-2 border-teal-500/30 rounded-lg pointer-events-none pointer-events-none border-dashed" />
+            <div className="absolute inset-0 border-2 border-teal-500/30 rounded-lg pointer-events-none border-dashed" />
           </div>
 
           {/* Controls */}
@@ -149,7 +168,7 @@ export function ImageCropModal({
             <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 py-3.5 rounded-2xl text-slate-600 dark:text-slate-400 font-bold text-sm bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                className="flex-1 py-3.5 rounded-2xl text-app-text-secondary font-bold text-sm bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
               >
                 Cancel
               </button>

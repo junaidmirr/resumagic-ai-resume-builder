@@ -1,129 +1,74 @@
-import { Globe, Mail, MessageCircle, Heart, FileText } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Globe, Mail, MessageCircle, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import defaultLogoLight from '../../assets/default.png';
+import defaultLogoDark from '../../assets/default-dark.png';
 
 export function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/50 transition-colors duration-300">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="xl:grid xl:grid-cols-3 xl:gap-8">
-          <div className="space-y-8 xl:col-span-1">
-            <div className="flex items-center gap-2">
-              <div className="rounded-xl bg-teal-500/10 p-2 text-teal-600 dark:bg-teal-400/10 dark:text-teal-400">
-                <FileText className="h-6 w-6" strokeWidth={2.5} />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-                ResuMagic
-                <span className="text-teal-600 dark:text-teal-400">.AI</span>
-              </span>
+    <footer className="border-t border-app-border bg-app-surface py-12 md:py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8 mb-12">
+          <div className="col-span-1 md:col-span-1">
+            <div className="flex items-center gap-3 mb-6">
+              <img src={defaultLogoLight} alt="Resumagic" className="h-8 logo-light" />
+                <img src={defaultLogoDark} alt="Resumagic" className="h-8 logo-dark" />
             </div>
-            <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-              Build professional, ATS-friendly resumes in minutes with the power
-              of artificial intelligence. Stand out and get hired faster.
+            <p className="text-sm text-app-text-secondary leading-relaxed mb-6">
+              The intelligent productivity platform for modern professionals. Build resumes, cover letters, and PDFs that stand out.
             </p>
-            <div className="flex gap-x-5">
-              <a
-                href="#"
-                className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors"
-              >
-                <span className="sr-only">Contact</span>
-                <Mail className="h-5 w-5" />
+            <div className="flex items-center gap-4">
+              <a href="#" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors">
+                <Globe className="w-4 h-4" />
               </a>
-              <a
-                href="#"
-                className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors"
-              >
-                <span className="sr-only">Community</span>
-                <MessageCircle className="h-5 w-5" />
+              <a href="#" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors">
+                <Mail className="w-4 h-4" />
               </a>
-              <a
-                href="#"
-                className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors"
-              >
-                <span className="sr-only">Company</span>
-                <Globe className="h-5 w-5" />
+              <a href="#" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors">
+                <MessageCircle className="w-4 h-4" />
               </a>
             </div>
           </div>
-          <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
-            <div className="md:grid md:grid-cols-2 md:gap-8">
-              <div>
-                <h3 className="text-sm font-semibold leading-6 text-slate-900 dark:text-slate-50">
-                  Product
-                </h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  <li>
-                    <a
-                      href="#"
-                      className="text-sm leading-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    >
-                      Features
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="text-sm leading-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    >
-                      Templates
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="text-sm leading-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    >
-                      Pricing
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <div className="mt-10 md:mt-0">
-                <h3 className="text-sm font-semibold leading-6 text-slate-900 dark:text-slate-50">
-                  Support
-                </h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  <li>
-                    <a
-                      href="#"
-                      className="text-sm leading-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    >
-                      Help Center
-                    </a>
-                  </li>
-                  <li>
-                    <Link
-                      to="/privacy"
-                      className="text-sm leading-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    >
-                      Privacy
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/terms"
-                      className="text-sm leading-6 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                    >
-                      Terms
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
+          
+          <div>
+            <h4 className="font-bold text-app-text mb-6">Product</h4>
+            <ul className="space-y-4">
+              <li><Link to="/build" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">AI Resume Writer</Link></li>
+              <li><Link to="/editor" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">PDF Canvas Editor</Link></li>
+              <li><Link to="/wizard" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">AI Wizard Builder</Link></li>
+              <li><Link to="/resources/blog" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">ATS Optimization</Link></li>
+              <li><Link to="/dashboard?tab=templates" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Templates Gallery</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-app-text mb-6">Resources</h4>
+            <ul className="space-y-4">
+              <li><Link to="/resources/blog" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Career Blog</Link></li>
+              <li><Link to="/resources/interview-guide" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Interview Guide</Link></li>
+              <li><Link to="/resources/examples" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Resume Examples</Link></li>
+              <li><Link to="/resources/help" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Help Center</Link></li>
+              <li><Link to="/status" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">System Status</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-app-text mb-6">Company</h4>
+            <ul className="space-y-4">
+              <li><Link to="/about" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">About Us</Link></li>
+              <li><Link to="/careers" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Careers</Link></li>
+              <li><Link to="/privacy" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Terms of Service</Link></li>
+              <li><Link to="/contact" className="text-sm text-app-text-secondary hover:text-brand-primary transition-colors">Contact Support</Link></li>
+            </ul>
           </div>
         </div>
-        <div className="mt-16 border-t border-slate-200 dark:border-slate-800 pt-8 sm:mt-20 lg:mt-24 flex flex-col md:flex-row items-center justify-between">
-          <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-            &copy; {new Date().getFullYear()} ResuMagic.AI. All rights reserved.
+
+        <div className="pt-8 border-t border-app-border flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-app-text-muted">
+            &copy; {new Date().getFullYear()} Resumagic. All rights reserved.
           </p>
-          <p className="mt-4 md:mt-0 items-center justify-center flex text-xs text-slate-500 dark:text-slate-400">
-            Developer:{" "}
-            <span className="font-bold text-teal-600 dark:text-teal-400 ml-1">
-              Junaid Mir
-            </span>
-            <span className="mx-2 text-slate-300 dark:text-slate-700">|</span>
-            Made with{" "}
-            <Heart className="mx-1 h-3 w-3 text-red-500 fill-red-500" /> for
-            developers
+          <p className="text-sm text-app-text-muted flex items-center gap-1.5">
+            Designed with <Heart className="w-4 h-4 text-brand-danger fill-brand-danger" /> for your career
           </p>
         </div>
       </div>

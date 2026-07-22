@@ -84,7 +84,7 @@ export default function PricingPage() {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pb-20 overflow-hidden">
+    <div className="min-h-screen bg-app-bg transition-colors duration-500 pb-20 overflow-hidden">
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-[-10%] w-[50%] h-[50%] bg-indigo-500/10 dark:bg-indigo-500/5 blur-[120px] rounded-full animate-pulse" />
@@ -95,9 +95,9 @@ export default function PricingPage() {
         <div className="mb-12">
           <Link
             to="/dashboard"
-            className="group inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-bold uppercase tracking-widest text-xs"
+            className="group inline-flex items-center gap-2 text-app-text-muted hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-bold uppercase tracking-widest text-xs"
           >
-            <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 group-hover:border-indigo-500/30 transition-all shadow-sm">
+            <div className="p-2 rounded-xl bg-app-surface border border-app-border group-hover:border-indigo-500/30 transition-all shadow-sm">
               <ChevronLeft size={16} />
             </div>
             Exit to Dashboard
@@ -105,13 +105,13 @@ export default function PricingPage() {
         </div>
 
         <div className="text-center space-y-4 mb-20">
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter">
+          <h1 className="text-5xl md:text-7xl font-black text-app-text tracking-tighter">
             Level Up Your{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-indigo-600">
               Career Power.
             </span>
           </h1>
-          <p className="max-w-xl mx-auto text-slate-500 dark:text-slate-400 text-lg font-medium">
+          <p className="max-w-xl mx-auto text-app-text-muted text-lg font-medium">
             Unlock professional-tier AI tools with a high-octane credit
             recharge.
           </p>
@@ -121,7 +121,7 @@ export default function PricingPage() {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className={`group relative flex flex-col p-1 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/10 ${plan.border}`}
+              className={`group relative flex flex-col p-1 bg-app-surface rounded-[2.5rem] border border-app-border transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/10 ${plan.border}`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-1.5 bg-indigo-600 text-white text-xs font-black rounded-full shadow-lg shadow-indigo-600/40 z-10 tracking-widest leading-none">
@@ -136,12 +136,12 @@ export default function PricingPage() {
                   {plan.icon}
                 </div>
 
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h3 className="text-2xl font-black text-app-text tracking-tight">
                   {plan.name}
                 </h3>
 
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-slate-900 dark:text-white">
+                  <span className="text-5xl font-black text-app-text">
                     ₹{plan.price}
                   </span>
                   <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
@@ -157,9 +157,9 @@ export default function PricingPage() {
                   {plan.features.map((feature, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-3 text-slate-600 dark:text-slate-400 font-bold text-sm"
+                      className="flex items-center gap-3 text-app-text-secondary font-bold text-sm"
                     >
-                      <div className="w-5 h-5 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-5 h-5 bg-app-surface rounded-full flex items-center justify-center flex-shrink-0">
                         <Check size={12} className={plan.color} />
                       </div>
                       {feature}
@@ -179,16 +179,16 @@ export default function PricingPage() {
         </div>
 
         {/* Info Box */}
-        <div className="mt-20 p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] max-w-4xl mx-auto">
+        <div className="mt-20 p-8 bg-app-surface border border-app-border rounded-[2rem] max-w-4xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
             <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl">
               <Info size={32} />
             </div>
             <div>
-              <p className="text-slate-900 dark:text-white font-black text-lg tracking-tight">
+              <p className="text-app-text font-black text-lg tracking-tight">
                 How power works?
               </p>
-              <p className="mt-1 text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed">
+              <p className="mt-1 text-app-text-muted font-medium text-sm leading-relaxed">
                 Recharges are instant. AI actions (Parsing, Edits, Summaries)
                 consume{" "}
                 <span className="text-indigo-500 font-bold">5 credits</span>.
@@ -207,14 +207,14 @@ export default function PricingPage() {
             className="absolute inset-0 bg-slate-950/40 backdrop-blur-xl transition-all duration-500"
             onClick={() => setShowModal(false)}
           />
-          <div className="relative bg-white dark:bg-slate-900 rounded-[3rem] p-10 max-w-md w-full text-center shadow-2xl border border-white/20 dark:border-slate-800 animate-in zoom-in-95 duration-500">
+          <div className="relative bg-app-surface rounded-[3rem] p-10 max-w-md w-full text-center shadow-2xl border border-white/20 dark:border-slate-800 animate-in zoom-in-95 duration-500">
             <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-500/40">
               <CreditCard size={48} />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-3 tracking-tighter">
+            <h2 className="text-3xl font-black text-app-text mb-3 tracking-tighter">
               Under Construction.
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-10 font-medium leading-relaxed">
+            <p className="text-app-text-muted mb-10 font-medium leading-relaxed">
               We're integrating UPI, Razorpay & Stripe for seamless
               transactions. Direct recharges will be active within{" "}
               <span className="text-indigo-500 font-bold">48 hours</span>.

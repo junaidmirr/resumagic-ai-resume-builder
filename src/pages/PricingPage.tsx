@@ -588,7 +588,12 @@ export default function PricingPage() {
               >
                 <div>
                   <div className="text-2xl font-black text-brand-primary mb-1">
-                    ₹{pack.price}
+                    ₹{getDiscountedPrice(pack.price)}{" "}
+                    {appliedPromo && (
+                      <span className="text-xs font-bold text-slate-400 line-through">
+                        ₹{pack.price}
+                      </span>
+                    )}
                   </div>
                   <div className="text-base font-extrabold text-app-text">
                     {pack.credits} AI Credits
@@ -603,7 +608,7 @@ export default function PricingPage() {
                   disabled={loadingPlan === pack.id}
                   className="w-full py-2.5 rounded-xl font-bold bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white text-xs transition-all"
                 >
-                  BUY PACK
+                  BUY PACK (₹{getDiscountedPrice(pack.price)})
                 </button>
               </div>
             ))}
@@ -612,7 +617,12 @@ export default function PricingPage() {
             <div className="bg-gradient-to-br from-teal-500/10 to-indigo-500/10 border border-teal-500/30 rounded-2xl p-5 text-center flex flex-col justify-between shadow-sm">
               <div>
                 <div className="text-2xl font-black text-teal-600 dark:text-teal-400 mb-1">
-                  ₹49
+                  ₹{getDiscountedPrice(49)}{" "}
+                  {appliedPromo && (
+                    <span className="text-xs font-bold text-slate-400 line-through">
+                      ₹49
+                    </span>
+                  )}
                 </div>
                 <div className="text-base font-extrabold text-app-text flex items-center justify-center gap-1">
                   <Download className="w-4 h-4 text-teal-500" />
@@ -628,7 +638,7 @@ export default function PricingPage() {
                 disabled={loadingPlan === "pay_per_download"}
                 className="w-full py-2.5 rounded-xl font-bold bg-teal-600 text-white hover:bg-teal-700 text-xs transition-all"
               >
-                BUY PASS (₹49)
+                BUY PASS (₹{getDiscountedPrice(49)})
               </button>
             </div>
 

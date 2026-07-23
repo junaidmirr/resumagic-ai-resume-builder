@@ -90,8 +90,7 @@ else:
     print("ℹ️ HAS_FIREBASE_ADMIN is False (running in slim serverless mode).")
     db_admin = None
 
-# Global Parser Instance
-parser = AIParserEngine()
+# Global Parser Instance deferred to lazy initialization inside routes
 
 def check_and_deduct_credits(uid, cost=5):
     """Verifies and deducts credits from Firestore."""
@@ -267,7 +266,8 @@ def parse_resume():
         
         is_linkedin = request.form.get("is_linkedin", "false").lower() == "true"
         
-        elements = parser.parse_file(file_bytes, filename, user_prompt=user_prompt, is_linkedin=is_linkedin)
+        parser_inst = AIParserEngine()
+        elements = parser_inst.parse_file(file_bytes, filename, user_prompt=user_prompt, is_linkedin=is_linkedin)
         
         return jsonify({"elements": elements})
     except Exception as e:

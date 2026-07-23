@@ -127,15 +127,22 @@ export function AuthModal() {
     setError("");
     try {
       if (turnstileToken) {
-        const response = await fetch("/api/verify-turnstile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: turnstileToken }),
-        });
-        const result = await response.json();
-        if (!result.success) {
-          setError("Bot protection verification failed. Please try again.");
-          return;
+        try {
+          const response = await fetch("/api/verify-turnstile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: turnstileToken }),
+          });
+          if (response.ok) {
+            const text = await response.text();
+            const result = JSON.parse(text);
+            if (result && result.success === false) {
+              setError("Bot protection verification failed. Please try again.");
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Turnstile verification skipped due to network/JSON issue:", e);
         }
       }
       await login();
@@ -168,15 +175,22 @@ export function AuthModal() {
     setLoading(true);
     try {
       if (turnstileToken) {
-        const response = await fetch("/api/verify-turnstile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: turnstileToken }),
-        });
-        const result = await response.json();
-        if (!result.success) {
-          setError("Bot protection verification failed. Please try again.");
-          return;
+        try {
+          const response = await fetch("/api/verify-turnstile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: turnstileToken }),
+          });
+          if (response.ok) {
+            const text = await response.text();
+            const result = JSON.parse(text);
+            if (result && result.success === false) {
+              setError("Bot protection verification failed. Please try again.");
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Turnstile verification skipped due to network/JSON issue:", e);
         }
       }
 

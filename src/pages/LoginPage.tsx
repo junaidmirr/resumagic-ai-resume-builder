@@ -107,8 +107,14 @@ export function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      const result = await response.json();
-      return result.success;
+      if (!response.ok) return true;
+      const text = await response.text();
+      try {
+        const result = JSON.parse(text);
+        return result.success ?? true;
+      } catch {
+        return true;
+      }
     } catch (err) {
       console.error("Backend verification failed:", err);
       return true;
@@ -150,8 +156,14 @@ export function LoginPage() {
           password: newPassword,
         }),
       });
-      const data = await response.json();
-      if (data.success) {
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { success: false, error: "Server returned non-JSON response" };
+      }
+      if (response.ok && data.success) {
         setResetMode("none");
         setAuthMode("login");
         setStatusMessage("Password reset successful! You can now login.");

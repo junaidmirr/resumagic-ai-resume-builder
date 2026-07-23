@@ -58,15 +58,20 @@ export interface Template {
   name: string;
   category: "Professional" | "Creative" | "Minimal" | "Tech" | string;
   thumbnailUrl: string;
+  isPremium: boolean;
   generateElements: (wizardData?: any) => EditorElement[];
   elements: (pageId: string, wizardData?: any) => EditorElement[];
 }
 
-export const templates: Template[] = RESUME_TEMPLATES.map(t => ({
-  id: t.id,
-  name: t.name,
-  category: t.category,
-  thumbnailUrl: thumbMap[t.id] || "",
-  generateElements: (wizardData?: any) => t.elements("page-1", wizardData) as EditorElement[],
-  elements: (pageId: string, wizardData?: any) => t.elements(pageId, wizardData) as EditorElement[],
-}));
+export const templates: Template[] = RESUME_TEMPLATES.map(t => {
+  const isFree = t.id === "minimalist_grid" || t.id === "corporate_hierarchy";
+  return {
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    thumbnailUrl: thumbMap[t.id] || "",
+    isPremium: !isFree,
+    generateElements: (wizardData?: any) => t.elements("page-1", wizardData) as EditorElement[],
+    elements: (pageId: string, wizardData?: any) => t.elements(pageId, wizardData) as EditorElement[],
+  };
+});

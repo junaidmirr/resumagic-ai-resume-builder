@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { templates, type Template } from "../../lib/templates";
 import { TemplateThumbnailPreview } from "./TemplateThumbnailPreview";
-import { Search, Loader2, Star, Download } from "lucide-react";
+import { Search, Loader2, Star, Download, Crown, Lock } from "lucide-react";
 
 interface TemplatesViewProps {
   onUseTemplate: (template: Template) => void;
@@ -80,6 +80,18 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
                 >
                   <div className="aspect-[1/1.4] relative overflow-hidden bg-app-bg p-3 flex items-center justify-center">
                     <TemplateThumbnailPreview template={template} />
+
+                    {/* Premium Crown Tag Badge */}
+                    {template.isPremium ? (
+                      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-[10px] uppercase px-2.5 py-1 rounded-full shadow-lg shadow-amber-500/20 border border-amber-300">
+                        <Crown className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                        PREMIUM
+                      </div>
+                    ) : (
+                      <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-full border border-emerald-500/20">
+                        FREE
+                      </div>
+                    )}
                     
                     {/* Hover Overlay */}
                     <div className={`absolute inset-0 bg-app-surface/80 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-300 ${hoveredId === template.id ? 'opacity-100' : 'opacity-0'}`}>

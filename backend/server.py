@@ -218,8 +218,15 @@ def get_user_credits():
         user_doc = user_ref.get()
         
         if not user_doc.exists:
-            user_ref.set({'credits': 50, 'createdAt': firestore.SERVER_TIMESTAMP})
-            return jsonify({"credits": 50})
+            # Initialize new user with 15 credits in Firestore during signup
+            if db_admin:
+                user_ref = db_admin.collection("users").document(uid)
+                if not user_ref.get().exists:
+                    user_ref.set({
+                        'credits': 15,
+                        'createdAt': firestore.SERVER_TIMESTAMP
+                    })
+            return jsonify({"credits": 15})
             
         return jsonify({"credits": user_doc.to_dict().get('credits', 0)})
     except Exception as e:
@@ -688,7 +695,7 @@ def send_verification_otp():
             user_ref = db_admin.collection('users').document(user.uid)
             if not user_ref.get().exists:
                 user_ref.set({
-                    'credits': 50,
+                    'credits': 15,
                     'email': email,
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
@@ -749,7 +756,7 @@ def verify_account():
             user_ref = db_admin.collection('users').document(user.uid)
             if not user_ref.get().exists:
                 user_ref.set({
-                    'credits': 50,
+                    'credits': 15,
                     'email': email,
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
@@ -850,13 +857,38 @@ def send_otp_email(to_email, otp, type="Password Reset"):
         print(f"[SMTP] Error sending email: {e}")
         return False
 
-# --- Cashfree Payment Gateway Integration ---
+# --- Indian-First Pricing Structure & Cashfree Payment Integration ---
 
 PLAN_CONFIGS = {
-    "basic": {"name": "Starter", "price": 199.00, "credits": 50},
-    "pro": {"name": "Professional", "price": 299.00, "credits": 150},
-    "expert": {"name": "Expert", "price": 599.00, "credits": 350},
-    "ultimate": {"name": "Ultimate", "price": 999.00, "credits": 500},
+    # Subscriptions (Monthly)
+    "student_monthly": {"name": "Student", "price": 99.00, "credits": 150, "type": "subscription", "plan": "student"},
+    "starter_monthly": {"name": "Starter", "price": 149.00, "credits": 150, "type": "subscription", "plan": "starter"},
+    "pro_monthly": {"name": "Pro ⭐", "price": 199.00, "credits": 1000, "type": "subscription", "plan": "pro"},
+    "career_monthly": {"name": "Career Pro", "price": 499.00, "credits": 3000, "type": "subscription", "plan": "career_pro"},
+    
+    # Subscriptions (Yearly)
+    "student_yearly": {"name": "Student Annual", "price": 799.00, "credits": 1500, "type": "subscription", "plan": "student"},
+    "starter_yearly": {"name": "Starter Annual", "price": 999.00, "credits": 1800, "type": "subscription", "plan": "starter"},
+    "pro_yearly": {"name": "Pro Annual ⭐", "price": 2499.00, "credits": 12000, "type": "subscription", "plan": "pro"},
+    "career_yearly": {"name": "Career Pro Annual", "price": 3999.00, "credits": 36000, "type": "subscription", "plan": "career_pro"},
+
+    # Lifetime Deal
+    "lifetime": {"name": "Lifetime Deal", "price": 1999.00, "credits": 3000, "type": "lifetime", "plan": "lifetime"},
+    
+    # Credit Packs
+    "pack_50": {"name": "50 AI Credits", "price": 49.00, "credits": 50, "type": "credits"},
+    "pack_150": {"name": "150 AI Credits", "price": 99.00, "credits": 150, "type": "credits"},
+    "pack_400": {"name": "400 AI Credits", "price": 199.00, "credits": 400, "type": "credits"},
+    "pack_1000": {"name": "1000 AI Credits", "price": 399.00, "credits": 1000, "type": "credits"},
+    
+    # Pay-Per-Download Pass
+    "pay_per_download": {"name": "Single Premium Pass", "price": 49.00, "credits": 50, "type": "single_pass"},
+
+    # Aliases
+    "basic": {"name": "Starter", "price": 149.00, "credits": 150, "type": "subscription", "plan": "starter"},
+    "pro": {"name": "Pro ⭐", "price": 199.00, "credits": 1000, "type": "subscription", "plan": "pro"},
+    "expert": {"name": "Career Pro", "price": 499.00, "credits": 3000, "type": "subscription", "plan": "career_pro"},
+    "ultimate": {"name": "Lifetime", "price": 1999.00, "credits": 3000, "type": "lifetime", "plan": "lifetime"},
 }
 
 def get_cashfree_credentials():
@@ -867,12 +899,15 @@ def get_cashfree_credentials():
         app_id = "TEST104787961bd4e402b8d0c8d6265069784701"
         secret_key = "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
 
+    is_test_key = app_id.upper().startswith("TEST") or secret_key.lower().startswith("cfsk_ma_test_")
     mode_env = os.environ.get("CASHFREE_MODE", "").strip().upper()
-    if mode_env in ["SANDBOX", "PRODUCTION"]:
+    
+    if is_test_key:
+        mode = "SANDBOX"
+    elif mode_env in ["SANDBOX", "PRODUCTION"]:
         mode = mode_env
     else:
-        # Auto-detect mode: TEST keys belong to SANDBOX
-        mode = "SANDBOX" if app_id.upper().startswith("TEST") else "PRODUCTION"
+        mode = "PRODUCTION"
 
     base_url = "https://sandbox.cashfree.com/pg" if mode == "SANDBOX" else "https://api.cashfree.com/pg"
     return app_id, secret_key, mode, base_url
@@ -885,16 +920,31 @@ def cashfree_create_order():
             return jsonify({"error": "Authentication required. Please log in first."}), 401
             
         data = request.get_json(silent=True) or {}
-        plan_id = data.get("plan_id", "pro")
+        plan_id = data.get("plan_id", "pro_monthly")
         if plan_id not in PLAN_CONFIGS:
             return jsonify({"error": "Invalid plan selected"}), 400
             
         plan = PLAN_CONFIGS[plan_id]
-        order_amount = plan["price"]
+        order_amount = float(plan["price"])
+        
+        # Apply Promo Code discount if provided
+        promo_code = (data.get("promo_code") or "").strip().upper()
+        discount_applied = 0.0
+        if promo_code and db_admin:
+            promo_doc = db_admin.collection("promo_codes").document(promo_code).get()
+            if promo_doc.exists:
+                pdata = promo_doc.to_dict()
+                if pdata.get("active", True):
+                    dtype = pdata.get("discount_type", "percent")
+                    dval = float(pdata.get("discount_value", 0))
+                    if dtype == "percent":
+                        discount_applied = order_amount * (dval / 100.0)
+                    else:
+                        discount_applied = dval
+                    order_amount = max(1.0, order_amount - discount_applied)
         
         app_id, secret_key, mode, base_url = get_cashfree_credentials()
         
-        # Sanitize customer_id & order_id (must be alphanumeric, max 45 chars)
         clean_uid = re.sub(r'[^a-zA-Z0-9_-]', '', str(uid))[:30] or "user"
         order_id = f"ord_{clean_uid}_{int(time.time())}"
         
@@ -906,7 +956,6 @@ def cashfree_create_order():
         if len(user_phone) != 10:
             user_phone = "9999999999"
             
-        # Determine public https URL for return_url
         forwarded_host = request.headers.get('X-Forwarded-Host') or request.host
         if "localhost" in forwarded_host or "127.0.0.1" in forwarded_host:
             site_url = f"http://{forwarded_host}"
@@ -927,7 +976,7 @@ def cashfree_create_order():
             "order_meta": {
                 "return_url": return_url
             },
-            "order_note": f"Resumagic {plan['name']} Pack ({plan['credits']} AI Credits)"
+            "order_note": f"Resumagic {plan['name']} ({plan['credits']} AI Credits)"
         }
         
         headers = {
@@ -968,7 +1017,7 @@ def cashfree_verify_payment():
             
         data = request.get_json(silent=True) or {}
         order_id = data.get("order_id")
-        plan_id = data.get("plan_id", "pro")
+        plan_id = data.get("plan_id", "pro_monthly")
         
         if not order_id:
             return jsonify({"error": "order_id parameter is required"}), 400
@@ -988,15 +1037,21 @@ def cashfree_verify_payment():
         order_status = cf_data.get("order_status")
         
         if order_status == "PAID":
-            plan = PLAN_CONFIGS.get(plan_id, PLAN_CONFIGS["pro"])
+            plan = PLAN_CONFIGS.get(plan_id, PLAN_CONFIGS["pro_monthly"])
             added_credits = plan["credits"]
+            plan_type = plan.get("plan", "pro")
             
             if db_admin:
                 user_ref = db_admin.collection("users").document(uid)
                 user_doc = user_ref.get()
                 curr_credits = user_doc.to_dict().get("credits", 0) if user_doc.exists else 0
                 new_credits = curr_credits + added_credits
-                user_ref.set({"credits": new_credits}, merge=True)
+                
+                update_fields = {"credits": new_credits}
+                if plan.get("type") in ["subscription", "lifetime"]:
+                    update_fields["plan"] = plan_type
+                    
+                user_ref.set(update_fields, merge=True)
                 
                 tx_ref = user_ref.collection("transactions").document(order_id)
                 tx_ref.set({
@@ -1012,7 +1067,8 @@ def cashfree_verify_payment():
                 "success": True,
                 "order_status": "PAID",
                 "message": f"Payment successful! Added {added_credits} AI credits to your account.",
-                "credits_added": added_credits
+                "credits_added": added_credits,
+                "plan": plan_type
             })
         else:
             return jsonify({
@@ -1043,9 +1099,11 @@ def cashfree_webhook():
             
             if order_id and uid:
                 added_credits = 150
+                matched_plan = "pro"
                 for pid, pconfig in PLAN_CONFIGS.items():
                     if abs(pconfig["price"] - float(order_amount)) < 1.0:
                         added_credits = pconfig["credits"]
+                        matched_plan = pconfig.get("plan", "pro")
                         break
                         
                 if db_admin:
@@ -1055,7 +1113,7 @@ def cashfree_webhook():
                     
                     tx_doc = user_ref.collection("transactions").document(order_id).get()
                     if not tx_doc.exists:
-                        user_ref.set({"credits": curr_credits + added_credits}, merge=True)
+                        user_ref.set({"credits": curr_credits + added_credits, "plan": matched_plan}, merge=True)
                         user_ref.collection("transactions").document(order_id).set({
                             "order_id": order_id,
                             "credits_added": added_credits,
@@ -1069,6 +1127,181 @@ def cashfree_webhook():
         return jsonify({"status": "IGNORED"}), 200
     except Exception as e:
         print(f"❌ Cashfree Webhook Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# --- Career Document Generator API ---
+
+@app.route('/api/documents/generate', methods=['POST'])
+def generate_career_document():
+    """Generates AI Cover Letters, SOPs, LORs, Resignation Letters, Cold Emails, LinkedIn Bios, etc."""
+    try:
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 10):
+            return jsonify({"error": "Insufficient credits. Please top up."}), 402
+            
+        data = request.get_json(silent=True) or {}
+        doc_type = data.get("doc_type", "cover_letter")
+        job_title = data.get("job_title", "Software Engineer")
+        company = data.get("company", "TechCorp")
+        user_experience = data.get("user_experience", "")
+        additional_notes = data.get("additional_notes", "")
+        
+        parser = AIParserEngine()
+        result = parser.generate_career_document(
+            doc_type=doc_type,
+            job_title=job_title,
+            company=company,
+            user_experience=user_experience,
+            additional_notes=additional_notes
+        )
+        
+        if uid and isinstance(result, dict) and result.get("success"):
+            deduct_user_credits(uid, 10)
+            
+        return jsonify(result)
+    except Exception as e:
+        print(f"❌ Career Document Generator Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# --- Student Offer Verification API ---
+
+@app.route('/api/student/verify', methods=['POST'])
+def verify_student():
+    """Verifies college email domain (.edu / .ac.in / college domain) for Student ₹99 Offer."""
+    try:
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required."}), 401
+            
+        data = request.get_json(silent=True) or {}
+        student_email = (data.get("student_email") or "").strip().lower()
+        
+        # Check domain ending with edu, ac.in, or containing college keywords
+        if not student_email or "@" not in student_email:
+            return jsonify({"error": "Please provide a valid college email address."}), 400
+            
+        domain = student_email.split("@")[-1]
+        is_valid_student = any(domain.endswith(ext) for ext in [".edu", ".ac.in", ".edu.in", ".college.in", ".univ.in", ".iit.ac.in", ".bits-pilani.ac.in", ".nits.ac.in"]) or "college" in domain or "univ" in domain or "student" in domain
+        
+        if is_valid_student:
+            if db_admin:
+                db_admin.collection("users").document(uid).set({"is_student_verified": True, "student_email": student_email}, merge=True)
+            return jsonify({"success": True, "message": "Student status verified! You unlock Student ₹99/mo pricing."})
+        else:
+            return jsonify({"success": False, "message": "Email domain not recognized as an accredited institution. Enter your official .edu or .ac.in email."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- Promo Code Management & Validation APIs ---
+
+@app.route('/api/promo/validate', methods=['POST'])
+def validate_promo_code():
+    """Validates user-entered promo code and calculates discount."""
+    try:
+        data = request.get_json(silent=True) or {}
+        code = (data.get("code") or "").strip().upper()
+        
+        if not code:
+            return jsonify({"error": "Promo code is required"}), 400
+            
+        if db_admin:
+            doc = db_admin.collection("promo_codes").document(code).get()
+            if not doc.exists:
+                return jsonify({"error": "Invalid promo code"}), 400
+                
+            pdata = doc.to_dict()
+            if not pdata.get("active", True):
+                return jsonify({"error": "This promo code has expired or been deactivated"}), 400
+                
+            # Check redemptions limit
+            max_uses = pdata.get("max_uses", 999999)
+            uses = pdata.get("uses", 0)
+            if uses >= max_uses:
+                return jsonify({"error": "This promo code limit has been reached"}), 400
+                
+            return jsonify({
+                "success": True,
+                "code": code,
+                "discount_type": pdata.get("discount_type", "percent"), # "percent" or "fixed"
+                "discount_value": float(pdata.get("discount_value", 0)),
+                "message": f"Promo code '{code}' applied! {pdata.get('discount_value')}{'%' if pdata.get('discount_type') == 'percent' else ' ₹'} off."
+            })
+            
+        # Fallback preset codes if Firestore is offline
+        if code in ["SAVE20", "LAUNCH20", "PROMO20"]:
+            return jsonify({
+                "success": True,
+                "code": code,
+                "discount_type": "percent",
+                "discount_value": 20,
+                "message": f"Promo code '{code}' applied! 20% off."
+            })
+        elif code in ["SAVE50", "OFF50"]:
+            return jsonify({
+                "success": True,
+                "code": code,
+                "discount_type": "fixed",
+                "discount_value": 50,
+                "message": f"Promo code '{code}' applied! ₹50 off."
+            })
+            
+        return jsonify({"error": "Invalid promo code"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/promo/create', methods=['POST'])
+def admin_create_promo():
+    """Admin endpoint to generate/create new promo codes with custom discounts."""
+    try:
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required."}), 401
+            
+        data = request.get_json(silent=True) or {}
+        code = (data.get("code") or "").strip().upper()
+        discount_type = data.get("discount_type", "percent") # "percent" or "fixed"
+        discount_value = float(data.get("discount_value", 10))
+        max_uses = int(data.get("max_uses", 100))
+        
+        if not code:
+            code = f"MAGIC{random.randint(100, 999)}"
+            
+        if db_admin:
+            db_admin.collection("promo_codes").document(code).set({
+                "code": code,
+                "discount_type": discount_type,
+                "discount_value": discount_value,
+                "max_uses": max_uses,
+                "uses": 0,
+                "active": True,
+                "created_by": uid,
+                "created_at": firestore.SERVER_TIMESTAMP
+            })
+            
+        return jsonify({
+            "success": True,
+            "code": code,
+            "discount_type": discount_type,
+            "discount_value": discount_value,
+            "max_uses": max_uses,
+            "message": f"Promo code '{code}' created successfully!"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/promo/list', methods=['GET'])
+def admin_list_promos():
+    """Admin endpoint to list all active promo codes."""
+    try:
+        if db_admin:
+            docs = db_admin.collection("promo_codes").limit(50).get()
+            promos = [d.to_dict() for d in docs]
+            return jsonify({"success": True, "promos": promos})
+        return jsonify({"success": True, "promos": [
+            {"code": "SAVE20", "discount_type": "percent", "discount_value": 20, "max_uses": 500, "uses": 12, "active": True},
+            {"code": "OFF50", "discount_type": "fixed", "discount_value": 50, "max_uses": 200, "uses": 45, "active": True}
+        ]})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # Re-export app for Vercel

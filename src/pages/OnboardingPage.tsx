@@ -40,6 +40,13 @@ export function OnboardingPage() {
   const [showAIArchitectModal, setShowAIArchitectModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "import") {
+      setShowImportModal(true);
+    }
+  }, []);
+
   const handleAIArchitectSuccess = async (elements: any[], title: string) => {
     try {
       const id = await resumeService.createResume(

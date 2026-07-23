@@ -31,6 +31,9 @@ import {
   Database,
   RefreshCw,
   Gift,
+  Copy,
+  Check,
+  Tag
 } from "lucide-react";
 import defaultLogoDark from "../assets/default.png";
 
@@ -44,6 +47,15 @@ interface UserDoc {
   createdAt?: any;
 }
 
+interface PromoCodeItem {
+  code: string;
+  discount_type: "percent" | "fixed";
+  discount_value: number;
+  max_uses: number;
+  uses: number;
+  active: boolean;
+}
+
 export function AdminDashboardPage() {
   const { user, isAdmin, loading: authLoading, logout } = useAuth();
   const { sendNotification, broadcastNotification } = useNotifications();
@@ -52,7 +64,7 @@ export function AdminDashboardPage() {
   const [usersList, setUsersList] = useState<UserDoc[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "notifications" | "analytics">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "notifications" | "promos">("users");
 
   // Notification Dispatcher Form State
   const [targetType, setTargetType] = useState<"all" | "single">("all");
@@ -66,6 +78,15 @@ export function AdminDashboardPage() {
   // Credit Edit State
   const [editingCreditsUid, setEditingCreditsUid] = useState<string | null>(null);
   const [newCreditValue, setNewCreditValue] = useState<number>(0);
+
+  // Promo Code Admin State
+  const [newPromoCode, setNewPromoCode] = useState("");
+  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
+  const [discountValue, setDiscountValue] = useState<number>(20);
+  const [maxUses, setMaxUses] = useState<number>(100);
+  const [isCreatingPromo, setIsCreatingPromo] = useState(false);
+  const [promosList, setPromosList] = useState<PromoCodeItem[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Security Protection Guard
   useEffect(() => {
@@ -92,11 +113,29 @@ export function AdminDashboardPage() {
     }
   };
 
+  const fetchPromoCodes = async () => {
+    try {
+      const res = await fetch("/api/admin/promo/list");
+      const data = await res.json();
+      if (res.ok && data.promos) {
+        setPromosList(data.promos);
+      }
+    } catch (e) {
+      console.error("Failed to fetch promos", e);
+    }
+  };
+
   useEffect(() => {
     if (user && isAdmin) {
       fetchUsers();
     }
   }, [user, isAdmin]);
+
+  useEffect(() => {
+    if (activeTab === "promos") {
+      fetchPromoCodes();
+    }
+  }, [activeTab]);
 
   const handleToggleAdmin = async (targetUid: string, currentStatus: boolean) => {
     try {
@@ -131,6 +170,46 @@ export function AdminDashboardPage() {
     } catch (err) {
       console.error("[Admin] Failed to delete user:", err);
     }
+  };
+
+  const handleCreatePromoCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingPromo(true);
+    try {
+      const token = await user?.getIdToken().catch(() => "");
+      const res = await fetch("/api/admin/promo/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          code: newPromoCode,
+          discount_type: discountType,
+          discount_value: discountValue,
+          max_uses: maxUses,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message);
+        setNewPromoCode("");
+        fetchPromoCodes();
+      } else {
+        alert(data.error || "Failed to create promo code.");
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsCreatingPromo(false);
+    }
+  };
+
+  const copyToClipboard = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const handleDispatchNotification = async (e: React.FormEvent) => {
@@ -242,11 +321,11 @@ export function AdminDashboardPage() {
 
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Credits Issued</p>
-              <h3 className="text-2xl font-black text-amber-400">{totalDistributedCredits}</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Active Promos</p>
+              <h3 className="text-2xl font-black text-amber-400">{promosList.length}</h3>
             </div>
             <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
-              <Sparkles className="w-6 h-6" />
+              <Gift className="w-6 h-6" />
             </div>
           </div>
         </div>
@@ -263,6 +342,18 @@ export function AdminDashboardPage() {
           >
             <Users className="w-4 h-4" /> User Management ({totalUsersCount})
           </button>
+
+          <button
+            onClick={() => setActiveTab("promos")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              activeTab === "promos"
+                ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900"
+            }`}
+          >
+            <Gift className="w-4 h-4" /> Promo Code Generator ({promosList.length})
+          </button>
+
           <button
             onClick={() => setActiveTab("notifications")}
             className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
@@ -410,7 +501,162 @@ export function AdminDashboardPage() {
           </div>
         )}
 
-        {/* TAB 2: Push Notifications & Rewards Dispatcher */}
+        {/* TAB 2: PROMO CODE GENERATOR & MANAGER (ADMIN CONSOLE) */}
+        {activeTab === "promos" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Generator Form */}
+              <div className="md:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Generate Promo Code</h3>
+                    <p className="text-xs text-slate-400">Create discount coupons for users.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleCreatePromoCode} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Promo Code String
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. LAUNCH50 or SAVE20"
+                      value={newPromoCode}
+                      onChange={(e) => setNewPromoCode(e.target.value.toUpperCase())}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white uppercase tracking-wider focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Discount Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType("percent")}
+                        className={`py-2 rounded-xl text-xs font-bold border ${
+                          discountType === "percent"
+                            ? "bg-brand-primary text-white border-brand-primary"
+                            : "bg-slate-950 text-slate-400 border-slate-800"
+                        }`}
+                      >
+                        Percentage (%)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType("fixed")}
+                        className={`py-2 rounded-xl text-xs font-bold border ${
+                          discountType === "fixed"
+                            ? "bg-brand-primary text-white border-brand-primary"
+                            : "bg-slate-950 text-slate-400 border-slate-800"
+                        }`}
+                      >
+                        Fixed Amount (₹)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Discount Value ({discountType === "percent" ? "%" : "₹"})
+                    </label>
+                    <input
+                      type="number"
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(Number(e.target.value))}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      Max Redemptions Limit
+                    </label>
+                    <input
+                      type="number"
+                      value={maxUses}
+                      onChange={(e) => setMaxUses(Number(e.target.value))}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isCreatingPromo}
+                    className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isCreatingPromo ? "Generating Code..." : "Create Promo Code"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Active Coupons List Table */}
+              <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-extrabold text-sm text-white flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-brand-primary" />
+                    Active Promo Coupons ({promosList.length})
+                  </h4>
+                  <button
+                    onClick={fetchPromoCodes}
+                    className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                  </button>
+                </div>
+
+                {promosList.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-8 text-center">No promo codes generated yet. Use the generator on the left to create your first coupon.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {promosList.map((p, idx) => (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-xs uppercase px-3 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            {p.code}
+                          </span>
+                          <span className="text-xs font-bold text-white">
+                            {p.discount_value}{p.discount_type === "percent" ? "% OFF" : " ₹ OFF"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-slate-400 font-medium">
+                            Redemptions: {p.uses || 0} / {p.max_uses}
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(p.code)}
+                            className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold hover:text-white flex items-center gap-1"
+                          >
+                            {copiedCode === p.code ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            {copiedCode === p.code ? "Copied" : "Copy"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: Push Notifications & Rewards Dispatcher */}
         {activeTab === "notifications" && (
           <div className="max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
             <div>

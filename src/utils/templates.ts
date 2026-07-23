@@ -2283,6 +2283,646 @@ function neuralNetwork(pageId: string, wizardData?: any): Partial<EditorElement>
   return els;
 }
 
+// TEMPLATE 44 — Titan Corporate (Professional)
+function titanCorporate(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 35, y: 700, width: 542, height: 75, fill_color: "#0F172A", border_width: 2, border_color: "#D97706", border_radius: 8, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 50, y: 740, width: 512, height: 24, font_size: 20, font_name: "Helvetica-Bold", text_color: "#F8FAFC", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${TITLE}  |  ${EMAIL}  |  ${PHONE}`, x: 50, y: 718, width: 512, height: 12, font_size: 9, font_name: "Helvetica", text_color: "#FCD34D", z_index: 2 });
+
+  let y = 675;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 35, y: y, width: 542, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#D97706", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 35, y: y, x2: 577, y2: y, border_color: "#D97706", border_width: 1.5, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Executive Mandate");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 35, y: y-35, width: 542, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Leadership History");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 35, y: y, width: 400, height: 14, font_size: 10.5, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 137, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#B45309", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 35, y: y-40, width: 542, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Qualifications & Core Domains");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EDU_TITLE} - ${EDU_SCHOOL}`, x: 35, y: y, width: 542, height: 14, font_size: 9.5, font_name: "Helvetica", text_color: "#0F172A", z_index: 2 });
+  y -= 20;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 35, y: y, width: 542, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#B45309", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 45 — Hyper Gradient (Creative)
+function hyperGradient(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 700, width: 612, height: 92, fill_color: "#7E22CE", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 694, width: 612, height: 6, fill_color: "#EC4899", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 745, width: 532, height: 26, font_size: 24, font_name: "Helvetica-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: TITLE, x: 40, y: 722, width: 532, height: 14, font_size: 11, font_name: "Helvetica", text_color: "#F472B6", z_index: 2 });
+
+  let y = 665;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  •  ${PHONE}  •  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#64748B", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#9333EA", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#F472B6", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Bio");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10.5, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#DB2777", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Skills & Learning");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#7E22CE", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 46 — Studio Minimalist (Creative)
+function studioMinimalist(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 40, y: 0, width: 6, height: 792, fill_color: "#059669", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 65, y: 740, width: 500, height: 26, font_size: 24, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: TITLE, x: 65, y: 718, width: 500, height: 14, font_size: 11, font_name: "Helvetica", text_color: "#059669", z_index: 2 });
+
+  let y = 675;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 65, y: y, width: 500, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#64748B", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 65, y: y, width: 500, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#059669", bold: true, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Profile");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 65, y: y-35, width: 500, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Selected Works");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 65, y: y, width: 380, height: 14, font_size: 10.5, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 125, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#059669", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 65, y: y-40, width: 500, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Tools & Skills");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 65, y: y, width: 500, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#0F172A", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 47 — Spectrum Pulse (Creative)
+function spectrumPulse(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 720, width: 612, height: 72, fill_color: "#0284C7", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 715, width: 612, height: 5, fill_color: "#A855F7", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 755, width: 532, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: TITLE, x: 40, y: 735, width: 532, height: 14, font_size: 11, font_name: "Helvetica", text_color: "#E0F2FE", z_index: 2 });
+
+  let y = 680;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#64748B", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0284C7", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#A855F7", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Overview");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Impact History");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10.5, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#9333EA", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Competencies");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#0284C7", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 48 — Pure Typography (Minimal)
+function pureTypography(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 50, y: 735, width: 512, height: 28, font_size: 24, font_name: "Times-Bold", text_color: "#0F172A", align: "center", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: TITLE.toUpperCase(), x: 50, y: 712, width: 512, height: 14, font_size: 10, font_name: "Times-Roman", text_color: "#475569", align: "center", z_index: 2 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 200, y: 700, x2: 412, y2: 700, border_color: "#0F172A", border_width: 1, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  •  ${PHONE}  •  ${LOCATION}`, x: 50, y: 682, width: 512, height: 12, font_size: 8.5, font_name: "Times-Roman", text_color: "#64748B", align: "center", z_index: 2 });
+
+  let y = 645;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 50, y: y, width: 512, height: 14, font_size: 10.5, font_name: "Times-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 50, y: y, x2: 562, y2: y, border_color: "#CBD5E1", border_width: 0.5, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Summary");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 50, y: y-35, width: 512, height: 40, font_size: 9.5, font_name: "Times-Roman", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 50, y: y, width: 380, height: 14, font_size: 10, font_name: "Times-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 430, y: y, width: 132, height: 14, font_size: 9, font_name: "Times-Italic", text_color: "#64748B", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 50, y: y-40, width: 512, height: 45, font_size: 9, font_name: "Times-Roman", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Skills & Qualifications");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("  •  "), x: 50, y: y, width: 512, height: 14, font_size: 9.5, font_name: "Times-Roman", text_color: "#0F172A", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 49 — Air Minimal (Minimal)
+function airMinimal(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 730, width: 612, height: 62, fill_color: "#F0F9FF", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 45, y: 756, width: 522, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#0369A1", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: TITLE, x: 45, y: 738, width: 522, height: 14, font_size: 10.5, font_name: "Helvetica", text_color: "#0284C7", z_index: 2 });
+
+  let y = 690;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}   |   ${PHONE}   |   ${LOCATION}`, x: 45, y: y, width: 522, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#64748B", z_index: 2 });
+  y -= 30;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 45, y: y, width: 522, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#0369A1", bold: true, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Profile");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 45, y: y-35, width: 522, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 45, y: y, width: 380, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 435, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#0284C7", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 45, y: y-40, width: 522, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Skills");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 45, y: y, width: 522, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#0369A1", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 50 — Paper Craft (Minimal)
+function paperCraft(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 20, y: 20, width: 572, height: 752, fill_color: "#FAFAF9", border_color: "#E7E5E4", border_width: 1, border_radius: 12, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 45, y: 730, width: 522, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#1C1917", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${TITLE}  •  ${EMAIL}  •  ${PHONE}`, x: 45, y: 710, width: 522, height: 14, font_size: 9.5, font_name: "Helvetica", text_color: "#78716C", z_index: 2 });
+
+  let y = 675;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 45, y: y, width: 522, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#44403C", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 45, y: y, x2: 567, y2: y, border_color: "#D6D3D1", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Summary");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 45, y: y-35, width: 522, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#292524", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 45, y: y, width: 380, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#1C1917", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 435, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#78716C", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 45, y: y-40, width: 522, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#292524", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Skills");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 45, y: y, width: 522, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#44403C", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 51 — Silicon Clean (Minimal)
+function siliconClean(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "circle", page_id: pageId, x: 40, y: 745, width: 10, height: 10, fill_color: "#0D9488", border_width: 0, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 58, y: 742, width: 500, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${TITLE}  //  ${EMAIL}  //  ${LOCATION}`, x: 58, y: 722, width: 500, height: 14, font_size: 9.5, font_name: "Courier", text_color: "#0D9488", z_index: 2 });
+
+  let y = 680;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#CCFBF1", border_width: 2, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Overview");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Courier", text_color: "#0D9488", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Technologies");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   |   "), x: 40, y: y, width: 532, height: 14, font_size: 9, font_name: "Courier-Bold", text_color: "#0D9488", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 52 — Subtle Line (Minimal)
+function subtleLine(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 0, width: 20, height: 792, fill_color: "#334155", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 45, y: 740, width: 522, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${TITLE}  •  ${EMAIL}  •  ${PHONE}`, x: 45, y: 720, width: 522, height: 14, font_size: 9.5, font_name: "Helvetica", text_color: "#475569", z_index: 2 });
+
+  let y = 680;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 45, y: y, width: 522, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#334155", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 45, y: y, x2: 567, y2: y, border_color: "#CBD5E1", border_width: 0.75, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Executive Summary");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 45, y: y-35, width: 522, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 45, y: y, width: 380, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 435, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#64748B", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 45, y: y-40, width: 522, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Skills & Expertise");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 45, y: y, width: 522, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#334155", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 53 — Linear Purity (Minimal)
+function linearPurity(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 40, y: 710, width: 532, height: 65, fill_color: "#F0FDF4", border_color: "#86EFAC", border_width: 1, border_radius: 8, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 55, y: 745, width: 500, height: 22, font_size: 18, font_name: "Helvetica-Bold", text_color: "#166534", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${TITLE}  |  ${EMAIL}  |  ${PHONE}`, x: 55, y: 725, width: 500, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#15803D", z_index: 2 });
+
+  let y = 675;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#166534", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#86EFAC", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Profile");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#166534", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Skills");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#15803D", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 54 — Architect Blueprint (Minimal)
+function architectBlueprint(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 700, width: 612, height: 92, fill_color: "#1E3A8A", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 0, y: 698, x2: 612, y2: 698, border_color: "#93C5FD", border_width: 1.5, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 745, width: 532, height: 24, font_size: 22, font_name: "Courier-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `SYSTEM ARCHITECT: ${TITLE}`, x: 40, y: 724, width: 532, height: 14, font_size: 10, font_name: "Courier", text_color: "#93C5FD", z_index: 2 });
+
+  let y = 665;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Courier", text_color: "#475569", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: `[ ${title.toUpperCase()} ]`, x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#1E3A8A", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#93C5FD", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Specifications");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9, font_name: "Courier", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Architectural Experience");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Courier", text_color: "#1E3A8A", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 8.5, font_name: "Courier", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Technical Stack");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9, font_name: "Courier-Bold", text_color: "#1E3A8A", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 55 — Stack Overflow (Tech)
+function stackOverflow(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 0, width: 612, height: 792, fill_color: "#2D2D2D", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 720, width: 612, height: 72, fill_color: "#F48024", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 755, width: 532, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${TITLE}  //  ${EMAIL}`, x: 40, y: 735, width: 532, height: 14, font_size: 10, font_name: "Courier", text_color: "#FFF", z_index: 2 });
+
+  let y = 680;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: `// ${title.toUpperCase()}`, x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#F48024", bold: true, z_index: 2 });
+    y -= 16;
+  };
+
+  section("About Developer");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9, font_name: "Courier", text_color: "#D4D4D4", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Work History");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 8.5, font_name: "Courier", text_color: "#BC6D25", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 8.5, font_name: "Courier", text_color: "#D4D4D4", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Tag Stack");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.map(s => `[${s}]`).join("  "), x: 40, y: y, width: 532, height: 14, font_size: 9, font_name: "Courier-Bold", text_color: "#F48024", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 56 — Cloud Native (Tech)
+function cloudNative(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 700, width: 612, height: 92, fill_color: "#0F172A", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 695, width: 612, height: 5, fill_color: "#38BDF8", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 745, width: 532, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `CLOUD NATIVE ARCHITECT  •  ${TITLE}`, x: 40, y: 724, width: 532, height: 14, font_size: 10, font_name: "Helvetica", text_color: "#38BDF8", z_index: 2 });
+
+  let y = 665;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#64748B", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0284C7", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#38BDF8", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Infrastructure Mandate");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("DevOps & Platform Engineering");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#0284C7", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Container Ecosystem & Cloud Tools");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#0284C7", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 57 — Cyber Architect (Tech)
+function cyberArchitect(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 0, width: 612, height: 792, fill_color: "#090D16", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `$ root@cyber:~# cat profile.sys`, x: 35, y: 750, width: 542, height: 16, font_size: 11, font_name: "Courier-Bold", text_color: "#22C55E", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `NAME="${NAME}" ROLE="${TITLE}"`, x: 35, y: 730, width: 542, height: 14, font_size: 10, font_name: "Courier", text_color: "#4ADE80", z_index: 2 });
+
+  let y = 690;
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: `$ ./execute --section=${title.toLowerCase()}`, x: 35, y: y, width: 542, height: 14, font_size: 9.5, font_name: "Courier-Bold", text_color: "#22C55E", bold: true, z_index: 2 });
+    y -= 16;
+  };
+
+  section("summary");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 35, y: y-35, width: 542, height: 40, font_size: 8.5, font_name: "Courier", text_color: "#E2E8F0", line_height: 1.3, z_index: 2 });
+  y -= 45;
+
+  section("logs");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: `[LOG]: ${role} (${date})`, x: 35, y: y, width: 542, height: 12, font_size: 9, font_name: "Courier-Bold", text_color: "#4ADE80", bold: true, z_index: 2 });
+    y -= 14;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 35, y: y-35, width: 542, height: 40, font_size: 8.5, font_name: "Courier", text_color: "#CBD5E1", line_height: 1.3, z_index: 2 });
+    y -= 45;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("capabilities");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   "), x: 35, y: y, width: 542, height: 14, font_size: 8.5, font_name: "Courier-Bold", text_color: "#86EFAC", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 58 — Cyber Deck (Tech)
+function cyberDeck(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 700, width: 612, height: 92, fill_color: "#18181B", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 694, width: 612, height: 6, fill_color: "#EAB308", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 745, width: 532, height: 24, font_size: 22, font_name: "Courier-Bold", text_color: "#FACC15", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `SYSTEM OPERATOR: ${TITLE}`, x: 40, y: 724, width: 532, height: 14, font_size: 10, font_name: "Courier", text_color: "#FFFFFF", z_index: 2 });
+
+  let y = 665;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Courier", text_color: "#71717A", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: `[ ${title.toUpperCase()} ]`, x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#CA8A04", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#EAB308", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Profile");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9, font_name: "Courier", text_color: "#27272A", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Deployment History");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#09090B", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Courier", text_color: "#CA8A04", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 8.5, font_name: "Courier", text_color: "#27272A", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Stack");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9, font_name: "Courier-Bold", text_color: "#CA8A04", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 59 — Docker Cloud (Tech)
+function dockerCloud(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 700, width: 612, height: 92, fill_color: "#0369A1", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 745, width: 532, height: 24, font_size: 22, font_name: "Helvetica-Bold", text_color: "#FFFFFF", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `CONTAINER ARCHITECT  •  ${TITLE}`, x: 40, y: 724, width: 532, height: 14, font_size: 10, font_name: "Helvetica", text_color: "#BAE6FD", z_index: 2 });
+
+  let y = 665;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Helvetica", text_color: "#64748B", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: title.toUpperCase(), x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0369A1", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#BAE6FD", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Cluster Overview");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9.5, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Deployment History");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Helvetica-Bold", text_color: "#0F172A", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Helvetica", text_color: "#0284C7", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 9, font_name: "Helvetica", text_color: "#334155", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Container Engine & Tooling");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9.5, font_name: "Helvetica-Bold", text_color: "#0369A1", z_index: 2 });
+  return els;
+}
+
+// TEMPLATE 60 — Wasm Edge (Tech)
+function wasmEdge(pageId: string, wizardData?: any): Partial<EditorElement>[] {
+  const { NAME, TITLE, EMAIL, PHONE, LOCATION, SUMMARY, EXP1_ROLE, EXP1_DATE, EXP1_DESC, EXP2_ROLE, EXP2_DATE, EXP2_DESC, EDU_TITLE, EDU_SCHOOL, SKILLS } = getTemplateData(wizardData);
+  const els: Partial<EditorElement>[] = [];
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 700, width: 612, height: 92, fill_color: "#451A03", border_width: 0, z_index: 0 });
+  els.push({ id: gid(), element_type: "shape", shape_type: "rectangle", page_id: pageId, x: 0, y: 694, width: 612, height: 6, fill_color: "#F59E0B", border_width: 0, z_index: 1 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: NAME, x: 40, y: 745, width: 532, height: 24, font_size: 22, font_name: "Courier-Bold", text_color: "#FBBF24", bold: true, z_index: 2 });
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `WASM EDGE DEVELOPER  •  ${TITLE}`, x: 40, y: 724, width: 532, height: 14, font_size: 10, font_name: "Courier", text_color: "#FDE68A", z_index: 2 });
+
+  let y = 665;
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: `${EMAIL}  |  ${PHONE}  |  ${LOCATION}`, x: 40, y: y, width: 532, height: 12, font_size: 8.5, font_name: "Courier", text_color: "#78350F", z_index: 2 });
+  y -= 25;
+
+  const section = (title: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: `// ${title.toUpperCase()}`, x: 40, y: y, width: 532, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#D97706", bold: true, z_index: 2 });
+    y -= 3;
+    els.push({ id: gid(), element_type: "shape", shape_type: "line", page_id: pageId, x: 40, y: y, x2: 572, y2: y, border_color: "#FBBF24", border_width: 1, z_index: 2 });
+    y -= 16;
+  };
+
+  section("Runtime Profile");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SUMMARY, x: 40, y: y-35, width: 532, height: 40, font_size: 9, font_name: "Courier", text_color: "#451A03", line_height: 1.35, z_index: 2 });
+  y -= 50;
+
+  section("Edge Deployments");
+  const exp = (role: string, date: string, desc: string) => {
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: role, x: 40, y: y, width: 400, height: 14, font_size: 10, font_name: "Courier-Bold", text_color: "#78350F", bold: true, z_index: 2 });
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: date, x: 440, y: y, width: 132, height: 14, font_size: 9, font_name: "Courier", text_color: "#D97706", align: "right", z_index: 2 });
+    y -= 16;
+    els.push({ id: gid(), element_type: "text", page_id: pageId, text: desc, x: 40, y: y-40, width: 532, height: 45, font_size: 8.5, font_name: "Courier", text_color: "#451A03", line_height: 1.35, z_index: 2 });
+    y -= 55;
+  };
+  exp(EXP1_ROLE, EXP1_DATE, EXP1_DESC);
+  exp(EXP2_ROLE, EXP2_DATE, EXP2_DESC);
+
+  section("Compiled Modules");
+  els.push({ id: gid(), element_type: "text", page_id: pageId, text: SKILLS.join("   •   "), x: 40, y: y, width: 532, height: 14, font_size: 9, font_name: "Courier-Bold", text_color: "#B45309", z_index: 2 });
+  return els;
+}
+
 export const RESUME_TEMPLATES: TemplateDef[] = [
   // ───────────────────────────────────────────────────────────────────────────
   // 1. PROFESSIONAL CATEGORY (15 TEMPLATES)
@@ -2301,7 +2941,7 @@ export const RESUME_TEMPLATES: TemplateDef[] = [
   { id: "diplomat_formal", name: "Diplomat Formal", category: "Professional", description: "Formal diplomat header with double lines and serif typography.", elements: (p, d) => diplomatFormal(p, d) },
   { id: "prestige_leadership", name: "Prestige Leadership", category: "Professional", description: "Dark navy card header with amber accent strip for senior leadership.", elements: (p, d) => prestigeLeadership(p, d) },
   { id: "sovereign_suite", name: "Sovereign Suite", category: "Professional", description: "Deep indigo top banner with indigo section underline rules.", elements: (p, d) => sovereignSuite(p, d) },
-  { id: "titan_corporate", name: "Titan Corporate", category: "Professional", description: "High-density executive layout tailored for enterprise leaders.", elements: (p, d) => sterlingCorporate(p, d) },
+  { id: "titan_corporate", name: "Titan Corporate", category: "Professional", description: "High-density executive layout tailored for enterprise leaders.", elements: (p, d) => titanCorporate(p, d) },
 
   // ───────────────────────────────────────────────────────────────────────────
   // 2. CREATIVE CATEGORY (15 TEMPLATES)
@@ -2318,9 +2958,9 @@ export const RESUME_TEMPLATES: TemplateDef[] = [
   { id: "prism_vivid", name: "Prism Vivid", category: "Creative", description: "Vivid violet top header cut with cyan divider strip.", elements: (p, d) => prismVivid(p, d) },
   { id: "cosmic_starlight", name: "Cosmic Starlight", category: "Creative", description: "Deep violet header block with lavender role subtitle.", elements: (p, d) => cosmicStarlight(p, d) },
   { id: "velvet_artisan", name: "Velvet Artisan", category: "Creative", description: "Rich crimson header bar with soft rose typography.", elements: (p, d) => velvetArtisan(p, d) },
-  { id: "hyper_gradient", name: "Hyper Gradient", category: "Creative", description: "Dynamic color gradient hero with wave path dividers.", elements: (p, d) => gradientFlow(p, d) },
-  { id: "studio_minimalist", name: "Studio Minimalist", category: "Creative", description: "Artistic header block with modern asymmetrical spacing.", elements: (p, d) => prismVivid(p, d) },
-  { id: "spectrum_pulse", name: "Spectrum Pulse", category: "Creative", description: "Bold banner with vibrant pulse accent lines.", elements: (p, d) => cosmicStarlight(p, d) },
+  { id: "hyper_gradient", name: "Hyper Gradient", category: "Creative", description: "Dynamic color gradient hero with wave path dividers.", elements: (p, d) => hyperGradient(p, d) },
+  { id: "studio_minimalist", name: "Studio Minimalist", category: "Creative", description: "Artistic header block with modern asymmetrical spacing.", elements: (p, d) => studioMinimalist(p, d) },
+  { id: "spectrum_pulse", name: "Spectrum Pulse", category: "Creative", description: "Bold banner with vibrant pulse accent lines.", elements: (p, d) => spectrumPulse(p, d) },
 
   // ───────────────────────────────────────────────────────────────────────────
   // 3. MINIMAL CATEGORY (15 TEMPLATES)
@@ -2331,15 +2971,15 @@ export const RESUME_TEMPLATES: TemplateDef[] = [
   { id: "charcoal_minimal", name: "Charcoal Minimal", category: "Minimal", description: "Pure black and white. No color distractions — clean typography.", elements: (p, d) => charcoalMinimal(p, d) },
   { id: "mono_sleek", name: "Mono Sleek", category: "Minimal", description: "Ultra-sleek single rule divider with mono alignment.", elements: (p, d) => monoSleek(p, d) },
   { id: "zenith_clean", name: "Zenith Clean", category: "Minimal", description: "Compact minimalist layout with subtle slate dividers.", elements: (p, d) => zenithClean(p, d) },
-  { id: "pure_typography", name: "Pure Typography", category: "Minimal", description: "Hierarchy relying strictly on typography and white space.", elements: (p, d) => charcoalMinimal(p, d) },
-  { id: "air_minimal", name: "Air Minimal", category: "Minimal", description: "Spacious margin bounds with ultra-light rules.", elements: (p, d) => crystalClean(p, d) },
-  { id: "paper_craft", name: "Paper Craft", category: "Minimal", description: "Subtle boxed margin outline creating a paper feel.", elements: (p, d) => minimalistGrid(p, d) },
-  { id: "silicon_clean", name: "Silicon Clean", category: "Minimal", description: "Silicon Valley aesthetic with micro horizontal dividers.", elements: (p, d) => zenithClean(p, d) },
+  { id: "pure_typography", name: "Pure Typography", category: "Minimal", description: "Hierarchy relying strictly on typography and white space.", elements: (p, d) => pureTypography(p, d) },
+  { id: "air_minimal", name: "Air Minimal", category: "Minimal", description: "Spacious margin bounds with ultra-light rules.", elements: (p, d) => airMinimal(p, d) },
+  { id: "paper_craft", name: "Paper Craft", category: "Minimal", description: "Subtle boxed margin outline creating a paper feel.", elements: (p, d) => paperCraft(p, d) },
+  { id: "silicon_clean", name: "Silicon Clean", category: "Minimal", description: "Silicon Valley aesthetic with micro horizontal dividers.", elements: (p, d) => siliconClean(p, d) },
   { id: "nordic_clean", name: "Nordic Clean", category: "Minimal", description: "Ultra-thin rule dividers with spacious character tracking.", elements: (p, d) => nordicClean(p, d) },
   { id: "swiss_grid", name: "Swiss Grid", category: "Minimal", description: "Swiss international typographic grid layout.", elements: (p, d) => swissGrid(p, d) },
-  { id: "subtle_line", name: "Subtle Line", category: "Minimal", description: "Minimal grey margin frame with high ATS text density.", elements: (p, d) => nordicClean(p, d) },
-  { id: "linear_purity", name: "Linear Purity", category: "Minimal", description: "Clean linear hierarchy with border pill tags.", elements: (p, d) => monoSleek(p, d) },
-  { id: "architect_blueprint", name: "Architect Blueprint", category: "Minimal", description: "Blueprint structural layout lines with crisp margins.", elements: (p, d) => swissGrid(p, d) },
+  { id: "subtle_line", name: "Subtle Line", category: "Minimal", description: "Minimal grey margin frame with high ATS text density.", elements: (p, d) => subtleLine(p, d) },
+  { id: "linear_purity", name: "Linear Purity", category: "Minimal", description: "Clean linear hierarchy with border pill tags.", elements: (p, d) => linearPurity(p, d) },
+  { id: "architect_blueprint", name: "Architect Blueprint", category: "Minimal", description: "Blueprint structural layout lines with crisp margins.", elements: (p, d) => architectBlueprint(p, d) },
 
   // ───────────────────────────────────────────────────────────────────────────
   // 4. TECH CATEGORY (15 TEMPLATES)
@@ -2351,12 +2991,12 @@ export const RESUME_TEMPLATES: TemplateDef[] = [
   { id: "midnight_blue", name: "Midnight Blue", category: "Tech", description: "Dark navy with radar skill chart and wave hero.", elements: (p, d) => midnightBlue(p, d) },
   { id: "dev_matrix", name: "Dev Matrix", category: "Tech", description: "Dark matrix green IDE terminal theme with function syntax.", elements: (p, d) => devMatrix(p, d) },
   { id: "quantum_core", name: "Quantum Core", category: "Tech", description: "Dark slate sidebar with cyan borders and system headers.", elements: (p, d) => quantumCore(p, d) },
-  { id: "stack_overflow", name: "Stack Overflow", category: "Tech", description: "Hacker-dark IDE theme with syntax highlighting.", elements: (p, d) => neonCoder(p, d) },
-  { id: "cloud_native", name: "Cloud Native", category: "Tech", description: "Microservice timeline layout with cyan node markers.", elements: (p, d) => geometricTech(p, d) },
-  { id: "cyber_architect", name: "Cyber Architect", category: "Tech", description: "Terminal layout with monospace code comments.", elements: (p, d) => devMatrix(p, d) },
+  { id: "stack_overflow", name: "Stack Overflow", category: "Tech", description: "Hacker-dark IDE theme with syntax highlighting.", elements: (p, d) => stackOverflow(p, d) },
+  { id: "cloud_native", name: "Cloud Native", category: "Tech", description: "Microservice timeline layout with cyan node markers.", elements: (p, d) => cloudNative(p, d) },
+  { id: "cyber_architect", name: "Cyber Architect", category: "Tech", description: "Terminal layout with monospace code comments.", elements: (p, d) => cyberArchitect(p, d) },
   { id: "rust_kernel", name: "Rust Kernel", category: "Tech", description: "Rust system programming dark IDE theme with code blocks.", elements: (p, d) => rustKernel(p, d) },
   { id: "neural_network", name: "Neural Network", category: "Tech", description: "AI / ML Architect layout with sky blue top banner.", elements: (p, d) => neuralNetwork(p, d) },
-  { id: "cyber_deck", name: "Cyber Deck", category: "Tech", description: "Cyberpunk monospace layout with dark background.", elements: (p, d) => devMatrix(p, d) },
-  { id: "docker_cloud", name: "Docker Cloud", category: "Tech", description: "Kubernetes container badge layout with cloud metrics.", elements: (p, d) => quantumCore(p, d) },
-  { id: "wasm_edge", name: "Wasm Edge", category: "Tech", description: "Edge microservices network layout with dark terminal theme.", elements: (p, d) => rustKernel(p, d) }
+  { id: "cyber_deck", name: "Cyber Deck", category: "Tech", description: "Cyberpunk monospace layout with dark background.", elements: (p, d) => cyberDeck(p, d) },
+  { id: "docker_cloud", name: "Docker Cloud", category: "Tech", description: "Kubernetes container badge layout with cloud metrics.", elements: (p, d) => dockerCloud(p, d) },
+  { id: "wasm_edge", name: "Wasm Edge", category: "Tech", description: "Edge microservices network layout with dark terminal theme.", elements: (p, d) => wasmEdge(p, d) }
 ];

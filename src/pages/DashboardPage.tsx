@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 
 import { resumeService, type Resume } from "../lib/resumeService";
+import { extractTextFromPDF } from "../lib/pdfParser";
+import { buildResumeFromImportedText } from "../lib/aiArchitect";
 import {
   Plus,
   ArrowRight,
@@ -40,18 +42,20 @@ import emptyStateImg from '../assets/empty-state.png';
 import { NotificationCenter } from "../components/notifications/NotificationCenter";
 import { TemplatesView } from "../components/dashboard/TemplatesView";
 import { SettingsView } from "../components/dashboard/SettingsView";
+import { CareerDocumentsView } from "../components/dashboard/CareerDocumentsView";
 import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
+import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
 import type { Template } from "../lib/templates";
 
 export function DashboardPage() {
-  const { user, logout, credits, sendVerificationEmail } = useAuth();
+  const { user, logout, credits, userPlan, sendVerificationEmail } = useAuth();
   const navigate = useNavigate();
   const { confirm, alert } = useDialog();
   const [resumes, setResumes] = useState<ResumeDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"resumes" | "templates" | "settings">("resumes");
+  const [activeTab, setActiveTab] = useState<"resumes" | "templates" | "career_docs" | "settings">("resumes");
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showAIArchitectModal, setShowAIArchitectModal] = useState(false);
@@ -97,6 +101,8 @@ export function DashboardPage() {
       setActiveTab("resumes");
     } else if (tab === "settings") {
       setActiveTab("settings");
+    } else if (tab === "career_docs") {
+      setActiveTab("career_docs");
     }
   }, [location]);
 
@@ -117,7 +123,88 @@ export function DashboardPage() {
     fetchResumes();
   }, [user]);
 
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeConfig, setUpgradeConfig] = useState({
+    title: "Unlock Pro Feature",
+    description: "Upgrade to unlock unlimited tools.",
+    featureName: "Pro Tool",
+  });
+
+  const triggerUpgrade = (title: string, description: string, featureName: string) => {
+    setUpgradeConfig({ title, description, featureName });
+    setUpgradeModalOpen(true);
+  };
+
+  const isFree = !userPlan || userPlan === "free";
+
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportResumeClick = () => {
+    if (isFree && resumes.length >= 1) {
+      triggerUpgrade(
+        "Resume Limit Reached (1/1)",
+        "The Free Plan is limited to 1 resume. Upgrade to Starter or Pro to create unlimited resumes!",
+        "Unlimited Resumes"
+      );
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      let rawText = "";
+      if (file.name.toLowerCase().endsWith(".pdf") || file.type.includes("pdf")) {
+        rawText = await extractTextFromPDF(file);
+      } else {
+        rawText = await file.text();
+      }
+
+      const result = await buildResumeFromImportedText(rawText, "");
+      const title = result.title || `${file.name.replace(/\.[^/.]+$/, "")} (Imported)`;
+      const id = await resumeService.createResume(
+        user?.uid || "guest",
+        title,
+        result.elements
+      );
+      localStorage.setItem("current_resume_id", id);
+      navigate("/editor");
+    } catch (err: any) {
+      console.error("[Dashboard] Resume Import Failed:", err);
+      await alert({
+        title: "Import Failed",
+        description: err.message || "Could not parse or import the selected resume file. Please ensure it is a valid PDF or document.",
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleUseTemplate = async (template: Template) => {
+    if (isFree && resumes.length >= 1) {
+      triggerUpgrade(
+        "Resume Limit Reached (1/1)",
+        "The Free Plan is limited to 1 resume. Upgrade to Starter or Pro to create unlimited resumes!",
+        "Unlimited Resumes"
+      );
+      return;
+    }
+    const freeTemplateIds = ["minimalist_grid", "corporate_hierarchy"];
+    if (isFree && !freeTemplateIds.includes(template.id)) {
+      triggerUpgrade(
+        "Unlock Premium Template",
+        `'${template.name}' is a Premium Layout. Upgrade to Starter or Pro to unlock all 20+ designer templates!`,
+        "Pro Template"
+      );
+      return;
+    }
+
     setIsCreatingTemplate(true);
     try {
       const elements = template.generateElements();
@@ -133,6 +220,15 @@ export function DashboardPage() {
   };
 
   const handleCreateBlank = async () => {
+    if (isFree && resumes.length >= 1) {
+      triggerUpgrade(
+        "Resume Limit Reached (1/1)",
+        "The Free Plan is limited to 1 resume. Upgrade to Starter or Pro to create unlimited resumes!",
+        "Unlimited Resumes"
+      );
+      return;
+    }
+
     try {
       localStorage.setItem("designed_resume", JSON.stringify([]));
       localStorage.removeItem("current_resume_id");
@@ -144,6 +240,14 @@ export function DashboardPage() {
   };
 
   const handleCreateNew = async () => {
+    if (isFree && resumes.length >= 1) {
+      triggerUpgrade(
+        "Resume Limit Reached (1/1)",
+        "The Free Plan is limited to 1 resume. Upgrade to Starter or Pro to create unlimited resumes!",
+        "Unlimited Resumes"
+      );
+      return;
+    }
     navigate("/build");
   };
 
@@ -195,6 +299,17 @@ export function DashboardPage() {
         Templates
       </button>
       <button
+        onClick={() => setActiveTab("career_docs")}
+        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
+          activeTab === "career_docs"
+            ? "bg-brand-primary/10 text-brand-primary font-semibold" 
+            : "text-app-text-secondary hover:text-app-text hover:bg-app-surface font-medium"
+        }`}
+      >
+        <Sparkles className="w-5 h-5" />
+        Career Docs
+      </button>
+      <button
         onClick={() => setActiveTab("settings")}
         className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
           activeTab === "settings"
@@ -238,7 +353,12 @@ export function DashboardPage() {
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="text-xs font-bold text-app-text truncate">{user?.email}</span>
-              <span className="text-[10px] text-app-text-muted uppercase tracking-wider">{credits} Credits</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-amber-500 font-extrabold uppercase">{credits} PTS</span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-brand-primary/10 text-brand-primary font-black uppercase rounded border border-brand-primary/20">
+                  {userPlan || 'FREE'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -366,6 +486,10 @@ export function DashboardPage() {
           <SettingsView />
         ) : activeTab === "templates" ? (
           <TemplatesView onUseTemplate={handleUseTemplate} isCreating={isCreatingTemplate} />
+        ) : activeTab === "career_docs" ? (
+          <div className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full pb-20">
+            <CareerDocumentsView />
+          </div>
         ) : (
           <div className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-8 pb-20">
             
@@ -409,7 +533,7 @@ export function DashboardPage() {
             {/* Quick Actions Hub */}
             <div>
               <h3 className="text-sm font-bold text-app-text-muted uppercase tracking-widest mb-4 px-2">Quick Actions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
                 <button 
                   onClick={handleCreateBlank}
@@ -418,8 +542,8 @@ export function DashboardPage() {
                   <div className="w-12 h-12 bg-brand-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <FilePlus className="w-6 h-6 text-brand-primary" />
                   </div>
-                  <h4 className="font-bold text-app-text text-lg mb-1">Start from Scratch</h4>
-                  <p className="text-sm text-app-text-muted">Jump straight into the blank editor.</p>
+                  <h4 className="font-bold text-app-text text-lg mb-1">Start Blank</h4>
+                  <p className="text-sm text-app-text-muted">Jump straight into the canvas editor.</p>
                   <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
                     <ArrowRight className="w-5 h-5 text-brand-primary" />
                   </div>
@@ -436,7 +560,7 @@ export function DashboardPage() {
                     AI Architect
                     <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-white/20 text-white rounded">New</span>
                   </h4>
-                  <p className="text-sm text-white/80">Plan, refine & build bespoke graphics resume.</p>
+                  <p className="text-sm text-white/80">Plan & build bespoke graphics resume.</p>
                   <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
                     <ArrowRight className="w-5 h-5 text-white" />
                   </div>
@@ -449,19 +573,37 @@ export function DashboardPage() {
                   <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform backdrop-blur-sm">
                     <Wand2 className="w-6 h-6 text-white" />
                   </div>
-                  <h4 className="font-bold text-white text-lg mb-1">Use AI Wizard</h4>
-                  <p className="text-sm text-white/80">Answer a few questions and let AI build it.</p>
+                  <h4 className="font-bold text-white text-lg mb-1">AI Wizard</h4>
+                  <p className="text-sm text-white/80">Answer step-by-step questions.</p>
                   <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
                     <ArrowRight className="w-5 h-5 text-white" />
                   </div>
                 </button>
 
                 <button 
-                  onClick={() => navigate("/onboarding")}
-                  className="group relative overflow-hidden bg-app-surface border border-app-border hover:border-[#0A66C2]/30 rounded-2xl p-6 text-left transition-all hover:shadow-lg hover:shadow-[#0A66C2]/10 hover:-translate-y-1"
+                  onClick={() => setActiveTab("career_docs")}
+                  className="group relative overflow-hidden bg-gradient-to-br from-teal-600 to-emerald-600 rounded-2xl p-6 text-left transition-all hover:shadow-xl hover:shadow-teal-500/20 hover:-translate-y-1 border border-white/10"
+                >
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform backdrop-blur-sm">
+                    <Mail className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="font-bold text-white text-lg mb-1 flex items-center gap-2">
+                    Career Docs
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 bg-white/20 text-white rounded">Suite</span>
+                  </h4>
+                  <p className="text-sm text-white/80">Cover letters, SOPs, LORs & emails.</p>
+                  <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                    <ArrowRight className="w-5 h-5 text-white" />
+                  </div>
+                </button>
+
+                <button 
+                  onClick={handleImportResumeClick}
+                  disabled={isImporting}
+                  className="group relative overflow-hidden bg-app-surface border border-app-border hover:border-[#0A66C2]/30 rounded-2xl p-6 text-left transition-all hover:shadow-lg hover:shadow-[#0A66C2]/10 hover:-translate-y-1 disabled:opacity-50"
                 >
                   <div className="w-12 h-12 bg-[#0A66C2]/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <DownloadCloud className="w-6 h-6 text-[#0A66C2]" />
+                    {isImporting ? <Loader2 className="w-6 h-6 text-[#0A66C2] animate-spin" /> : <DownloadCloud className="w-6 h-6 text-[#0A66C2]" />}
                   </div>
                   <h4 className="font-bold text-app-text text-lg mb-1">Import Resume / Profile</h4>
                   <p className="text-sm text-app-text-muted">AI distills your PDF/LinkedIn data into a new resume.</p>
@@ -599,6 +741,36 @@ export function DashboardPage() {
       onClose={() => setShowAIArchitectModal(false)}
       onSuccess={handleAIArchitectSuccess}
     />
+
+    <UpgradeTriggerModal
+      isOpen={upgradeModalOpen}
+      onClose={() => setUpgradeModalOpen(false)}
+      title={upgradeConfig.title}
+      description={upgradeConfig.description}
+      featureName={upgradeConfig.featureName}
+    />
+
+    <input
+      type="file"
+      ref={fileInputRef}
+      accept=".pdf,.txt,.doc,.docx"
+      onChange={handleFileSelected}
+      className="hidden"
+    />
+
+    {isImporting && (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+        <div className="bg-app-surface border border-brand-primary/30 p-8 rounded-3xl max-w-md w-full text-center shadow-2xl space-y-4 relative">
+          <div className="w-16 h-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center mx-auto text-brand-primary shadow-lg shadow-brand-primary/20">
+            <Loader2 className="w-8 h-8 animate-spin" />
+          </div>
+          <h3 className="text-xl font-black text-app-text">AI Resume Import</h3>
+          <p className="text-xs text-app-text-muted leading-relaxed">
+            Extracting candidate details & distilling into high-impact graphics... Please wait a moment.
+          </p>
+        </div>
+      </div>
+    )}
   </div>
   );
 }

@@ -16,6 +16,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  userPlan: string;
   claimedSignupCredits: boolean;
   login: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<number>(0);
+  const [userPlan, setUserPlan] = useState<string>("free");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [claimedSignupCredits, setClaimedSignupCredits] = useState<boolean>(false);
 
@@ -47,12 +49,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await setDoc(userRef, {
           email: email || "",
           name: name || "",
-          credits: 0,
+          credits: 15,
+          plan: "free",
           claimedSignupCredits: false,
           admin: false,
           createdAt: serverTimestamp(),
         });
-        console.log("[Auth] User initialized in Firestore with 0 credits.");
+        console.log("[Auth] User initialized in Firestore.");
       }
     } catch (error) {
       console.error("[Auth] Error initializing user in DB:", error);
@@ -67,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (snap.exists()) {
         const data = snap.data();
         setCredits(data.credits || 0);
+        setUserPlan(data.plan || "free");
         setIsAdmin(!!data.admin);
         setClaimedSignupCredits(!!data.claimedSignupCredits);
       }
@@ -244,6 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         isAdmin,
+        userPlan,
         claimedSignupCredits,
         login,
         loginWithEmail,

@@ -16,7 +16,6 @@ import {
   Trash2,
   LogOut,
   Sparkles,
-  Zap,
   Lock,
   Mail,
   ShieldCheck,
@@ -24,7 +23,18 @@ import {
 } from "lucide-react";
 
 export function SettingsView() {
-  const { user, credits, logout } = useAuth();
+  const { user, credits, userPlan, logout } = useAuth();
+
+  const getPlanDisplayName = (planStr: string) => {
+    switch (planStr) {
+      case "student": return "Student Plan 🎓";
+      case "starter": return "Starter Plan";
+      case "pro": return "Pro Plan ⭐";
+      case "career_pro": return "Career Pro Plan 🚀";
+      case "lifetime": return "Lifetime Pass 👑";
+      default: return "Free Plan";
+    }
+  };
   const { theme, setTheme } = useTheme();
   const { alert, confirm } = useDialog();
   const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "billing" | "security">("profile");
@@ -36,15 +46,15 @@ export function SettingsView() {
     setIsSavingProfile(true);
     setTimeout(() => {
       setIsSavingProfile(false);
-      alert("Profile preferences updated successfully!");
+      alert({ title: "Updated", description: "Profile preferences updated successfully!" });
     }, 600);
   };
 
   const handleResetPassword = () => {
     if (user?.email) {
-      alert(`A password reset link has been sent to ${user.email}.`);
+      alert({ title: "Reset Link Sent", description: `A password reset link has been sent to ${user.email}.` });
     } else {
-      alert("Please log in with a registered email address.");
+      alert({ title: "Authentication Required", description: "Please log in with a registered email address." });
     }
   };
 
@@ -55,7 +65,7 @@ export function SettingsView() {
       danger: true,
     });
     if (confirmed) {
-      alert("Account deletion requested. Please contact support@resumagic.app to confirm identity and finalize erasure.");
+      alert({ title: "Deletion Requested", description: "Account deletion requested. Please contact support@resumagic.app to confirm identity and finalize erasure." });
     }
   };
 
@@ -132,7 +142,6 @@ export function SettingsView() {
                   transition={{ duration: 0.15 }}
                   className="space-y-6"
                 >
-                  {/* User Profile Card */}
                   <div className="bg-app-surface border border-app-border rounded-2xl p-6 shadow-sm">
                     <h3 className="text-base font-bold text-app-text mb-4 flex items-center gap-2">
                       <User className="w-4 h-4 text-brand-primary" />
@@ -165,7 +174,6 @@ export function SettingsView() {
                       </div>
                     </div>
 
-                    {/* Profile Edit Form */}
                     <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -229,8 +237,6 @@ export function SettingsView() {
                     <p className="text-xs text-app-text-muted mb-6">Choose how the application workspace looks on your screen.</p>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      
-                      {/* Light Theme */}
                       <button 
                         onClick={() => setTheme("light")}
                         className={`group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
@@ -256,7 +262,6 @@ export function SettingsView() {
                         )}
                       </button>
 
-                      {/* Dark Theme */}
                       <button 
                         onClick={() => setTheme("dark")}
                         className={`group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
@@ -282,7 +287,6 @@ export function SettingsView() {
                         )}
                       </button>
 
-                      {/* System Theme */}
                       <button 
                         onClick={() => setTheme("system")}
                         className={`group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
@@ -300,7 +304,6 @@ export function SettingsView() {
                           <CheckCircle2 className="w-4 h-4 text-brand-primary absolute top-3 right-3" />
                         )}
                       </button>
-
                     </div>
                   </div>
                 </motion.div>
@@ -316,7 +319,6 @@ export function SettingsView() {
                   transition={{ duration: 0.15 }}
                   className="space-y-6"
                 >
-                  {/* Current Active Plan */}
                   <div className="bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-slate-900/40 border border-indigo-500/30 rounded-2xl p-6 shadow-md relative overflow-hidden">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                       <div>
@@ -324,7 +326,7 @@ export function SettingsView() {
                           <span className="px-2.5 py-0.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-wider rounded-full">
                             Active Plan
                           </span>
-                          <h4 className="text-xl font-black text-white">Free Starter Plan</h4>
+                          <h4 className="text-xl font-black text-white">{getPlanDisplayName(userPlan)}</h4>
                         </div>
                         <p className="text-xs text-slate-300 max-w-md leading-relaxed">
                           Access full resume builder tools, custom layouts, PDF exports, and AI generation credits.
@@ -340,7 +342,6 @@ export function SettingsView() {
                     </div>
                   </div>
 
-                  {/* AI Credits Overview */}
                   <div className="bg-app-surface border border-app-border rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
@@ -355,7 +356,6 @@ export function SettingsView() {
                       <span className="text-2xl font-black text-brand-primary">{credits} <span className="text-xs font-normal text-app-text-muted">pts</span></span>
                     </div>
 
-                    {/* Progress Bar */}
                     <div className="w-full h-3 bg-app-bg rounded-full overflow-hidden border border-app-border mb-4">
                       <div 
                         className="h-full bg-gradient-to-r from-teal-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-700"
@@ -387,7 +387,6 @@ export function SettingsView() {
                   transition={{ duration: 0.15 }}
                   className="space-y-6"
                 >
-                  {/* Password & Authentication */}
                   <div className="bg-app-surface border border-app-border rounded-2xl p-6 shadow-sm space-y-4">
                     <h3 className="text-base font-bold text-app-text mb-2 flex items-center gap-2">
                       <Lock className="w-4 h-4 text-brand-primary" />
@@ -408,7 +407,6 @@ export function SettingsView() {
                     </div>
                   </div>
 
-                  {/* Danger Zone */}
                   <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-6 shadow-sm space-y-4">
                     <h3 className="text-base font-bold text-rose-500 flex items-center gap-2">
                       <ShieldAlert className="w-5 h-5" />

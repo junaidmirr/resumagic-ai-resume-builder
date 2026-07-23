@@ -34,7 +34,7 @@ const INSPIRATION_CHIPS = [
 ];
 
 export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModalProps) {
-  const { user, deductCredits, refreshCredits } = useAuth();
+  const { user, userPlan, deductCredits, refreshCredits } = useAuth();
   const { openModal } = useAuthModal();
 
   const [step, setStep] = useState<"prompt" | "review" | "building">("prompt");
@@ -44,6 +44,34 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
   const [plan, setPlan] = useState<DesignPlan | null>(null);
 
   if (!isOpen) return null;
+
+  const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
+
+  if (!isProTier) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+        <div className="bg-app-surface border border-brand-primary/30 rounded-3xl p-8 max-w-md w-full text-center relative shadow-2xl">
+          <button onClick={onClose} className="absolute top-4 right-4 text-app-text-muted hover:text-app-text">
+            <X className="w-5 h-5" />
+          </button>
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-brand-primary/25">
+            <Wand2 className="w-7 h-7" />
+          </div>
+          <h3 className="text-xl font-black text-app-text mb-2">AI Architect 2.0 (Pro Feature)</h3>
+          <p className="text-xs text-app-text-secondary leading-relaxed mb-6">
+            Single-prompt bespoke resume generation is exclusive to Pro & Lifetime plans. Upgrade to generate multi-section resumes with skill progress bars and custom themes.
+          </p>
+          <a
+            href="/pricing"
+            onClick={onClose}
+            className="block w-full py-3 bg-gradient-to-r from-brand-primary to-brand-secondary text-white font-black text-xs rounded-xl shadow-lg shadow-brand-primary/20 hover:scale-[1.02] transition-all"
+          >
+            Upgrade to Pro (₹199/mo)
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const handleGeneratePlan = async (userPrompt: string = prompt, refinement: string = "") => {
     if (!userPrompt.trim()) return;

@@ -176,8 +176,9 @@ export default function PricingPage() {
 
   useEffect(() => {
     const orderId = searchParams.get("order_id");
+    const planId = searchParams.get("plan_id") || "";
     if (orderId && user) {
-      verifyPaymentOnServer(orderId, "pro_monthly");
+      verifyPaymentOnServer(orderId, planId);
     }
   }, [searchParams, user]);
 
@@ -219,9 +220,10 @@ export default function PricingPage() {
       const data = await res.json();
       if (data.success) {
         await refreshCredits();
+        window.history.replaceState({}, document.title, window.location.pathname);
         await alert({
           title: "Payment Successful! 🎉",
-          description: data.message || "Plan activated and AI credits added!",
+          description: data.message || `Payment verified and ${data.credits_added || ''} AI credits added to your account!`,
         });
       } else {
         await alert({

@@ -1740,22 +1740,50 @@ export function EditorPage() {
       console.warn("Python backend PDF render unavailable. Executing client-side fallback:", e);
     }
 
-    // 2. Self-Healing Fallback: High-DPI Client Canvas jsPDF Generator
+    // 2. Self-Healing Fallback: Native High-DPI Canvas PDF Engine (Zero External Dependencies)
     if (!serverSuccess) {
       try {
-        console.log("[Self-Healing System] Auto-executing Client-Side jsPDF fallback...");
+        console.log("[Self-Healing System] Auto-executing Native Client PDF engine...");
         const pageEl = document.getElementById(`page-${activePageId}`) || document.querySelector(".editor-canvas");
         if (pageEl) {
           const imgUrl = await toPng(pageEl as HTMLElement, { pixelRatio: 2, fontEmbedCSS: '', skipFonts: true });
-          const jsPDFModule = await import("jspdf");
-          const JsPDFClass = jsPDFModule.default || (jsPDFModule as any).jsPDF;
-          const pdf = new JsPDFClass({
-            orientation: "portrait",
-            unit: "pt",
-            format: [612, 792]
-          });
-          pdf.addImage(imgUrl, "PNG", 0, 0, 612, 792);
-          pdf.save(`${resumeTitle || "resume"}.pdf`);
+          
+          const iframe = document.createElement("iframe");
+          iframe.style.position = "fixed";
+          iframe.style.right = "0";
+          iframe.style.bottom = "0";
+          iframe.style.width = "0";
+          iframe.style.height = "0";
+          iframe.style.border = "0";
+          document.body.appendChild(iframe);
+          
+          const doc = iframe.contentWindow?.document;
+          if (doc) {
+            doc.open();
+            doc.write(`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <title>${resumeTitle || "resume"}</title>
+                  <style>
+                    @page { size: 612pt 792pt; margin: 0; }
+                    body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
+                    img { width: 100%; height: auto; display: block; }
+                  </style>
+                </head>
+                <body>
+                  <img src="${imgUrl}" />
+                </body>
+              </html>
+            `);
+            doc.close();
+            
+            iframe.contentWindow?.focus();
+            setTimeout(() => {
+              iframe.contentWindow?.print();
+              setTimeout(() => iframe.remove(), 1000);
+            }, 300);
+          }
           serverSuccess = true;
         }
       } catch (fallbackErr) {

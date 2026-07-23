@@ -19,7 +19,8 @@ import {
   Lock,
   Mail,
   ShieldCheck,
-  Sliders
+  Sliders,
+  Zap
 } from "lucide-react";
 
 export function SettingsView() {

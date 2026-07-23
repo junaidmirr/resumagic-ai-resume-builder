@@ -75,12 +75,12 @@ export function AIAssistantSidebar({
       return;
     }
 
-    const success = await deductCredits(10);
-    if (!success) {
-      alert("Insufficient credits. Please recharge.");
+    if (credits < 10) {
+      alert("Insufficient credits (10 required). Please recharge.");
       return;
     }
 
+    // Instantly start loader & lock buttons
     setLoadingAction(action);
     setLastAction(action);
     setResult(null);
@@ -88,13 +88,19 @@ export function AIAssistantSidebar({
     setRejectionReason(null);
 
     try {
+      const idToken = user ? await user.getIdToken().catch(() => "") : "";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-User-ID": user.uid,
+        "X-Skip-Credit-Check": "true",
+      };
+      if (idToken) {
+        headers["Authorization"] = `Bearer ${idToken}`;
+      }
+
       const res = await fetch("/api/ai-assistant", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user.uid,
-          "X-Skip-Credit-Check": "true",
-        },
+        headers,
         body: JSON.stringify({
           action,
           text: text || chatInput,
@@ -118,12 +124,14 @@ export function AIAssistantSidebar({
       } else {
         setResult(data.result || null);
         setFixes(data.fixes || []);
+        // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
+        await deductCredits(10).catch(console.error);
+        refreshCredits();
       }
 
       if (action === "write_resume") {
         setChatInput("");
       }
-      refreshCredits();
     } catch (err: any) {
       alert(err.message);
     } finally {

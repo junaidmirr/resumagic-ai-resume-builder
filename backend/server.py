@@ -92,38 +92,78 @@ else:
 
 # Global Parser Instance deferred to lazy initialization inside routes
 
-def check_and_deduct_credits(uid, cost=5):
-    """Verifies and deducts credits from Firestore."""
+def check_user_has_credits(uid, cost=5):
+    """Verifies user has sufficient credits without deducting."""
     from flask import request
-    if request.headers.get("X-Skip-Credit-Check") == "true":
+    if request.headers.get("X-Skip-Credit-Check") == "true" or not db_admin:
         return True
-    
-    if not db_admin: 
-        # Fallback to allow serverless rendering when firebase-admin is omitted
-        return True
-    
     try:
         user_ref = db_admin.collection('users').document(uid)
         user_doc = user_ref.get()
-        
         if not user_doc.exists:
-            user_ref.set({
-                'credits': 50,
-                'email': auth.get_user(uid).email if auth else "unknown",
-                'createdAt': firestore.SERVER_TIMESTAMP
-            })
-            credits = 50
-        else:
+            return True
+        credits = user_doc.to_dict().get('credits', 0)
+        return credits >= cost
+    except Exception as e:
+        print(f"❌ Credit check error: {e}")
+        return True
+
+def deduct_user_credits(uid, cost=5):
+    """Deducts credits ONLY after successful operation."""
+    from flask import request
+    if request.headers.get("X-Skip-Credit-Check") == "true" or not db_admin:
+        return True
+    try:
+        user_ref = db_admin.collection('users').document(uid)
+        user_doc = user_ref.get()
+        if user_doc.exists:
             credits = user_doc.to_dict().get('credits', 0)
-        
-        if credits < cost:
-            return False
-            
-        user_ref.update({'credits': credits - cost})
+            user_ref.update({'credits': max(0, credits - cost)})
         return True
     except Exception as e:
         print(f"❌ Credit deduction error: {e}")
-        return True
+        return False
+
+def check_and_deduct_credits(uid, cost=5):
+    """Legacy helper for backward compatibility."""
+    if check_user_has_credits(uid, cost):
+        return deduct_user_credits(uid, cost)
+    return False
+
+def verify_authenticated_user(request_obj):
+    """Verifies Firebase ID Token from Authorization header or falls back to X-User-ID."""
+    auth_header = request_obj.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split("Bearer ")[1].strip()
+        if HAS_FIREBASE_ADMIN and auth:
+            try:
+                decoded_token = auth.verify_id_token(token)
+                return decoded_token.get("uid")
+            except Exception as e:
+                print(f"⚠️ Firebase token verification failed: {e}")
+    return request_obj.headers.get("X-User-ID")
+
+def validate_json_payload(data, required_fields=None, field_types=None, max_string_len=10000):
+    """Sanitizes & validates JSON request payload types, required fields, and bounds."""
+    if not isinstance(data, dict):
+        return False, "Request body must be a valid JSON object"
+        
+    if required_fields:
+        for field in required_fields:
+            if field not in data or data[field] is None:
+                return False, f"Missing required payload field: '{field}'"
+                
+    if field_types:
+        for field, expected_type in field_types.items():
+            if field in data and data[field] is not None:
+                if not isinstance(data[field], expected_type):
+                    return False, f"Invalid data type for '{field}'. Expected {expected_type.__name__}"
+                    
+    for k, v in data.items():
+        if isinstance(v, str) and len(v) > max_string_len:
+            return False, f"Field '{k}' exceeds maximum allowed string length limit of {max_string_len} characters"
+            
+    return True, None
 
 # --- Cloudinary Endpoints ---
 
@@ -499,17 +539,29 @@ def import_linkedin_url():
 @app.route('/api/ai-chat-edit', methods=['POST'])
 def ai_chat_edit():
     try:
-        uid = request.headers.get("X-User-ID")
-        if uid and not check_and_deduct_credits(uid, 10):
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 10):
             return jsonify({"error": "Insufficient credits. Please recharge."}), 402
             
-        data = request.json
+        data = request.get_json(silent=True) or {}
+        valid, err_msg = validate_json_payload(
+            data, 
+            required_fields=['prompt'], 
+            field_types={'prompt': str, 'elements': list},
+            max_string_len=5000
+        )
+        if not valid:
+            return jsonify({"error": f"Invalid payload: {err_msg}"}), 400
+
         elements = data.get('elements', [])
         prompt = data.get('prompt', '')
-        if not prompt: return jsonify({"error": "No prompt provided"}), 400
         
         parser = AIParserEngine()
         result = parser.ai_chat_edit(elements, prompt)
+
+        if uid:
+            deduct_user_credits(uid, 10)
+
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -517,20 +569,31 @@ def ai_chat_edit():
 @app.route('/api/ai-assistant', methods=['POST'])
 def ai_assistant():
     try:
-        uid = request.headers.get("X-User-ID")
-        if uid and not check_and_deduct_credits(uid, 10):
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 10):
             return jsonify({"error": "Insufficient credits. Please recharge."}), 402
             
-        data = request.json
+        data = request.get_json(silent=True) or {}
+        valid, err_msg = validate_json_payload(
+            data, 
+            required_fields=['action'], 
+            field_types={'action': str, 'text': str, 'job_description': str},
+            max_string_len=10000
+        )
+        if not valid:
+            return jsonify({"error": f"Invalid payload: {err_msg}"}), 400
+
         action = data.get('action', '')
         text = data.get('text', '')
         context = data.get('context', {})
         job_description = data.get('job_description', '')
         
-        if not action: return jsonify({"error": "No action provided"}), 400
-        
         parser = AIParserEngine()
         result = parser.handle_ai_action(action, text, context, job_description)
+
+        if uid and isinstance(result, dict) and result.get("status") != "rejected":
+            deduct_user_credits(uid, 10)
+
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

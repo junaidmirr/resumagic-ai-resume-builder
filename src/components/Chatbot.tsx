@@ -51,33 +51,37 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
     const userMsg = input.trim();
     
-    // Check credits before processing
-    const success = await deductCredits(10);
-    if (!success) {
-      alert("Insufficient credits. Please recharge.");
+    if (credits < 10) {
+      alert("Insufficient credits (10 required). Please recharge.");
       return;
     }
 
-    setMessages((p) => [...p, { role: "user", text: userMsg }]);
-    setInput("");
+    // Instantly start loader & lock UI
     setLoading(true);
     setStage("Planning...");
+    setMessages((p) => [...p, { role: "user", text: userMsg }]);
+    setInput("");
 
     abortControllerRef.current = new AbortController();
 
     try {
-      // Call our backend Architect which has the 2-stage planning logic
+      const idToken = user ? await user.getIdToken().catch(() => "") : "";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-User-ID": user?.uid || "",
+        "X-Skip-Credit-Check": "true",
+      };
+      if (idToken) {
+        headers["Authorization"] = `Bearer ${idToken}`;
+      }
+
       const resp = await fetch("/api/ai-chat-edit", {
         method: "POST",
         signal: abortControllerRef.current.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user?.uid || "",
-          "X-Skip-Credit-Check": "true"
-        },
+        headers,
         body: JSON.stringify({
           elements,
           prompt: userMsg,
@@ -89,9 +93,6 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
           throw new Error("Insufficient credits. Please recharge.");
         throw new Error("Backend failed to process request");
       }
-
-      // Trigger background credit refresh
-      refreshCredits();
 
       setStage("Executing...");
       const result = await resp.json();
@@ -114,6 +115,10 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
           },
         ]);
       }
+
+      // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
+      await deductCredits(10).catch(console.error);
+      refreshCredits();
     } catch (err: any) {
       if (err.name === "AbortError") {
         console.log("AI Architect request aborted");

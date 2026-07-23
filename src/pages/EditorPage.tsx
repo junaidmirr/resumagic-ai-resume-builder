@@ -1537,12 +1537,12 @@ export function EditorPage() {
     const el = elementsRef.current.find(e => e.id === elementId);
     if (!el || el.element_type !== "text") return;
 
-    const success = await deductCredits(10);
-    if (!success) {
-      alert("Insufficient credits. Please recharge.");
+    if (credits < 10) {
+      alert("Insufficient credits (10 required). Please recharge.");
       return;
     }
     
+    // Instantly start loader & lock UI
     setProcessingIds(p => [...p, elementId]);
     setLoadingAIAction(action);
     try {
@@ -1576,6 +1576,8 @@ export function EditorPage() {
       
       if (data.result) {
         applyTextChangeWithLayoutShift(elementId, data.result);
+        // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
+        await deductCredits(10).catch(console.error);
         refreshCredits();
       } else if (data.error) {
         throw new Error(data.error);

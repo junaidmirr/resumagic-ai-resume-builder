@@ -8,6 +8,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  deleteDoc,
   addDoc,
   serverTimestamp,
   orderBy,
@@ -31,6 +32,8 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
   claimReward: (notif: AppNotification) => Promise<boolean>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   sendNotification: (targetUid: string, notif: Omit<AppNotification, "id" | "read" | "timestamp">) => Promise<void>;
   broadcastNotification: (notif: Omit<AppNotification, "id" | "read" | "timestamp">) => Promise<void>;
 }
@@ -138,6 +141,31 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const deleteNotification = async (id: string) => {
+    if (!user) return;
+    try {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      const notifDoc = doc(db, "users", user.uid, "notifications", id);
+      await deleteDoc(notifDoc);
+    } catch (err) {
+      console.error("[NotificationContext] Failed to delete notification:", err);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!user) return;
+    try {
+      const idsToDelete = notifications.map((n) => n.id);
+      setNotifications([]);
+      const deletePromises = idsToDelete.map((id) =>
+        deleteDoc(doc(db, "users", user.uid, "notifications", id))
+      );
+      await Promise.all(deletePromises);
+    } catch (err) {
+      console.error("[NotificationContext] Failed to clear all notifications:", err);
+    }
+  };
+
   const sendNotification = async (
     targetUid: string,
     notif: Omit<AppNotification, "id" | "read" | "timestamp">
@@ -198,6 +226,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         unreadCount,
         markAsRead,
         claimReward,
+        deleteNotification,
+        clearAllNotifications,
         sendNotification,
         broadcastNotification,
       }}

@@ -69,16 +69,24 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
   const handleProceedAndBuild = async () => {
     if (!plan) return;
 
-    if (user) {
-      await deductCredits(10).catch(() => {});
+    if (user && credits < 10) {
+      alert("Insufficient credits (10 required). Please recharge.");
+      return;
     }
 
+    // Instantly start loader & lock UI
     setStep("building");
     setLoading(true);
 
     try {
       const elements = await buildArchitectResumeDirect(plan, prompt);
-      refreshCredits();
+
+      // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
+      if (user) {
+        await deductCredits(10).catch(console.error);
+        refreshCredits();
+      }
+
       onSuccess(elements, plan.title || "AI Architect Resume");
       onClose();
     } catch (err: any) {

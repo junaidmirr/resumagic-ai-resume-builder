@@ -23,8 +23,8 @@ export interface DesignPlan {
   special_elements?: string[];
 }
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Frontend routes all AI tasks securely via backend API (/api/*)
+const genAI = null;
 
 // Official Google Gemini API Available Models List
 export const GEMINI_MODELS = [

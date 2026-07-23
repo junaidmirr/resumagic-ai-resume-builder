@@ -891,22 +891,39 @@ def cashfree_create_order():
         order_amount = plan["price"]
         
         app_id, secret_key, mode, base_url = get_cashfree_credentials()
-        order_id = f"order_{uid[:10]}_{int(time.time())}"
         
-        user_email = data.get("customer_email") or "user@resumagic.app"
-        user_phone = data.get("customer_phone") or "9999999999"
+        # Sanitize customer_id & order_id (must be alphanumeric, max 45 chars)
+        clean_uid = re.sub(r'[^a-zA-Z0-9_-]', '', str(uid))[:30] or "user"
+        order_id = f"ord_{clean_uid}_{int(time.time())}"
+        
+        user_email = (data.get("customer_email") or "").strip()
+        if not user_email or "@" not in user_email:
+            user_email = "customer@resumagic.worklabs.studio"
+            
+        user_phone = re.sub(r'[^0-9]', '', str(data.get("customer_phone") or ""))
+        if len(user_phone) != 10:
+            user_phone = "9999999999"
+            
+        # Determine public https URL for return_url
+        forwarded_host = request.headers.get('X-Forwarded-Host') or request.host
+        if "localhost" in forwarded_host or "127.0.0.1" in forwarded_host:
+            site_url = f"http://{forwarded_host}"
+        else:
+            site_url = f"https://{forwarded_host}"
+            
+        return_url = f"{site_url.rstrip('/')}/pricing?order_id={{order_id}}"
         
         payload = {
             "order_id": order_id,
             "order_amount": float(order_amount),
             "order_currency": "INR",
             "customer_details": {
-                "customer_id": uid,
+                "customer_id": clean_uid,
                 "customer_email": user_email,
                 "customer_phone": user_phone
             },
             "order_meta": {
-                "return_url": f"{request.host_url.rstrip('/')}/pricing?order_id={{order_id}}"
+                "return_url": return_url
             },
             "order_note": f"Resumagic {plan['name']} Pack ({plan['credits']} AI Credits)"
         }
@@ -918,13 +935,14 @@ def cashfree_create_order():
             "Content-Type": "application/json"
         }
         
-        print(f"🚀 Cashfree Order Request to {base_url}/orders | Mode: {mode} | Client ID: {app_id[:8]}...")
+        print(f"🚀 Cashfree Order Request to {base_url}/orders | Mode: {mode} | Client ID: {app_id[:8]}... | return_url: {return_url}")
         cf_res = requests.post(f"{base_url}/orders", json=payload, headers=headers, timeout=10)
         cf_data = cf_res.json()
         
         if cf_res.status_code not in [200, 201]:
+            error_msg = cf_data.get("message") or cf_data.get("error", "Failed to initialize Cashfree payment")
             print(f"❌ Cashfree Order Creation Error ({cf_res.status_code}): {cf_data}")
-            return jsonify({"error": cf_data.get("message", "Failed to initialize payment session with Cashfree")}), 400
+            return jsonify({"error": error_msg, "cashfree_response": cf_data}), 400
             
         payment_session_id = cf_data.get("payment_session_id")
         

@@ -875,6 +875,11 @@ def send_otp_email(to_email, otp, type="Password Reset"):
         return False
 
 # --- Indian-First Pricing Structure & Cashfree Payment Integration ---
+PENDING_ORDERS = {}
+FALLBACK_PROMOS = [
+    {"code": "SAVE20", "discount_type": "percent", "discount_value": 20, "max_uses": 500, "uses": 12, "active": True},
+    {"code": "OFF50", "discount_type": "fixed", "discount_value": 50, "max_uses": 200, "uses": 45, "active": True}
+]
 
 PLAN_CONFIGS = {
     # Subscriptions (Monthly)
@@ -1261,12 +1266,6 @@ def verify_student():
         return jsonify({"error": str(e)}), 500
 
 # --- Promo Code Management & Validation APIs ---
-
-# --- Promo Code Management ---
-FALLBACK_PROMOS = [
-    {"code": "SAVE20", "discount_type": "percent", "discount_value": 20, "max_uses": 500, "uses": 12, "active": True},
-    {"code": "OFF50", "discount_type": "fixed", "discount_value": 50, "max_uses": 200, "uses": 45, "active": True}
-]
 
 @app.route('/api/promo/validate', methods=['POST'])
 @app.route('/api/admin/promo/apply', methods=['POST'])

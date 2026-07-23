@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toPng, toJpeg } from "html-to-image";
-import jsPDF from "jspdf";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAuthModal } from "../components/onboarding/AuthModalContext";
@@ -1748,7 +1747,9 @@ export function EditorPage() {
         const pageEl = document.getElementById(`page-${activePageId}`) || document.querySelector(".editor-canvas");
         if (pageEl) {
           const imgUrl = await toPng(pageEl as HTMLElement, { pixelRatio: 2, fontEmbedCSS: '', skipFonts: true });
-          const pdf = new jsPDF({
+          const jsPDFModule = await import("jspdf");
+          const JsPDFClass = jsPDFModule.default || (jsPDFModule as any).jsPDF;
+          const pdf = new JsPDFClass({
             orientation: "portrait",
             unit: "pt",
             format: [612, 792]

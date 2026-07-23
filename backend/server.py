@@ -276,40 +276,39 @@ def parse_resume():
 
 @app.route('/api/render', methods=['POST'])
 def render_pdf():
+    temp_files = []
     try:
-        uid = request.headers.get("X-User-ID")
-        # PDF exporting is free per user request
-        # if uid and not check_and_deduct_credits(uid, 5):
-        #     return jsonify({"error": "Insufficient credits. Please recharge."}), 402
-            
-        elements = request.json
-        if not elements:
+        raw_elements = request.json
+        if not raw_elements:
             return jsonify({"error": "No JSON payload provided"}), 400
             
         print("[PDFEngine Server] Received render request")
         
-        # Intercept base64 images and save to temp files so reportlab can read them
-        temp_files = []
-        # Assuming elements is a list of objects
-        for el in elements:
-            if isinstance(el, dict) and el.get('element_type') == 'image':
-                path = el.get('image_path', '')
+        # Sanitize elements & handle base64 images safely
+        clean_elements = []
+        for el in (raw_elements if isinstance(raw_elements, list) else []):
+            if not isinstance(el, dict): continue
+            clean_el = dict(el)
+            if clean_el.get('element_type') == 'image':
+                path = clean_el.get('image_path', '')
                 if path.startswith('data:image'):
                     try:
                         header, encoded = path.split(',', 1)
                         ext = header.split(';')[0].split('/')[1]
+                        if ext not in ('png', 'jpeg', 'jpg', 'webp'): ext = 'png'
                         fd, tmp_path = tempfile.mkstemp(suffix='.' + ext)
                         with os.fdopen(fd, 'wb') as f:
                             f.write(base64.b64decode(encoded))
-                        el['image_path'] = tmp_path
+                        clean_el['image_path'] = tmp_path
                         temp_files.append(tmp_path)
                     except Exception as e:
                         print(f"Failed to decode base64 image: {e}")
+            clean_elements.append(clean_el)
         
         # Initialise engine and import frontend state
         engine = PDFEngine()
         import json
-        success = engine.import_state(json.dumps(elements))
+        success = engine.import_state(json.dumps(clean_elements))
         
         if not success:
             return jsonify({"error": "Failed to parse template state"}), 400
@@ -324,16 +323,17 @@ def render_pdf():
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
             tmp.write(pdf_bytes)
             tmp_path = tmp.name
+            temp_files.append(tmp_path)
 
         return send_file(
             tmp_path, 
             mimetype='application/pdf', 
             as_attachment=True, 
-            download_name='resume-export.pdf'
+            download_name='resume.pdf'
         )
     except Exception as e:
-        print(f"[PDFEngine Server] Fatal error: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(f"[PDFEngine Render Error]: {e}")
+        return jsonify({"error": f"PDF Rendering error: {str(e)}"}), 500
 
 @app.route('/api/remove-bg', methods=['POST'])
 def remove_bg_route():

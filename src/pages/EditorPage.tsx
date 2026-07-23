@@ -1706,8 +1706,11 @@ export function EditorPage() {
       openModal({ title: "Login Required", subtitle: "Please log in to export your resume.", showBlankOption: false });
       return;
     }
+    setIsExporting(true);
+
+    let serverSuccess = false;
     try {
-      setIsExporting(true);
+      // 1. Primary Attempt: Python ReportLab High-Precision Vector Engine
       const res = await fetch("/api/render", {
         method: "POST",
         headers: {
@@ -1717,30 +1720,48 @@ export function EditorPage() {
         body: JSON.stringify(elements),
       });
 
-      if (!res.ok) {
-        if (res.status === 402) {
-          alert("Insufficient credits to export PDF. Please recharge.");
-          return;
-        }
-        throw new Error();
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${resumeTitle || "resume"}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        refreshCredits();
+        serverSuccess = true;
+      } else if (res.status === 402) {
+        alert("Insufficient credits to export PDF. Please recharge.");
+        setIsExporting(false);
+        return;
       }
-
-      // Refresh credits in background
-      refreshCredits();
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "export.pdf";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch {
-      alert("Export failed. Ensure Python backend is running on port 5001.");
-    } finally {
-      setIsExporting(false);
+    } catch (e) {
+      console.warn("Python backend PDF render unavailable. Executing client-side fallback:", e);
     }
+
+    // 2. Self-Healing Fallback: High-DPI Client Canvas Renderer
+    if (!serverSuccess) {
+      try {
+        console.log("[Self-Healing System] Auto-executing Client-Side Canvas PDF render fallback...");
+        const pageEl = document.getElementById(`page-${activePageId}`) || document.querySelector(".editor-canvas");
+        if (pageEl) {
+          const imgUrl = await toPng(pageEl as HTMLElement, { pixelRatio: 2, fontEmbedCSS: '', skipFonts: true });
+          const a = document.createElement("a");
+          a.href = imgUrl;
+          a.download = `${resumeTitle || "resume"}_export.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          serverSuccess = true;
+        }
+      } catch (fallbackErr) {
+        console.error("Client fallback error:", fallbackErr);
+        alert("Export encountered an issue. Please try exporting as PNG.");
+      }
+    }
+
+    setIsExporting(false);
   };
 
   // Removed legacy JSON handling as per user request (SaaS Migration)

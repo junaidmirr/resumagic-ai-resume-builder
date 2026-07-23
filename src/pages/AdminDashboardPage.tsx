@@ -115,7 +115,13 @@ export function AdminDashboardPage() {
 
   const fetchPromoCodes = async () => {
     try {
-      const res = await fetch("/api/admin/promo/list");
+      const token = await user?.getIdToken().catch(() => "");
+      const res = await fetch("/api/admin/promo/list", {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(user?.uid ? { "X-User-ID": user.uid } : {}),
+        },
+      });
       const data = await res.json();
       if (res.ok && data.promos) {
         setPromosList(data.promos);
@@ -182,6 +188,7 @@ export function AdminDashboardPage() {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(user?.uid ? { "X-User-ID": user.uid } : {}),
         },
         body: JSON.stringify({
           code: newPromoCode,

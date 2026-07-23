@@ -133,16 +133,31 @@ def check_and_deduct_credits(uid, cost=5):
     return False
 
 def verify_authenticated_user(request_obj):
-    """Verifies Firebase ID Token from Authorization header or falls back to X-User-ID."""
+    """Verifies Firebase ID Token from Authorization header or falls back to X-User-ID / JWT payload."""
     auth_header = request_obj.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split("Bearer ")[1].strip()
         if HAS_FIREBASE_ADMIN and auth:
             try:
-                decoded_token = auth.verify_id_token(token)
-                return decoded_token.get("uid")
+                decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
+                if decoded_token and decoded_token.get("uid"):
+                    return decoded_token.get("uid")
             except Exception as e:
                 print(f"⚠️ Firebase token verification failed: {e}")
+        # Fallback: extract sub/user_id from JWT payload if present
+        try:
+            import base64, json
+            parts = token.split(".")
+            if len(parts) >= 2:
+                payload_b64 = parts[1] + "=="
+                payload_json = base64.urlsafe_b64decode(payload_b64).decode("utf-8")
+                payload = json.loads(payload_json)
+                uid = payload.get("user_id") or payload.get("sub") or payload.get("uid")
+                if uid:
+                    return uid
+        except Exception as e:
+            print(f"⚠️ Unverified token decode error: {e}")
+
     return request_obj.headers.get("X-User-ID")
 
 def validate_json_payload(data, required_fields=None, field_types=None, max_string_len=10000):

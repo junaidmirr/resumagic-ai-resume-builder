@@ -69,29 +69,39 @@ cloudinary.config(
 # Firebase Admin Initialization
 if HAS_FIREBASE_ADMIN:
     try:
-        service_account_b64 = os.environ.get("FIREBASE_SERVICE_ACCOUNT_B64")
-        if service_account_b64:
-            import base64
-            decoded_key = base64.b64decode(service_account_b64).decode("utf-8")
-            service_account_info = json.loads(decoded_key)
-            cred = credentials.Certificate(service_account_info)
-            firebase_admin.initialize_app(cred)
-            print("✅ Firebase Admin initialized via B64 Environment Variable.")
-        else:
-            service_account_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
-            if os.path.exists(service_account_path):
-                cred = credentials.Certificate(service_account_path)
+        if not len(firebase_admin._apps):
+            service_account_b64 = os.environ.get("FIREBASE_SERVICE_ACCOUNT_B64")
+            service_account_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
+            if service_account_b64:
+                import base64
+                decoded_key = base64.b64decode(service_account_b64).decode("utf-8")
+                service_account_info = json.loads(decoded_key)
+                cred = credentials.Certificate(service_account_info)
                 firebase_admin.initialize_app(cred)
-                print("✅ Firebase Admin initialized with local service account.")
+                print("✅ Firebase Admin initialized via B64 Environment Variable.")
+            elif service_account_json:
+                service_account_info = json.loads(service_account_json)
+                cred = credentials.Certificate(service_account_info)
+                firebase_admin.initialize_app(cred)
+                print("✅ Firebase Admin initialized via JSON Environment Variable.")
             else:
-                firebase_admin.initialize_app()
-                print("⚠️ Firebase Admin initialized with default credentials.")
+                service_account_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
+                if os.path.exists(service_account_path):
+                    cred = credentials.Certificate(service_account_path)
+                    firebase_admin.initialize_app(cred)
+                    print("✅ Firebase Admin initialized with local service account.")
+                else:
+                    firebase_admin.initialize_app()
+                    print("⚠️ Firebase Admin initialized with default credentials.")
         db_admin = firestore.client()
     except Exception as e:
         print(f"❌ Firebase Admin failed to initialize: {e}")
-        db_admin = None
+        try:
+            db_admin = firestore.client()
+        except Exception:
+            db_admin = None
 else:
-    print("ℹ️ HAS_FIREBASE_ADMIN is False (running in slim serverless mode).")
+    print("info: HAS_FIREBASE_ADMIN is False.")
     db_admin = None
 
 # Global Parser Instance deferred to lazy initialization inside routes

@@ -21,6 +21,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
 import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
+import { db } from "../lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const loadCashfreeSDK = (mode: string = "sandbox"): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -219,6 +221,30 @@ export default function PricingPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (user?.uid) {
+          try {
+            const addedCredits = data.credits_added || 150;
+            const userRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userRef);
+            const currentCredits = userSnap.exists() ? (userSnap.data()?.credits || 0) : 0;
+            const newTotal = currentCredits + addedCredits;
+
+            await setDoc(userRef, { credits: newTotal }, { merge: true });
+
+            const txRef = doc(db, "users", user.uid, "transactions", orderId);
+            await setDoc(txRef, {
+              order_id: orderId,
+              plan_id: planId || "purchase",
+              credits_added: addedCredits,
+              amount_paid: data.amount_paid || 0,
+              status: "PAID",
+              created_at: new Date().toISOString(),
+            }, { merge: true });
+          } catch (err) {
+            console.error("[Client] Failed fallback transaction write:", err);
+          }
+        }
+
         await refreshCredits();
         window.history.replaceState({}, document.title, window.location.pathname);
         await alert({

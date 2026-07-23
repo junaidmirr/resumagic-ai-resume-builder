@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../theme-provider";
 import { useDialog } from "../../context/DialogContext";
 import { Link } from "react-router-dom";
+import { db } from "../../lib/firebase";
+import { collection, getDocs, query, limit } from "firebase/firestore";
 import { 
   User, 
   Palette, 
@@ -20,11 +22,37 @@ import {
   Mail,
   ShieldCheck,
   Sliders,
-  Zap
+  Zap,
+  RefreshCw,
+  Receipt
 } from "lucide-react";
 
 export function SettingsView() {
-  const { user, credits, userPlan, logout } = useAuth();
+  const { user, credits, userPlan, logout, refreshCredits } = useAuth();
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loadingTx, setLoadingTx] = useState(false);
+
+  const fetchUserTransactions = async () => {
+    if (!user) return;
+    setLoadingTx(true);
+    try {
+      await refreshCredits();
+      const txRef = collection(db, "users", user.uid, "transactions");
+      const snap = await getDocs(query(txRef, limit(20)));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setTransactions(list);
+    } catch (err) {
+      console.error("[Settings] Failed to fetch transactions:", err);
+    } finally {
+      setLoadingTx(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "billing" && user) {
+      fetchUserTransactions();
+    }
+  }, [activeTab, user]);
 
   const getPlanDisplayName = (planStr: string) => {
     switch (planStr) {
@@ -374,6 +402,60 @@ export function SettingsView() {
                         <span className="text-xs font-bold text-emerald-500">FREE</span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Payment & Credit Purchase History */}
+                  <div className="bg-app-surface border border-app-border rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-bold text-sm text-app-text flex items-center gap-2">
+                        <Receipt className="w-4 h-4 text-brand-primary" />
+                        Payment & Credit Purchase History
+                      </h4>
+                      <button
+                        onClick={fetchUserTransactions}
+                        disabled={loadingTx}
+                        className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingTx ? "animate-spin" : ""}`} />
+                        Sync & Refresh Balance
+                      </button>
+                    </div>
+
+                    {transactions.length === 0 ? (
+                      <div className="text-center py-6 border border-dashed border-app-border rounded-xl bg-app-bg/50">
+                        <p className="text-xs text-app-text-muted">No completed payment transactions found yet.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {transactions.map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="p-3.5 rounded-xl bg-app-bg border border-app-border flex items-center justify-between text-xs"
+                          >
+                            <div className="space-y-0.5">
+                              <div className="font-bold text-app-text flex items-center gap-2">
+                                <span className="uppercase font-mono text-[10px] px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                                  {tx.plan_id || "Order"}
+                                </span>
+                                <span className="font-mono text-app-text-muted text-[11px]">{tx.order_id || tx.id}</span>
+                              </div>
+                              <div className="text-[11px] text-app-text-muted">
+                                {tx.created_at || tx.timestamp ? new Date(tx.created_at || tx.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Recent"}
+                              </div>
+                            </div>
+
+                            <div className="text-right space-y-0.5">
+                              <div className="font-black text-emerald-500 text-xs">
+                                +{tx.credits_added || 0} AI Credits
+                              </div>
+                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                PAID (₹{tx.amount_paid || 0})
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}

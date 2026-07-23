@@ -161,6 +161,17 @@ export default function PricingPage() {
     message: string;
   } | null>(null);
 
+  const getDiscountedPrice = (basePrice: number) => {
+    if (!appliedPromo || basePrice <= 0) return basePrice;
+    if (appliedPromo.discount_type === "percent") {
+      const val = basePrice * (1 - appliedPromo.discount_value / 100);
+      return Math.max(1, Math.round(val));
+    } else {
+      const val = basePrice - appliedPromo.discount_value;
+      return Math.max(1, Math.round(val));
+    }
+  };
+
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -426,18 +437,27 @@ export default function PricingPage() {
                     <div className="mb-6">
                       <div className="flex items-baseline gap-1">
                         <span className="text-4xl font-black text-app-text">
-                          ₹{displayPrice}
+                          ₹{getDiscountedPrice(displayPrice)}
                         </span>
+                        {appliedPromo && plan.id !== "free" && (
+                          <span className="text-sm font-bold text-slate-400 line-through ml-1">
+                            ₹{displayPrice}
+                          </span>
+                        )}
                         <span className="text-slate-400 font-bold uppercase text-[11px]">
                           {plan.id === "free" ? "" : billingCycle === "yearly" ? "/year" : "/month"}
                         </span>
                       </div>
 
-                      {plan.monthlyPriceOriginal && (
+                      {appliedPromo && plan.id !== "free" ? (
+                        <div className="text-[11px] font-bold text-emerald-500 mt-1 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> Coupon '{appliedPromo.code}' Applied!
+                        </div>
+                      ) : plan.monthlyPriceOriginal ? (
                         <div className="text-xs font-bold text-slate-400 line-through mt-0.5">
                           Regular ₹{plan.monthlyPriceOriginal}/month
                         </div>
-                      )}
+                      ) : null}
                     </div>
 
                     {/* Features List */}
@@ -483,7 +503,7 @@ export default function PricingPage() {
                     ) : (
                       <>
                         <CreditCard className="w-4 h-4" />
-                        {plan.button}
+                        {plan.button} {appliedPromo ? `(₹${getDiscountedPrice(displayPrice)})` : ""}
                       </>
                     )}
                   </button>
@@ -517,8 +537,16 @@ export default function PricingPage() {
 
             <div className="text-center lg:text-right shrink-0">
               <div className="text-4xl sm:text-5xl font-black text-white mb-1">
-                ₹1,999 <span className="text-sm font-bold text-slate-400 line-through">₹2,999</span>
+                ₹{getDiscountedPrice(1999)}{" "}
+                <span className="text-sm font-bold text-slate-400 line-through">
+                  ₹{appliedPromo ? "1,999" : "2,999"}
+                </span>
               </div>
+              {appliedPromo && (
+                <div className="text-xs font-bold text-emerald-400 mb-2 flex items-center justify-center lg:justify-end gap-1">
+                  <Sparkles className="w-3.5 h-3.5" /> Coupon '{appliedPromo.code}' Applied!
+                </div>
+              )}
               <p className="text-xs text-slate-400 mb-6">One-time payment • Lifetime validity</p>
               <button
                 onClick={() => handlePurchase("lifetime")}
@@ -533,7 +561,7 @@ export default function PricingPage() {
                 ) : (
                   <>
                     <Crown className="w-4 h-4 fill-white" />
-                    GET LIFETIME PASS (₹1,999)
+                    GET LIFETIME PASS (₹{getDiscountedPrice(1999)})
                   </>
                 )}
               </button>

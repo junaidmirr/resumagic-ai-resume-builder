@@ -947,18 +947,31 @@ def cashfree_create_order():
         # Apply Promo Code discount if provided
         promo_code = (data.get("promo_code") or "").strip().upper()
         discount_applied = 0.0
-        if promo_code and db_admin:
-            promo_doc = db_admin.collection("promo_codes").document(promo_code).get()
-            if promo_doc.exists:
-                pdata = promo_doc.to_dict()
-                if pdata.get("active", True):
+        if promo_code:
+            pdata = None
+            if db_admin:
+                try:
+                    promo_doc = db_admin.collection("promo_codes").document(promo_code).get()
+                    if promo_doc.exists:
+                        pdata = promo_doc.to_dict()
+                except Exception as fe:
+                    print(f"⚠️ Firestore promo lookup error: {fe}")
+
+            if not pdata:
+                pdata = next((p for p in FALLBACK_PROMOS if p["code"] == promo_code), None)
+
+            if pdata and pdata.get("active", True):
+                max_uses = pdata.get("max_uses", 999999)
+                uses = pdata.get("uses", 0)
+                if uses < max_uses:
                     dtype = pdata.get("discount_type", "percent")
                     dval = float(pdata.get("discount_value", 0))
                     if dtype == "percent":
                         discount_applied = order_amount * (dval / 100.0)
                     else:
                         discount_applied = dval
-                    order_amount = max(1.0, order_amount - discount_applied)
+                    order_amount = max(1.0, round(order_amount - discount_applied, 2))
+                    print(f"🎟️ Cashfree Order Discounted: Original ₹{plan['price']} -> New ₹{order_amount} (Coupon: '{promo_code}')")
         
         app_id, secret_key, mode, base_url = get_cashfree_credentials()
         

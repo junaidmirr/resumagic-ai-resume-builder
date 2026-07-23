@@ -140,10 +140,11 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 bg-teal-500 hover:bg-teal-600 text-white rounded-full shadow-xl transition-all z-[100] flex items-center justify-center hover:scale-105 active:scale-95 group"
+        className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 p-2.5 sm:p-3 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white rounded-full shadow-lg shadow-teal-500/25 transition-all z-[100] flex items-center justify-center hover:scale-105 active:scale-95 group border border-white/20"
+        title="Open AI Resume Architect"
       >
         <Sparkles
-          size={24}
+          size={18}
           className="group-hover:rotate-12 transition-transform"
         />
       </button>
@@ -151,7 +152,7 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-[90vw] sm:w-[420px] flex flex-col bg-app-bg rounded-2xl shadow-2xl border border-app-border overflow-hidden z-[100] transition-all">
+    <div className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 w-[92vw] sm:w-[420px] max-w-[420px] flex flex-col bg-app-bg rounded-2xl shadow-2xl border border-app-border overflow-hidden z-[100] transition-all">
       <div className="flex items-center justify-between p-4 border-b border-app-border bg-app-surface/50">
         <div className="flex items-center gap-2 text-app-text">
           <Sparkles size={20} className="text-teal-500 animate-pulse" />

@@ -584,7 +584,16 @@ export function EditorPage() {
   }, [elements]);
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
+    const check = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        // Compute mobile auto-fit zoom so Letter page fits screen width
+        const availWidth = window.innerWidth - 32;
+        const fitZoom = Math.max(30, Math.min(85, Math.floor((availWidth / 612) * 100)));
+        setZoom(fitZoom);
+      }
+    };
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
@@ -2682,8 +2691,8 @@ export function EditorPage() {
             </div>
           </aside>
 
-          {/* Active Flyout Panel */}
-          {activeLeftPanel && (
+          {/* Active Flyout Panel (Desktop) */}
+          {activeLeftPanel && !isMobile && (
             <div className="w-72 bg-app-surface/95 backdrop-blur-xl border-r border-app-border flex flex-col h-full relative z-20 shadow-lg">
               {activeLeftPanel === "elements" && (
                 <div className="p-4 flex flex-col h-full overflow-y-auto custom-scrollbar">
@@ -2955,29 +2964,36 @@ export function EditorPage() {
       </div>
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
-      <div className="md:hidden flex items-center bg-app-surface border-t border-app-border px-2 py-1.5 shrink-0 z-30 select-none overflow-x-auto gap-2" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+      <div className="md:hidden flex items-center bg-app-surface/90 backdrop-blur-xl border-t border-app-border px-2 py-1.5 shrink-0 z-30 select-none overflow-x-auto gap-1.5 shadow-lg" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
         {[
           { id: "elements" as PanelId, icon: Blocks, label: "Add" },
           { id: "sections" as PanelId, icon: LucideIcons.LayoutList, label: "Blocks" },
+          { id: "properties" as PanelId, icon: Settings2, label: "Edit", badge: !!sel },
           { id: "layers" as PanelId, icon: Layers, label: "Layers" },
-          { id: "properties" as PanelId, icon: Settings2, label: "Edit" },
           { id: "templates" as PanelId, icon: LucideIcons.LayoutTemplate, label: "Templates" },
           { id: "pages" as PanelId, icon: LucideIcons.File, label: "Pages" },
           { id: "ai" as PanelId, icon: LucideIcons.Sparkles, label: "AI Tools" },
           { id: "assets" as PanelId, icon: LucideIcons.Image, label: "Assets" },
-        ].map(({ id, icon: Icon, label }) => (
+        ].map(({ id, icon: Icon, label, badge }) => (
           <button
             key={id}
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setMobilePanel((p) => (p === id ? null : id))}
-            className={`flex flex-col items-center justify-center gap-1 min-w-[72px] px-2 py-1.5 rounded-xl transition-all shrink-0 ${
+            className={`flex flex-col items-center justify-center gap-1 min-w-[68px] px-2 py-1.5 rounded-xl transition-all shrink-0 relative ${
               mobilePanel === id
-                ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30"
+                ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm"
+                : badge
+                ? "text-brand-primary font-bold bg-brand-primary/10"
                 : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
-            <Icon size={20} />
+            <div className="relative">
+              <Icon size={19} />
+              {badge && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-primary animate-ping" />
+              )}
+            </div>
             <span className="text-[10px] font-semibold tracking-tight">{label}</span>
           </button>
         ))}
@@ -2986,9 +3002,9 @@ export function EditorPage() {
             type="button"
             onMouseDown={(e) => e.preventDefault()}
             onClick={deleteSelected}
-            className="flex flex-col items-center justify-center gap-1 min-w-[72px] px-2 py-1.5 rounded-xl text-red-500 shrink-0 hover:bg-red-50 dark:hover:bg-red-900/30"
+            className="flex flex-col items-center justify-center gap-1 min-w-[68px] px-2 py-1.5 rounded-xl text-red-500 shrink-0 hover:bg-red-50 dark:hover:bg-red-900/30"
           >
-            <Trash2 size={20} />
+            <Trash2 size={19} />
             <span className="text-[10px] font-semibold tracking-tight">Delete</span>
           </button>
         )}
@@ -3002,10 +3018,13 @@ export function EditorPage() {
             onClick={() => setMobilePanel(null)}
           />
           <div
-            className="relative bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] flex flex-col border-t border-white/20 dark:border-zinc-800/50"
-            style={{ maxHeight: "80dvh" }}
+            className="relative bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.15)] flex flex-col border-t border-white/20 dark:border-zinc-800/50"
+            style={{ maxHeight: "85dvh" }}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 shrink-0 select-none">
+            {/* Sheet Handle */}
+            <div className="w-12 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto my-2 shrink-0" />
+
+            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50 shrink-0 select-none">
               <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 tracking-wide">
                 {mobilePanel === "elements" ? "Add Element"
                   : mobilePanel === "layers" ? "Layers"

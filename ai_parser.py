@@ -20,22 +20,10 @@ Y increases UPWARD. Y=0 is the bottom of the page, Y=792 is the top.
 """
 import os, io, json, re, requests, base64
 from collections import Counter
-from PIL import Image
-import fitz
-import google.generativeai as genai
-
-# ── Config ──────────────────────────────────────────────────────────────────
-env_path = os.path.join(os.path.dirname(__file__), '.env')
-if os.path.exists(env_path):
-    with open(env_path) as f:
-        for line in f:
-            line=line.strip()
-            if line.startswith('GEMINI_API_KEY=') or line.startswith('VITE_GEMINI_API_KEY='):
-                genai.configure(api_key=line.split('=', 1)[1]); break
-else:
-    # Fallback to current environment if .env doesn't exist
-    key = os.getenv("GEMINI_API_KEY") or os.getenv("VITE_GEMINI_API_KEY")
-    if key: genai.configure(api_key=key)
+try:
+    import fitz
+except Exception as _fitz_err:
+    fitz = None
 
 AVAILABLE_FONTS = ["Inter","Roboto","Open Sans","Lato","Montserrat","Oswald",
                    "Playfair Display","Roboto Mono","Helvetica","Arial",
@@ -146,27 +134,72 @@ GEMINI_MODELS = [
     "gemini-pro-latest"
 ]
 
+def _get_gemini_api_key():
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("VITE_GEMINI_API_KEY")
+    if not api_key:
+        env_path = os.path.join(os.path.dirname(__file__), '.env')
+        if os.path.exists(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('GEMINI_API_KEY=') or line.startswith('VITE_GEMINI_API_KEY='):
+                        api_key = line.split('=', 1)[1]
+                        break
+    return api_key
+
 def _generate_with_model_fallback(contents):
     """
-    Attempts to generate content starting from gemini-3.6 -> 3.5-flash -> 2.5-flash -> 2.5-flash-lite -> etc.
-    Keeps switching models sequentially if any model throws an error or fails to respond.
+    Attempts to generate content starting from gemini models using Gemini REST API.
     """
+    api_key = _get_gemini_api_key()
+    if not api_key:
+        raise Exception("Gemini API key is not configured.")
+
+    rest_parts = []
+    for item in contents:
+        if isinstance(item, str):
+            rest_parts.append({"text": item})
+        elif isinstance(item, dict):
+            if "data" in item:
+                rest_parts.append({
+                    "inline_data": {
+                        "mime_type": item.get("mime_type", "application/pdf"),
+                        "data": item["data"]
+                    }
+                })
+            elif "text" in item:
+                rest_parts.append({"text": item["text"]})
+
+    payload = {"contents": [{"parts": rest_parts}]}
+    headers = {"Content-Type": "application/json"}
+
     for model_name in GEMINI_MODELS:
         try:
-            m = genai.GenerativeModel(model_name)
-            res = m.generate_content(contents)
-            if res and hasattr(res, 'text') and res.text:
-                print(f"[Gemini Multi-Model Fallback] ✅ Success with model: {model_name}")
-                return res
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+            res = requests.post(url, json=payload, headers=headers, timeout=45)
+            if res.status_code == 200:
+                data = res.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts and "text" in parts[0]:
+                        text = parts[0]["text"]
+                        if text:
+                            print(f"[Gemini Multi-Model Fallback] ✅ Success with REST model: {model_name}")
+                            class ResponseWrapper:
+                                def __init__(self, t): self.text = t
+                            return ResponseWrapper(text)
+            print(f"[Gemini REST Fallback] ⚠ Model {model_name} returned status {res.status_code}: {res.text[:120]}")
         except Exception as e:
-            print(f"[Gemini Multi-Model Fallback] ⚠ Model {model_name} failed: {e}. Switching to next fallback model...")
+            print(f"[Gemini REST Fallback] ⚠ Model {model_name} failed: {e}. Switching to next fallback model...")
+            
     raise Exception("All configured Gemini models in fallback sequence failed to respond.")
 
 # ═══ Main Engine ══════════════════════════════════════════════════════════════
 
 class AIParserEngine:
     def __init__(self):
-        self.model = genai.GenerativeModel('gemini-flash-latest')
+        pass
 
     def parse_file(self, file_bytes:bytes, filename:str, user_prompt:str="", is_linkedin:bool=False)->list:
         """
@@ -232,6 +265,8 @@ Return ONLY raw JSON with this exact schema:
 
     # ── Phase 1: Exact PDF Extraction ────────────────────────────────────────
     def _extract_pdf(self, fb:bytes)->list:
+        if not fitz:
+            raise Exception("PyMuPDF (fitz) library is not available in this environment.")
         doc=fitz.open(stream=fb, filetype="pdf")
         page=doc[0]
         PH,PW=page.rect.height,page.rect.width  # PH≈792, PW≈612

@@ -29,8 +29,14 @@ import {
 
 export function SettingsView() {
   const { user, credits, userPlan, logout, refreshCredits } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const { alert, confirm } = useDialog();
+
+  const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "billing" | "security">("profile");
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(false);
+  const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const fetchUserTransactions = async () => {
     if (!user) return;
@@ -64,11 +70,6 @@ export function SettingsView() {
       default: return "Free Plan";
     }
   };
-  const { theme, setTheme } = useTheme();
-  const { alert, confirm } = useDialog();
-  const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "billing" | "security">("profile");
-  const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

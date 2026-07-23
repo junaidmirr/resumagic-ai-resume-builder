@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toPng, toJpeg } from "html-to-image";
+import jsPDF from "jspdf";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAuthModal } from "../components/onboarding/AuthModalContext";
@@ -1740,23 +1741,24 @@ export function EditorPage() {
       console.warn("Python backend PDF render unavailable. Executing client-side fallback:", e);
     }
 
-    // 2. Self-Healing Fallback: High-DPI Client Canvas Renderer
+    // 2. Self-Healing Fallback: High-DPI Client Canvas jsPDF Generator
     if (!serverSuccess) {
       try {
-        console.log("[Self-Healing System] Auto-executing Client-Side Canvas PDF render fallback...");
+        console.log("[Self-Healing System] Auto-executing Client-Side jsPDF fallback...");
         const pageEl = document.getElementById(`page-${activePageId}`) || document.querySelector(".editor-canvas");
         if (pageEl) {
           const imgUrl = await toPng(pageEl as HTMLElement, { pixelRatio: 2, fontEmbedCSS: '', skipFonts: true });
-          const a = document.createElement("a");
-          a.href = imgUrl;
-          a.download = `${resumeTitle || "resume"}_export.png`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
+          const pdf = new jsPDF({
+            orientation: "portrait",
+            unit: "pt",
+            format: [612, 792]
+          });
+          pdf.addImage(imgUrl, "PNG", 0, 0, 612, 792);
+          pdf.save(`${resumeTitle || "resume"}.pdf`);
           serverSuccess = true;
         }
       } catch (fallbackErr) {
-        console.error("Client fallback error:", fallbackErr);
+        console.error("Client PDF fallback error:", fallbackErr);
         alert("Export encountered an issue. Please try exporting as PNG.");
       }
     }

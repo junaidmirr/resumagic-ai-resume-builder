@@ -143,6 +143,32 @@ export function AdminDashboardPage() {
     }
   }, [activeTab]);
 
+  const handleDeletePromoCode = async (code: string) => {
+    if (!window.confirm(`Are you sure you want to delete promo code '${code}'? It will be permanently removed from database.`)) return;
+    try {
+      const token = await user?.getIdToken().catch(() => "");
+      const res = await fetch("/api/admin/promo/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(user?.uid ? { "X-User-ID": user.uid } : {}),
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPromosList((prev) => prev.filter((p) => p.code !== code));
+        alert(data.message || `Promo code '${code}' deleted!`);
+      } else {
+        alert(data.error || "Failed to delete promo code.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Error deleting promo code.");
+    }
+  };
+
   const handleToggleAdmin = async (targetUid: string, currentStatus: boolean) => {
     try {
       const userRef = doc(db, "users", targetUid);
@@ -202,6 +228,15 @@ export function AdminDashboardPage() {
       if (res.ok && data.success) {
         alert(data.message);
         setNewPromoCode("");
+        const newPromoItem = {
+          code: data.code,
+          discount_type: data.discount_type,
+          discount_value: data.discount_value,
+          max_uses: data.max_uses,
+          uses: 0,
+          active: true,
+        };
+        setPromosList((prev) => [newPromoItem, ...prev.filter((p) => p.code !== data.code)]);
         fetchPromoCodes();
       } else {
         alert(data.error || "Failed to create promo code.");
@@ -637,13 +672,13 @@ export function AdminDashboardPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                           <span className="text-xs text-slate-400 font-medium">
                             Redemptions: {p.uses || 0} / {p.max_uses}
                           </span>
                           <button
                             onClick={() => copyToClipboard(p.code)}
-                            className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold hover:text-white flex items-center gap-1"
+                            className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold hover:text-white flex items-center gap-1 transition-all"
                           >
                             {copiedCode === p.code ? (
                               <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -651,6 +686,14 @@ export function AdminDashboardPage() {
                               <Copy className="w-3.5 h-3.5" />
                             )}
                             {copiedCode === p.code ? "Copied" : "Copy"}
+                          </button>
+
+                          <button
+                            onClick={() => handleDeletePromoCode(p.code)}
+                            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 text-xs font-bold flex items-center gap-1 transition-all"
+                            title="Delete promo code"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>

@@ -1,5 +1,6 @@
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
+from datetime import datetime, timedelta
 import base64
 import tempfile
 import os
@@ -7,6 +8,7 @@ import json
 import requests
 import re
 import time
+import random
 try:
     import firebase_admin
     from firebase_admin import credentials, auth, firestore
@@ -1209,59 +1211,92 @@ def verify_student():
 
 # --- Promo Code Management & Validation APIs ---
 
+# --- Promo Code Management ---
+FALLBACK_PROMOS = [
+    {"code": "SAVE20", "discount_type": "percent", "discount_value": 20, "max_uses": 500, "uses": 12, "active": True},
+    {"code": "OFF50", "discount_type": "fixed", "discount_value": 50, "max_uses": 200, "uses": 45, "active": True}
+]
+
 @app.route('/api/promo/validate', methods=['POST'])
-def validate_promo_code():
-    """Validates user-entered promo code and calculates discount."""
+@app.route('/api/admin/promo/apply', methods=['POST'])
+def admin_apply_promo():
+    """Applies discount codes to compute pricing discounts."""
     try:
         data = request.get_json(silent=True) or {}
         code = (data.get("code") or "").strip().upper()
-        
         if not code:
             return jsonify({"error": "Promo code is required"}), 400
             
         if db_admin:
-            doc = db_admin.collection("promo_codes").document(code).get()
-            if not doc.exists:
-                return jsonify({"error": "Invalid promo code"}), 400
+            try:
+                doc = db_admin.collection("promo_codes").document(code).get()
+                if doc.exists:
+                    pdata = doc.to_dict()
+                    if not pdata.get("active", True):
+                        return jsonify({"error": "This promo code has expired or been deactivated"}), 400
+                        
+                    max_uses = pdata.get("max_uses", 999999)
+                    uses = pdata.get("uses", 0)
+                    if uses >= max_uses:
+                        return jsonify({"error": "This promo code limit has been reached"}), 400
+                        
+                    return jsonify({
+                        "success": True,
+                        "code": code,
+                        "discount_type": pdata.get("discount_type", "percent"),
+                        "discount_value": float(pdata.get("discount_value", 0)),
+                        "message": f"Promo code '{code}' applied! {pdata.get('discount_value')}{'%' if pdata.get('discount_type') == 'percent' else ' ₹'} off."
+                    })
+            except Exception as fe:
+                print(f"⚠️ Firestore promo lookup warning: {fe}")
                 
-            pdata = doc.to_dict()
-            if not pdata.get("active", True):
+        # Check in-memory FALLBACK_PROMOS
+        match = next((p for p in FALLBACK_PROMOS if p["code"] == code), None)
+        if match:
+            if not match.get("active", True):
                 return jsonify({"error": "This promo code has expired or been deactivated"}), 400
-                
-            # Check redemptions limit
-            max_uses = pdata.get("max_uses", 999999)
-            uses = pdata.get("uses", 0)
+            max_uses = match.get("max_uses", 999999)
+            uses = match.get("uses", 0)
             if uses >= max_uses:
                 return jsonify({"error": "This promo code limit has been reached"}), 400
-                
             return jsonify({
                 "success": True,
                 "code": code,
-                "discount_type": pdata.get("discount_type", "percent"), # "percent" or "fixed"
-                "discount_value": float(pdata.get("discount_value", 0)),
-                "message": f"Promo code '{code}' applied! {pdata.get('discount_value')}{'%' if pdata.get('discount_type') == 'percent' else ' ₹'} off."
-            })
-            
-        # Fallback preset codes if Firestore is offline
-        if code in ["SAVE20", "LAUNCH20", "PROMO20"]:
-            return jsonify({
-                "success": True,
-                "code": code,
-                "discount_type": "percent",
-                "discount_value": 20,
-                "message": f"Promo code '{code}' applied! 20% off."
-            })
-        elif code in ["SAVE50", "OFF50"]:
-            return jsonify({
-                "success": True,
-                "code": code,
-                "discount_type": "fixed",
-                "discount_value": 50,
-                "message": f"Promo code '{code}' applied! ₹50 off."
+                "discount_type": match.get("discount_type", "percent"),
+                "discount_value": float(match.get("discount_value", 0)),
+                "message": f"Promo code '{code}' applied! {match.get('discount_value')}{'%' if match.get('discount_type') == 'percent' else ' ₹'} off."
             })
             
         return jsonify({"error": "Invalid promo code"}), 400
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/promo/delete', methods=['POST'])
+def admin_delete_promo():
+    """Admin endpoint to permanently delete/remove a promo code from Firestore and server memory."""
+    try:
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required."}), 401
+            
+        data = request.get_json(silent=True) or {}
+        code = (data.get("code") or "").strip().upper()
+        if not code:
+            return jsonify({"error": "Promo code is required"}), 400
+            
+        if db_admin:
+            try:
+                db_admin.collection("promo_codes").document(code).delete()
+            except Exception as fe:
+                print(f"⚠️ Firestore promo delete warning: {fe}")
+                
+        # Remove from FALLBACK_PROMOS in memory
+        global FALLBACK_PROMOS
+        FALLBACK_PROMOS = [p for p in FALLBACK_PROMOS if p["code"] != code]
+        
+        return jsonify({"success": True, "message": f"Promo code '{code}' deleted successfully!"})
+    except Exception as e:
+        print(f"⚠️ Error deleting promo code: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/admin/promo/create', methods=['POST'])
@@ -1280,18 +1315,39 @@ def admin_create_promo():
         
         if not code:
             code = f"MAGIC{random.randint(100, 999)}"
+
+        promo_obj = {
+            "code": code,
+            "discount_type": discount_type,
+            "discount_value": discount_value,
+            "max_uses": max_uses,
+            "uses": 0,
+            "active": True,
+            "created_by": uid,
+            "created_at": datetime.utcnow().isoformat()
+        }
             
         if db_admin:
-            db_admin.collection("promo_codes").document(code).set({
-                "code": code,
-                "discount_type": discount_type,
-                "discount_value": discount_value,
-                "max_uses": max_uses,
-                "uses": 0,
-                "active": True,
-                "created_by": uid,
-                "created_at": firestore.SERVER_TIMESTAMP
-            })
+            try:
+                db_admin.collection("promo_codes").document(code).set({
+                    "code": code,
+                    "discount_type": discount_type,
+                    "discount_value": discount_value,
+                    "max_uses": max_uses,
+                    "uses": 0,
+                    "active": True,
+                    "created_by": uid,
+                    "created_at": datetime.utcnow().isoformat()
+                })
+            except Exception as fe:
+                print(f"⚠️ Firestore promo set warning: {fe}")
+
+        # Update fallback list
+        existing_idx = next((i for i, p in enumerate(FALLBACK_PROMOS) if p["code"] == code), None)
+        if existing_idx is not None:
+            FALLBACK_PROMOS[existing_idx] = promo_obj
+        else:
+            FALLBACK_PROMOS.insert(0, promo_obj)
             
         return jsonify({
             "success": True,
@@ -1302,6 +1358,7 @@ def admin_create_promo():
             "message": f"Promo code '{code}' created successfully!"
         })
     except Exception as e:
+        print(f"⚠️ Error creating promo code: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/admin/promo/list', methods=['GET'])
@@ -1309,14 +1366,22 @@ def admin_list_promos():
     """Admin endpoint to list all active promo codes."""
     try:
         if db_admin:
-            docs = db_admin.collection("promo_codes").limit(50).get()
-            promos = [d.to_dict() for d in docs]
-            return jsonify({"success": True, "promos": promos})
-        return jsonify({"success": True, "promos": [
-            {"code": "SAVE20", "discount_type": "percent", "discount_value": 20, "max_uses": 500, "uses": 12, "active": True},
-            {"code": "OFF50", "discount_type": "fixed", "discount_value": 50, "max_uses": 200, "uses": 45, "active": True}
-        ]})
+            try:
+                docs = db_admin.collection("promo_codes").limit(50).get()
+                promos = []
+                for d in docs:
+                    p = d.to_dict()
+                    if "created_at" in p:
+                        p["created_at"] = str(p["created_at"])
+                    promos.append(p)
+                if promos:
+                    return jsonify({"success": True, "promos": promos})
+            except Exception as fe:
+                print(f"⚠️ Firestore promo list warning: {fe}")
+
+        return jsonify({"success": True, "promos": FALLBACK_PROMOS})
     except Exception as e:
+        print(f"⚠️ Error listing promo codes: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Re-export app for Vercel

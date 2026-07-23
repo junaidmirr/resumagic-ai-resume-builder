@@ -857,6 +857,24 @@ PLAN_CONFIGS = {
     "ultimate": {"name": "Ultimate", "price": 999.00, "credits": 500},
 }
 
+def get_cashfree_credentials():
+    app_id = (os.environ.get("CASHFREE_APP_ID") or "").strip()
+    secret_key = (os.environ.get("CASHFREE_SECRET_KEY") or "").strip()
+    
+    if not app_id or not secret_key:
+        app_id = "TEST104787961bd4e402b8d0c8d6265069784701"
+        secret_key = "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
+
+    mode_env = os.environ.get("CASHFREE_MODE", "").strip().upper()
+    if mode_env in ["SANDBOX", "PRODUCTION"]:
+        mode = mode_env
+    else:
+        # Auto-detect mode: TEST keys belong to SANDBOX
+        mode = "SANDBOX" if app_id.upper().startswith("TEST") else "PRODUCTION"
+
+    base_url = "https://sandbox.cashfree.com/pg" if mode == "SANDBOX" else "https://api.cashfree.com/pg"
+    return app_id, secret_key, mode, base_url
+
 @app.route('/api/cashfree/create-order', methods=['POST'])
 def cashfree_create_order():
     try:
@@ -872,11 +890,7 @@ def cashfree_create_order():
         plan = PLAN_CONFIGS[plan_id]
         order_amount = plan["price"]
         
-        app_id = os.environ.get("CASHFREE_APP_ID") or "TEST104787961bd4e402b8d0c8d6265069784701"
-        secret_key = os.environ.get("CASHFREE_SECRET_KEY") or "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
-        mode = os.environ.get("CASHFREE_MODE", "SANDBOX").upper()
-        
-        base_url = "https://sandbox.cashfree.com/pg" if mode == "SANDBOX" else "https://api.cashfree.com/pg"
+        app_id, secret_key, mode, base_url = get_cashfree_credentials()
         order_id = f"order_{uid[:10]}_{int(time.time())}"
         
         user_email = data.get("customer_email") or "user@resumagic.app"
@@ -904,11 +918,12 @@ def cashfree_create_order():
             "Content-Type": "application/json"
         }
         
+        print(f"🚀 Cashfree Order Request to {base_url}/orders | Mode: {mode} | Client ID: {app_id[:8]}...")
         cf_res = requests.post(f"{base_url}/orders", json=payload, headers=headers, timeout=10)
         cf_data = cf_res.json()
         
         if cf_res.status_code not in [200, 201]:
-            print(f"❌ Cashfree Order Creation Error: {cf_data}")
+            print(f"❌ Cashfree Order Creation Error ({cf_res.status_code}): {cf_data}")
             return jsonify({"error": cf_data.get("message", "Failed to initialize payment session with Cashfree")}), 400
             
         payment_session_id = cf_data.get("payment_session_id")
@@ -938,11 +953,7 @@ def cashfree_verify_payment():
         if not order_id:
             return jsonify({"error": "order_id parameter is required"}), 400
             
-        app_id = os.environ.get("CASHFREE_APP_ID") or "TEST104787961bd4e402b8d0c8d6265069784701"
-        secret_key = os.environ.get("CASHFREE_SECRET_KEY") or "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
-        mode = os.environ.get("CASHFREE_MODE", "SANDBOX").upper()
-        
-        base_url = "https://sandbox.cashfree.com/pg" if mode == "SANDBOX" else "https://api.cashfree.com/pg"
+        app_id, secret_key, mode, base_url = get_cashfree_credentials()
         
         headers = {
             "x-client-id": app_id,

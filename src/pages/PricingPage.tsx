@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CreditCard,
   Sparkles,
@@ -7,10 +7,34 @@ import {
   Check,
   Info,
   ChevronLeft,
-  ArrowRight,
   Star,
+  Loader2,
+  ShieldCheck,
+  Lock
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useDialog } from "../context/DialogContext";
+
+const loadCashfreeSDK = (mode: string = "sandbox"): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    if ((window as any).Cashfree) {
+      resolve((window as any).Cashfree({ mode }));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    script.onload = () => {
+      if ((window as any).Cashfree) {
+        resolve((window as any).Cashfree({ mode }));
+      } else {
+        reject(new Error("Cashfree SDK object failed to initialize"));
+      }
+    };
+    script.onerror = () => reject(new Error("Failed to load Cashfree Payment SDK"));
+    document.body.appendChild(script);
+  });
+};
 
 const plans = [
   {
@@ -35,7 +59,7 @@ const plans = [
       "150 AI Credits",
       "Priority AI Queue",
       "Valid for 90 Days",
-      "Template Access",
+      "Full Template Access",
     ],
     gradient: "from-indigo-500/20 to-purple-600/20",
     border: "group-hover:border-indigo-500/50",
@@ -51,9 +75,9 @@ const plans = [
     icon: <Crown className="w-8 h-8 text-amber-500" />,
     features: [
       "350 AI Credits",
-      "Ultra Priority",
+      "Ultra Priority Queue",
       "Valid for 180 Days",
-      "VIP Support",
+      "VIP Dedicated Support",
     ],
     gradient: "from-amber-500/20 to-orange-600/20",
     border: "group-hover:border-amber-500/50",
@@ -68,23 +92,120 @@ const plans = [
     icon: <Star className="w-8 h-8 text-indigo-600" />,
     features: [
       "500 AI Credits",
-      "No Experiration",
-      "1-on-1 Consulting",
-      "Beta Features",
+      "No Expiration Date",
+      "1-on-1 Career Consultation",
+      "Early Access Features",
     ],
     gradient: "from-blue-600/20 to-indigo-700/20",
     border: "group-hover:border-indigo-600/50",
-    button:
-      "bg-slate-900 border-2 border-slate-900 hover:bg-white hover:text-slate-900",
+    button: "bg-slate-900 border-2 border-slate-900 hover:bg-slate-800 text-white",
     color: "text-indigo-700",
   },
 ];
 
 export default function PricingPage() {
-  const [showModal, setShowModal] = useState(false);
+  const { user, credits, refreshCredits } = useAuth();
+  const { alert } = useDialog();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const orderId = searchParams.get("order_id");
+    if (orderId && user) {
+      verifyPaymentOnServer(orderId, "pro");
+    }
+  }, [searchParams, user]);
+
+  const verifyPaymentOnServer = async (orderId: string, planId: string) => {
+    try {
+      const token = await user?.getIdToken().catch(() => "");
+      const res = await fetch("/api/cashfree/verify-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.uid || "",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ order_id: orderId, plan_id: planId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refreshCredits();
+        await alert({
+          title: "Payment Successful! 🎉",
+          description: data.message || "AI credits added to your balance!",
+        });
+      } else {
+        await alert({
+          title: "Payment Verification",
+          description: data.message || "Payment status processing.",
+        });
+      }
+    } catch (err: any) {
+      console.error("Verification error:", err);
+    }
+  };
+
+  const handlePurchasePack = async (plan: typeof plans[0]) => {
+    if (!user) {
+      await alert({
+        title: "Login Required",
+        description: "Please log in or register an account to purchase AI credits.",
+      });
+      return;
+    }
+
+    setLoadingPlan(plan.id);
+    try {
+      const token = await user.getIdToken().catch(() => "");
+      const res = await fetch("/api/cashfree/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user.uid,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          plan_id: plan.id,
+          customer_email: user.email || "user@resumagic.app",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to initialize payment session");
+      }
+
+      const mode = data.environment === "production" ? "production" : "sandbox";
+      const cashfree = await loadCashfreeSDK(mode);
+
+      cashfree
+        .checkout({
+          paymentSessionId: data.payment_session_id,
+          redirectTarget: "_modal",
+        })
+        .then(async (result: any) => {
+          if (result.error) {
+            await alert({
+              title: "Payment Cancelled",
+              description: result.error.message || "Payment process was cancelled.",
+            });
+          } else {
+            await verifyPaymentOnServer(data.order_id, plan.id);
+          }
+        });
+    } catch (err: any) {
+      await alert({
+        title: "Payment Gateway Error",
+        description: err.message || "Unable to launch Cashfree Checkout.",
+      });
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-app-bg transition-colors duration-500 pb-20 overflow-hidden">
+    <div className="min-h-screen bg-app-bg transition-colors duration-500 pb-20 overflow-hidden text-app-text">
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-[-10%] w-[50%] h-[50%] bg-indigo-500/10 dark:bg-indigo-500/5 blur-[120px] rounded-full animate-pulse" />
@@ -92,7 +213,7 @@ export default function PricingPage() {
       </div>
 
       <div className="relative max-w-7xl mx-auto pt-24 px-4 sm:px-6 lg:px-8">
-        <div className="mb-12">
+        <div className="flex items-center justify-between mb-12">
           <Link
             to="/dashboard"
             className="group inline-flex items-center gap-2 text-app-text-muted hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-bold uppercase tracking-widest text-xs"
@@ -102,18 +223,28 @@ export default function PricingPage() {
             </div>
             Exit to Dashboard
           </Link>
+
+          {user && (
+            <div className="flex items-center gap-2 bg-app-surface px-4 py-2 rounded-xl border border-app-border font-bold text-xs">
+              <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span>Current Balance: <strong className="text-brand-primary">{credits} Credits</strong></span>
+            </div>
+          )}
         </div>
 
-        <div className="text-center space-y-4 mb-20">
-          <h1 className="text-5xl md:text-7xl font-black text-app-text tracking-tighter">
+        <div className="text-center space-y-4 mb-16">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase tracking-wider mb-2">
+            <Lock className="w-3.5 h-3.5" />
+            256-Bit Encrypted Cashfree Checkout
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black text-app-text tracking-tighter">
             Level Up Your{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-indigo-600">
               Career Power.
             </span>
           </h1>
-          <p className="max-w-xl mx-auto text-app-text-muted text-lg font-medium">
-            Unlock professional-tier AI tools with a high-octane credit
-            recharge.
+          <p className="max-w-xl mx-auto text-app-text-muted text-base sm:text-lg font-medium">
+            Unlock professional-tier AI tools with a high-octane credit recharge. Powered by Cashfree (UPI, Cards, NetBanking).
           </p>
         </div>
 
@@ -159,7 +290,7 @@ export default function PricingPage() {
                       key={i}
                       className="flex items-center gap-3 text-app-text-secondary font-bold text-sm"
                     >
-                      <div className="w-5 h-5 bg-app-surface rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-5 h-5 bg-app-surface rounded-full flex items-center justify-center flex-shrink-0 border border-app-border">
                         <Check size={12} className={plan.color} />
                       </div>
                       {feature}
@@ -168,10 +299,21 @@ export default function PricingPage() {
                 </ul>
 
                 <button
-                  onClick={() => setShowModal(true)}
-                  className={`mt-10 w-full py-5 rounded-2xl font-black tracking-widest text-sm transition-all shadow-lg active:scale-95 text-white ${plan.button}`}
+                  onClick={() => handlePurchasePack(plan)}
+                  disabled={loadingPlan === plan.id}
+                  className={`mt-10 w-full py-5 rounded-2xl font-black tracking-widest text-sm transition-all shadow-lg active:scale-95 text-white flex items-center justify-center gap-2 ${plan.button} disabled:opacity-60`}
                 >
-                  GET PACK
+                  {loadingPlan === plan.id ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Launching Cashfree...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-4 h-4" />
+                      BUY PACK
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -179,59 +321,23 @@ export default function PricingPage() {
         </div>
 
         {/* Info Box */}
-        <div className="mt-20 p-8 bg-app-surface border border-app-border rounded-[2rem] max-w-4xl mx-auto">
+        <div className="mt-16 p-8 bg-app-surface border border-app-border rounded-[2rem] max-w-4xl mx-auto shadow-md">
           <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-              <Info size={32} />
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl shrink-0">
+              <ShieldCheck size={36} />
             </div>
             <div>
-              <p className="text-app-text font-black text-lg tracking-tight">
-                How power works?
+              <p className="text-app-text font-black text-lg tracking-tight flex items-center justify-center sm:justify-start gap-2">
+                100% Safe & Secure Cashfree Payment Gateway
               </p>
               <p className="mt-1 text-app-text-muted font-medium text-sm leading-relaxed">
-                Recharges are instant. AI actions (Parsing, Edits, Summaries)
-                consume{" "}
-                <span className="text-indigo-500 font-bold">5 credits</span>.
-                High-performance standard PDF rendering remains free for all
-                users with 500+ templates.
+                Supports UPI (Google Pay, PhonePe, Paytm), NetBanking, Credit/Debit Cards, and Wallets. Recharges are verified server-side and credited instantly to your account.
               </p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Glassmorphic Coming Soon Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-950/40 backdrop-blur-xl transition-all duration-500"
-            onClick={() => setShowModal(false)}
-          />
-          <div className="relative bg-app-surface rounded-[3rem] p-10 max-w-md w-full text-center shadow-2xl border border-white/20 dark:border-slate-800 animate-in zoom-in-95 duration-500">
-            <div className="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-indigo-500/40">
-              <CreditCard size={48} />
-            </div>
-            <h2 className="text-3xl font-black text-app-text mb-3 tracking-tighter">
-              Under Construction.
-            </h2>
-            <p className="text-app-text-muted mb-10 font-medium leading-relaxed">
-              We're integrating UPI, Razorpay & Stripe for seamless
-              transactions. Direct recharges will be active within{" "}
-              <span className="text-indigo-500 font-bold">48 hours</span>.
-            </p>
-            <button
-              onClick={() => setShowModal(false)}
-              className="w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group shadow-xl"
-            >
-              ROGER THAT
-              <ArrowRight
-                size={20}
-                className="group-hover:translate-x-1 transition-transform"
-              />
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

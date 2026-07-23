@@ -848,6 +848,198 @@ def send_otp_email(to_email, otp, type="Password Reset"):
         print(f"[SMTP] Error sending email: {e}")
         return False
 
+# --- Cashfree Payment Gateway Integration ---
+
+PLAN_CONFIGS = {
+    "basic": {"name": "Starter", "price": 199.00, "credits": 50},
+    "pro": {"name": "Professional", "price": 299.00, "credits": 150},
+    "expert": {"name": "Expert", "price": 599.00, "credits": 350},
+    "ultimate": {"name": "Ultimate", "price": 999.00, "credits": 500},
+}
+
+@app.route('/api/cashfree/create-order', methods=['POST'])
+def cashfree_create_order():
+    try:
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required. Please log in first."}), 401
+            
+        data = request.get_json(silent=True) or {}
+        plan_id = data.get("plan_id", "pro")
+        if plan_id not in PLAN_CONFIGS:
+            return jsonify({"error": "Invalid plan selected"}), 400
+            
+        plan = PLAN_CONFIGS[plan_id]
+        order_amount = plan["price"]
+        
+        app_id = os.environ.get("CASHFREE_APP_ID") or "TEST104787961bd4e402b8d0c8d6265069784701"
+        secret_key = os.environ.get("CASHFREE_SECRET_KEY") or "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
+        mode = os.environ.get("CASHFREE_MODE", "SANDBOX").upper()
+        
+        base_url = "https://sandbox.cashfree.com/pg" if mode == "SANDBOX" else "https://api.cashfree.com/pg"
+        order_id = f"order_{uid[:10]}_{int(time.time())}"
+        
+        user_email = data.get("customer_email") or "user@resumagic.app"
+        user_phone = data.get("customer_phone") or "9999999999"
+        
+        payload = {
+            "order_id": order_id,
+            "order_amount": float(order_amount),
+            "order_currency": "INR",
+            "customer_details": {
+                "customer_id": uid,
+                "customer_email": user_email,
+                "customer_phone": user_phone
+            },
+            "order_meta": {
+                "return_url": f"{request.host_url.rstrip('/')}/pricing?order_id={{order_id}}"
+            },
+            "order_note": f"Resumagic {plan['name']} Pack ({plan['credits']} AI Credits)"
+        }
+        
+        headers = {
+            "x-client-id": app_id,
+            "x-client-secret": secret_key,
+            "x-api-version": "2023-08-01",
+            "Content-Type": "application/json"
+        }
+        
+        cf_res = requests.post(f"{base_url}/orders", json=payload, headers=headers, timeout=10)
+        cf_data = cf_res.json()
+        
+        if cf_res.status_code not in [200, 201]:
+            print(f"❌ Cashfree Order Creation Error: {cf_data}")
+            return jsonify({"error": cf_data.get("message", "Failed to initialize payment session with Cashfree")}), 400
+            
+        payment_session_id = cf_data.get("payment_session_id")
+        
+        return jsonify({
+            "success": True,
+            "payment_session_id": payment_session_id,
+            "order_id": order_id,
+            "environment": mode.lower()
+        })
+        
+    except Exception as e:
+        print(f"❌ Cashfree Order Exception: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cashfree/verify-payment', methods=['POST'])
+def cashfree_verify_payment():
+    try:
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required. Please log in."}), 401
+            
+        data = request.get_json(silent=True) or {}
+        order_id = data.get("order_id")
+        plan_id = data.get("plan_id", "pro")
+        
+        if not order_id:
+            return jsonify({"error": "order_id parameter is required"}), 400
+            
+        app_id = os.environ.get("CASHFREE_APP_ID") or "TEST104787961bd4e402b8d0c8d6265069784701"
+        secret_key = os.environ.get("CASHFREE_SECRET_KEY") or "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
+        mode = os.environ.get("CASHFREE_MODE", "SANDBOX").upper()
+        
+        base_url = "https://sandbox.cashfree.com/pg" if mode == "SANDBOX" else "https://api.cashfree.com/pg"
+        
+        headers = {
+            "x-client-id": app_id,
+            "x-client-secret": secret_key,
+            "x-api-version": "2023-08-01",
+            "Content-Type": "application/json"
+        }
+        
+        cf_res = requests.get(f"{base_url}/orders/{order_id}", headers=headers, timeout=10)
+        cf_data = cf_res.json()
+        
+        order_status = cf_data.get("order_status")
+        
+        if order_status == "PAID":
+            plan = PLAN_CONFIGS.get(plan_id, PLAN_CONFIGS["pro"])
+            added_credits = plan["credits"]
+            
+            if db_admin:
+                user_ref = db_admin.collection("users").document(uid)
+                user_doc = user_ref.get()
+                curr_credits = user_doc.to_dict().get("credits", 0) if user_doc.exists else 0
+                new_credits = curr_credits + added_credits
+                user_ref.set({"credits": new_credits}, merge=True)
+                
+                tx_ref = user_ref.collection("transactions").document(order_id)
+                tx_ref.set({
+                    "order_id": order_id,
+                    "plan_id": plan_id,
+                    "credits_added": added_credits,
+                    "amount_paid": cf_data.get("order_amount", plan["price"]),
+                    "status": "PAID",
+                    "timestamp": firestore.SERVER_TIMESTAMP
+                })
+            
+            return jsonify({
+                "success": True,
+                "order_status": "PAID",
+                "message": f"Payment successful! Added {added_credits} AI credits to your account.",
+                "credits_added": added_credits
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "order_status": order_status,
+                "message": f"Payment status: '{order_status}'."
+            }), 400
+
+    except Exception as e:
+        print(f"❌ Cashfree Verification Exception: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cashfree/webhook', methods=['POST'])
+def cashfree_webhook():
+    """Asynchronous payment notification webhook from Cashfree."""
+    try:
+        data = request.get_json(silent=True) or {}
+        event_type = data.get("type")
+        
+        if event_type == "PAYMENT_SUCCESS":
+            event_data = data.get("data", {})
+            order_info = event_data.get("order", {})
+            customer_info = event_data.get("customer_details", {})
+            
+            order_id = order_info.get("order_id")
+            uid = customer_info.get("customer_id")
+            order_amount = order_info.get("order_amount", 0)
+            
+            if order_id and uid:
+                added_credits = 150
+                for pid, pconfig in PLAN_CONFIGS.items():
+                    if abs(pconfig["price"] - float(order_amount)) < 1.0:
+                        added_credits = pconfig["credits"]
+                        break
+                        
+                if db_admin:
+                    user_ref = db_admin.collection("users").document(uid)
+                    user_doc = user_ref.get()
+                    curr_credits = user_doc.to_dict().get("credits", 0) if user_doc.exists else 0
+                    
+                    tx_doc = user_ref.collection("transactions").document(order_id).get()
+                    if not tx_doc.exists:
+                        user_ref.set({"credits": curr_credits + added_credits}, merge=True)
+                        user_ref.collection("transactions").document(order_id).set({
+                            "order_id": order_id,
+                            "credits_added": added_credits,
+                            "amount_paid": order_amount,
+                            "status": "PAID",
+                            "via": "webhook",
+                            "timestamp": firestore.SERVER_TIMESTAMP
+                        })
+                        print(f"✅ Cashfree Webhook: Credited {added_credits} credits to {uid} for order {order_id}")
+            return jsonify({"status": "OK"}), 200
+        return jsonify({"status": "IGNORED"}), 200
+    except Exception as e:
+        print(f"❌ Cashfree Webhook Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # Re-export app for Vercel
 if __name__ == "__main__":
     print("🚀 Starting PDF Engine API on http://localhost:5001")

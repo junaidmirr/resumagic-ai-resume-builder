@@ -20,7 +20,7 @@ export function Footer() {
               <a href="#" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors">
                 <Globe className="w-4 h-4" />
               </a>
-              <a href="#" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors">
+              <a href="mailto:support@worklabs.studio" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors" title="Contact Support">
                 <Mail className="w-4 h-4" />
               </a>
               <a href="#" className="w-8 h-8 rounded-full border border-app-border flex items-center justify-center text-app-text-muted hover:text-brand-primary hover:border-brand-primary transition-colors">

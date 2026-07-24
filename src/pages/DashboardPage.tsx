@@ -261,7 +261,7 @@ export function DashboardPage() {
     e.stopPropagation();
     if (await confirm({ title: "Delete Resume", description: "Are you sure you want to delete this resume? This cannot be undone.", danger: true })) {
       try {
-        await resumeService.deleteResume(id);
+        await resumeService.deleteResume(id, user?.uid);
         setResumes(resumes.filter((r) => r.id !== id));
       } catch (err) {
         console.error("Failed to delete resume:", err);

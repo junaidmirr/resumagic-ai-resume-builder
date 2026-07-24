@@ -71,16 +71,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           };
         });
 
-        // If email is verified and user hasn't claimed signup credits yet, ensure a claim notification exists!
-        if (user.emailVerified && !claimedSignupCredits) {
+        // If email is verified and user hasn't claimed signup credits yet and hasn't dismissed it, check if we need to create it!
+        const isDismissed = localStorage.getItem(`dismissed_verification_${user.uid}`) === "true";
+        const hasCreatedBefore = localStorage.getItem(`created_verification_${user.uid}`) === "true";
+
+        if (user.emailVerified && !claimedSignupCredits && !isDismissed && !hasCreatedBefore) {
           const hasVerificationNotif = notifs.some((n) => n.type === "verification");
           if (!hasVerificationNotif) {
+            localStorage.setItem(`created_verification_${user.uid}`, "true");
             // Auto-create email verification reward notification in Firestore
             addDoc(notifRef, {
-              title: "🎉 Email Verified! Claim 50 Free AI Credits",
-              message: "Congratulations! Your email address has been verified. Claim your free 50 AI Credits now to start building resumes.",
+              title: "🎉 Email Verified! Claim 15 Free AI Credits",
+              message: "Congratulations! Your email address has been verified. Claim your free 15 AI Credits now to start building resumes.",
               type: "verification",
-              rewardAmount: 50,
+              rewardAmount: 15,
               claimed: false,
               read: false,
               timestamp: serverTimestamp(),
@@ -113,7 +117,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const claimReward = async (notif: AppNotification): Promise<boolean> => {
     if (!user) return false;
     try {
-      if (notif.type === "verification" && notif.rewardAmount === 50) {
+      if (notif.type === "verification") {
         const success = await claimSignupCredits();
         if (success) {
           const notifDoc = doc(db, "users", user.uid, "notifications", notif.id);
@@ -144,6 +148,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const deleteNotification = async (id: string) => {
     if (!user) return;
     try {
+      const targetNotif = notifications.find((n) => n.id === id);
+      if (targetNotif?.type === "verification") {
+        localStorage.setItem(`dismissed_verification_${user.uid}`, "true");
+      }
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       const notifDoc = doc(db, "users", user.uid, "notifications", id);
       await deleteDoc(notifDoc);
@@ -155,6 +163,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const clearAllNotifications = async () => {
     if (!user) return;
     try {
+      const hasVerification = notifications.some((n) => n.type === "verification");
+      if (hasVerification) {
+        localStorage.setItem(`dismissed_verification_${user.uid}`, "true");
+      }
       const idsToDelete = notifications.map((n) => n.id);
       setNotifications([]);
       const deletePromises = idsToDelete.map((id) =>

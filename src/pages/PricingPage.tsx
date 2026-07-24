@@ -23,6 +23,8 @@ import { useDialog } from "../context/DialogContext";
 import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
 import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { Navbar } from "../components/landing/Navbar";
+import { Footer } from "../components/landing/Footer";
 
 const loadCashfreeSDK = (mode: string = "sandbox"): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -353,10 +355,11 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-app-bg transition-colors duration-500 pb-24 overflow-hidden text-app-text">
+    <div className="min-h-screen bg-app-bg transition-colors duration-500 pb-24 overflow-hidden text-app-text flex flex-col">
+      <Navbar />
       
       {/* Launch Promo Ribbon Banner */}
-      <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white text-center py-2.5 px-4 font-black text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-center gap-2">
+      <div className="pt-20 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 text-white text-center py-2.5 px-4 font-black text-xs sm:text-sm tracking-wide shadow-md flex items-center justify-center gap-2">
         <Flame className="w-4 h-4 fill-white animate-bounce" />
         <span>LIMITED-TIME LAUNCH OFFER: Pro Plan at ₹199/mo (was ₹299/mo) & Lifetime Pass at ₹1,999 (was ₹2,999)</span>
       </div>
@@ -542,6 +545,118 @@ export default function PricingPage() {
           })}
         </div>
 
+        {/* How AI Credits & Plans Work Guide */}
+        <div className="bg-app-surface border border-app-border rounded-3xl p-6 sm:p-10 mb-20 shadow-lg">
+          <div className="text-center max-w-3xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-primary/10 text-brand-primary text-xs font-bold uppercase tracking-wider mb-3">
+              <Zap className="w-4 h-4" />
+              Complete Credit & Plan Guide
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-app-text tracking-tight mb-3">
+              How AI Credits & Plans Work
+            </h2>
+            <p className="text-xs sm:text-sm text-app-text-secondary leading-relaxed">
+              AI credits power our high-performance AI engines to write, optimize, and audit your resume. Here is how transparent and simple it is!
+            </p>
+          </div>
+
+          {/* Feature Credit Cost Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+            <div className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-brand-primary/10 text-brand-primary shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-app-text">AI Architect & Wizard</h4>
+                <p className="text-xs text-app-text-muted mt-0.5">Generates a complete multi-section resume from prompt or PDF import.</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-primary text-[11px] font-black">5 Credits / Resume</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
+                <Star className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-app-text">STAR Bullet Point Enhancer</h4>
+                <p className="text-xs text-app-text-muted mt-0.5">Transforms weak work experience bullets into metric-driven statements.</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[11px] font-black">2 Credits / Action</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-app-text">ATS Keyword & Gap Audit</h4>
+                <p className="text-xs text-app-text-muted mt-0.5">Compares your resume against target job descriptions and computes match score.</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 text-[11px] font-black">1 Credit / Audit</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500 shrink-0">
+                <Crown className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-app-text">AI Executive Summary</h4>
+                <p className="text-xs text-app-text-muted mt-0.5">Creates tailored summary paragraphs tailored to your career goal.</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-500 text-[11px] font-black">2 Credits / Summary</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-teal-500/10 text-teal-500 shrink-0">
+                <Gift className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-app-text">Cover Letter & SOP Generator</h4>
+                <p className="text-xs text-app-text-muted mt-0.5">Writes personalized 1-page cover letters matching your resume style.</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md bg-teal-500/10 text-teal-500 text-[11px] font-black">3 Credits / Letter</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-500 shrink-0">
+                <Info className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-app-text">Vector PDF Exporting</h4>
+                <p className="text-xs text-app-text-muted mt-0.5">Downloading and exporting your resume to PDF is always 100% free!</p>
+                <span className="inline-block mt-2 px-2.5 py-0.5 rounded-md bg-rose-500/10 text-rose-500 text-[11px] font-black">0 Credits (FREE)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Step Process */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-app-border">
+            <div className="flex gap-4">
+              <div className="w-9 h-9 rounded-2xl bg-brand-primary text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md">1</div>
+              <div>
+                <h5 className="font-bold text-sm text-app-text mb-1">Get Free Credits or Pick a Plan</h5>
+                <p className="text-xs text-app-text-muted leading-relaxed">Sign up & verify your email to get 15 Free credits instantly, or select a Pro plan for monthly credit resets.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="w-9 h-9 rounded-2xl bg-brand-primary text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md">2</div>
+              <div>
+                <h5 className="font-bold text-sm text-app-text mb-1">Use AI Features in Editor</h5>
+                <p className="text-xs text-app-text-muted leading-relaxed">Click any AI button in the Canvas Editor, Wizard, or Tools to generate bullets, summaries, or audit ATS score.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="w-9 h-9 rounded-2xl bg-brand-primary text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md">3</div>
+              <div>
+                <h5 className="font-bold text-sm text-app-text mb-1">Credits Rollover & Top-Up</h5>
+                <p className="text-xs text-app-text-muted leading-relaxed">Need extra credits? Purchase a top-up credit pack anytime. Purchased credits never expire.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Lifetime Deal Section */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/40 rounded-3xl p-8 sm:p-12 mb-20 shadow-2xl relative overflow-hidden text-white">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
@@ -725,6 +840,7 @@ export default function PricingPage() {
         </div>
 
       </div>
+      <Footer />
     </div>
   );
 }

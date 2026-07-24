@@ -11,7 +11,7 @@ import {
   Upload,
   ArrowLeft,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { LinkedInImportModal } from "../components/onboarding/LinkedInImportModal";
 import { useNavigate, Link } from "react-router-dom";

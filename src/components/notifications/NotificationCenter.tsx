@@ -145,7 +145,7 @@ export function NotificationCenter() {
                             <div>
                               {notif.claimed ? (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Claimed {notif.rewardAmount || 50} Credits
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Claimed {notif.rewardAmount || 15} Credits
                                 </span>
                               ) : (
                                 <button
@@ -159,7 +159,7 @@ export function NotificationCenter() {
                                   <Sparkles className="w-3.5 h-3.5" />
                                   {claimingId === notif.id
                                     ? "Claiming..."
-                                    : `Claim ${notif.rewardAmount || 50} AI Credits`}
+                                    : `Claim ${notif.rewardAmount || 15} AI Credits`}
                                 </button>
                               )}
                             </div>

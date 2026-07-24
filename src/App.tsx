@@ -52,6 +52,7 @@ function App() {
                 <Route path="/interview-guide" element={<InterviewGuidePage />} />
                 <Route path="/resources/examples" element={<ResumeExamplesPage />} />
                 <Route path="/examples" element={<ResumeExamplesPage />} />
+                <Route path="/resume-examples" element={<ResumeExamplesPage />} />
                 <Route path="/resources/help" element={<HelpCenterPage />} />
                 <Route path="/help" element={<HelpCenterPage />} />
                 <Route path="/status" element={<StatusPage />} />

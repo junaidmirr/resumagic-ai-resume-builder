@@ -122,14 +122,10 @@ def _align(elements:list, pw:float=612, ph:float=792)->list:
 
 
 GEMINI_MODELS = [
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.6-flash",
-    "gemini-3.1-pro",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
     "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+    "gemini-2.0-flash-lite-preview-02-05",
     "gemini-flash-latest",
     "gemini-pro-latest"
 ]
@@ -1047,3 +1043,215 @@ RULES:
             print(f"[AI-Architect-Build] Execution Error: {e}")
             
         return {"status": "error", "error": str(e)}
+
+    def generate_career_document(self, doc_type: str, job_title: str, company: str, user_experience: str = "", additional_notes: str = "") -> dict:
+        """Generates AI Cover Letters, SOPs, LORs, Resignation Letters, Cold Emails, LinkedIn Bios, etc."""
+        doc_blueprints = {
+            "cover_letter": {
+                "name": "Cover Letter",
+                "instructions": """Structure into an executive 4-paragraph layout:
+1. P1: Powerful opening hook expressing strong interest in the role at target company.
+2. P2: High-impact core experience with quantified metrics (revenue, efficiency, users scaled).
+3. P3: Alignment with company mission, products, and culture.
+4. P4: Professional call to action requesting an interview."""
+            },
+            "sop": {
+                "name": "Statement of Purpose (SOP)",
+                "instructions": """Structure into a rigorous academic SOP format:
+1. P1: Academic passion, core research interests, and motivation.
+2. P2: Background, key undergraduate/work projects, and technical mastery.
+3. P3: Why this university/program, faculty research alignment, and lab goals.
+4. P4: Long-term career vision and post-graduation impact."""
+            },
+            "lor": {
+                "name": "Letter of Recommendation (LOR)",
+                "instructions": """Structure into a formal supervisory/academic recommendation:
+1. Relationship & tenure of working with the candidate.
+2. Core strengths: problem solving, leadership, initiative, and technical capability.
+3. Specific exemplary project or milestone achieved.
+4. Unreserved highest recommendation and endorsement."""
+            },
+            "resignation": {
+                "name": "Resignation Letter",
+                "instructions": """Structure into a polite executive 2-week notice:
+1. Clear statement of resignation and effective end date.
+2. Genuine expression of gratitude for opportunities & team growth.
+3. Commitment to smooth knowledge transfer & onboarding transition for replacement."""
+            },
+            "cold_email": {
+                "name": "Cold Outreach Email",
+                "instructions": """Provide 2 variations (Short & Punchy, Value-Add):
+- Subject line (High open-rate subject).
+- Hook line mentioning candidate's top achievement.
+- 2-sentence value proposition matching target company goals.
+- Low-friction Call-To-Action (e.g., 'Open for a 5-min chat next Tuesday?')."""
+            },
+            "thank_you": {
+                "name": "Post-Interview Thank You Email",
+                "instructions": """Structure into a warm, memorable post-interview note:
+1. Gratitude for interviewer's time and discussion.
+2. Callback to a specific insightful topic discussed during the interview.
+3. Re-affirmation of strong interest and readiness for next steps."""
+            },
+            "salary_negotiation": {
+                "name": "Salary Negotiation Letter",
+                "instructions": """Structure into a persuasive counter-offer script:
+1. Enthusiastic appreciation for the job offer.
+2. Market research data anchoring candidate's value.
+3. Polite request for counter-offer range (base salary, sign-on bonus, or equity).
+4. Affirmation of commitment to hit key milestones upon joining."""
+            },
+            "linkedin_bio": {
+                "name": "LinkedIn Bio & Headline Suite",
+                "instructions": """Provide:
+1. 3 Catchy LinkedIn Headlines (Max 120 chars each, keyword-rich).
+2. 'About' Summary (Engaging 1st person storytelling, core competencies bullet points, and CTA).
+3. 5 Strategic LinkedIn skills tags for search visibility."""
+            },
+            "interview_answers": {
+                "name": "Behavioral Interview STAR Answers",
+                "instructions": """Provide STAR (Situation, Task, Action, Result) answers for the 3 most critical behavioral questions for this role:
+- Question 1: Handling a high-stakes technical/business challenge.
+- Question 2: Resolving team/stakeholder conflict.
+- Question 3: Driving innovation under tight deadlines."""
+            }
+        }
+
+        spec = doc_blueprints.get(doc_type, {
+            "name": "Career Document",
+            "instructions": "Format into clean, persuasive Markdown with executive vocabulary."
+        })
+
+        prompt = f"""You are a World-Class Executive Career Coach & Writer.
+TASK: Write a highly persuasive, flawless, professional {spec['name']}.
+
+TARGET ROLE / PROGRAM: {job_title}
+TARGET COMPANY / INSTITUTION: {company}
+CANDIDATE BACKGROUND & EXPERIENCE:
+{user_experience if user_experience else 'Experienced candidate in this field.'}
+
+ADDITIONAL DIRECTIVES & TONE:
+{additional_notes if additional_notes else 'Executive tone, persuasive positioning, and clear impact.'}
+
+SPECIFIC STRUCTURAL REQUIREMENTS:
+{spec['instructions']}
+
+FORMATTING INSTRUCTIONS:
+- Return clean Markdown with professional headers.
+- 100% ready to copy or send directly.
+"""
+        try:
+            response = _generate_with_model_fallback(prompt)
+            content = response.text.strip()
+            return {
+                "success": True,
+                "doc_type": doc_type,
+                "title": f"{spec['name']} - {company}",
+                "content": content
+            }
+        except Exception as e:
+            print(f"[CareerDoc-Fallback] Gemini API exception: {e}. Generating structured template fallback...")
+            from datetime import datetime
+            date_str = datetime.utcnow().strftime('%B %d, %Y')
+            exp_text = user_experience.strip() if user_experience.strip() else 'software development, technical execution, and problem solving'
+            
+            if doc_type == "cover_letter":
+                fallback_text = f"""# Cover Letter for {job_title}
+
+**Target Organization:** {company}  
+**Date:** {date_str}  
+
+Dear Hiring Manager,
+
+I am writing to express my enthusiastic interest in the **{job_title}** position at **{company}**. With my proven background in {exp_text}, I am eager to contribute to {company}'s ongoing innovation and strategic initiatives.
+
+Throughout my career, I have consistently delivered high-quality technical outcomes, optimized workflows, and built scalable solutions. My background aligns directly with the core requirements of the {job_title} position, and I bring a dedicated work ethic paired with analytical problem-solving skills.
+
+What particularly draws me to {company} is your commitment to technical excellence and industry leadership. I am excited by the prospect of bringing my expertise in development, collaboration, and execution to your team.
+
+I would welcome the opportunity to discuss how my experience and skills align with the needs of the {job_title} position at {company}. Thank you for your time and consideration.
+
+Sincerely,  
+**[Your Name]**  
+*Email:* candidate@resumagic.worklabs.studio  
+*Phone:* +1 (555) 019-2834  
+"""
+            elif doc_type == "sop":
+                fallback_text = f"""# Statement of Purpose (SOP)
+
+**Applicant:** [Your Name]  
+**Target Program:** {job_title}  
+**Target Institution:** {company}  
+
+### 1. Introduction & Academic Motivation
+My decision to pursue advanced studies in **{job_title}** at **{company}** is driven by a strong commitment to mastering cutting-edge concepts and conducting impactful research.
+
+### 2. Academic & Technical Foundation
+My background in {exp_text} has provided me with technical rigor, analytical problem-solving, and hands-on project experience. I have consistently sought opportunities to deepen my understanding of complex systems.
+
+### 3. Alignment with {company}
+{company}'s world-class faculty, collaborative environment, and specialized curriculum make it the ideal place for my graduate education. I am particularly excited about aligning my research goals with your department's focus areas.
+
+### 4. Future Aspirations
+Upon graduation from {company}, I aim to leverage my education to lead transformative industrial initiatives and contribute to technological advancement.
+
+Sincerely,  
+**[Your Name]**
+"""
+            elif doc_type == "cold_email":
+                fallback_text = f"""# Recruiter Cold Outreach Email Suite
+
+### Option 1: High-Open Punchy Message
+**Subject:** Quick Question regarding {job_title} at {company}
+
+Hi [Hiring Manager Name],
+
+I hope this note finds you well. I've been following {company}'s impressive growth and engineering roadmap.
+
+I'm a {job_title} with experience in {exp_text}. In my previous work, I helped build and scale core systems while improving overall efficiency.
+
+Are you open to a brief 5-minute chat next Tuesday to discuss how my background aligns with your team at {company}?
+
+Best regards,  
+**[Your Name]**
+
+---
+
+### Option 2: Value-Add Email
+**Subject:** Candidate fit for {job_title} role at {company}
+
+Hi [Recruiter Name],
+
+I came across the {job_title} opening at {company} and wanted to connect directly. Given my experience in technical execution and product delivery, I believe I could bring immediate value to your team.
+
+I would love to connect for a quick 10-minute call this week.
+
+Best,  
+**[Your Name]**
+"""
+            else:
+                fallback_text = f"""# {spec['name']} for {company}
+
+**Target Position:** {job_title}  
+**Target Organization:** {company}  
+**Date:** {date_str}  
+
+Dear Hiring Team,
+
+This document is prepared specifically for the **{job_title}** position at **{company}**.
+
+### Professional Background
+{exp_text}
+
+### Key Strengths & Alignment
+My experience, problem-solving mindset, and dedication to excellence make me an ideal fit for {company}'s goals and technical standards.
+
+Sincerely,  
+**[Your Name]**
+"""
+            return {
+                "success": True,
+                "doc_type": doc_type,
+                "title": f"{spec['name']} - {company}",
+                "content": fallback_text
+            }

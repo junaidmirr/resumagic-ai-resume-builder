@@ -19,6 +19,8 @@ import { templates as RESUME_TEMPLATES } from "../lib/templates";
 import { TemplateThumbnailPreview } from "../components/dashboard/TemplateThumbnailPreview";
 import { extractTextFromPDF } from "../lib/pdfParser";
 import { buildResumeFromImportedText } from "../lib/aiArchitect";
+import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
+import { PagePropertiesPanel } from "../components/editor/PagePropertiesPanel";
 import {
   Trash2,
   RotateCcw,
@@ -515,7 +517,9 @@ function ActionBtn({
 
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 export function EditorPage() {
-  const { user, refreshCredits, credits, deductCredits } = useAuth();
+  const { user, refreshCredits, credits, deductCredits, userPlan } = useAuth();
+  const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const { theme, setTheme } = useTheme();
   const { showAuthModal } = useAuthModal();
   const { confirm, prompt, alert } = useDialog();
@@ -534,6 +538,12 @@ export function EditorPage() {
   const counterRef = useRef(0);
   const [undoStack, setUndoStack] = useState<EditorElement[][]>([]);
   const [redoStack, setRedoStack] = useState<EditorElement[][]>([]);
+
+  const handleAddPage = useCallback(() => {
+    const newPageId = `page-${Date.now()}`;
+    setPages((prev) => [...prev, { id: newPageId, width: 612, height: 792 }]);
+    setActivePageId(newPageId);
+  }, []);
 
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
@@ -602,7 +612,7 @@ export function EditorPage() {
   // Cloud Loading
   useEffect(() => {
     if (resumeId) {
-      resumeService.getResume(resumeId).then((res) => {
+      resumeService.getResume(resumeId, user?.uid).then((res) => {
         if (res) {
           setElements(res.elements);
           setResumeTitle(res.title);
@@ -634,7 +644,7 @@ export function EditorPage() {
         }
       }
     }
-  }, [resumeId]);
+  }, [resumeId, user?.uid]);
 
   const handleExit = async () => {
     const shouldSave = await confirm({
@@ -671,7 +681,7 @@ export function EditorPage() {
             }
           }
           if (resumeId) {
-             await resumeService.updateResume(resumeId, elements, docName || "Untitled", thumbnail);
+             await resumeService.updateResume(resumeId, elements, docName || "Untitled", thumbnail, user?.uid);
           } else {
              await resumeService.createResume(user?.uid || "guest", docName || "Untitled", elements);
           }
@@ -768,9 +778,21 @@ export function EditorPage() {
   const getNextId = (prefix: string) => `${prefix}_${++counterRef.current}`;
 
   // ── Add Elements ──────────────────────────────────────────
+  const getCenterCoordinates = (w: number, h: number) => {
+    const activePage = pages.find((p) => p.id === activePageId) || pages[0] || { width: 612, height: 792 };
+    const pw = activePage.width || 612;
+    const ph = activePage.height || 792;
+    const x = Math.max(20, Math.round((pw - w) / 2));
+    const y = Math.max(20, Math.round((ph - h) / 2));
+    return { x, y };
+  };
+
   const addText = () => {
     _snapshot();
     const id = getNextId("text");
+    const w = 220;
+    const h = 44;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -778,10 +800,10 @@ export function EditorPage() {
         element_type: "text",
         page_id: activePageId,
         text: "New Text",
-        x: 100,
-        y: 650,
-        width: 220,
-        height: 44,
+        x,
+        y,
+        width: w,
+        height: h,
         font_size: 16,
         font_name: "Helvetica",
         text_color: "#1e293b",
@@ -795,6 +817,9 @@ export function EditorPage() {
   const addRect = () => {
     _snapshot();
     const id = getNextId("rect");
+    const w = 200;
+    const h = 120;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -802,10 +827,10 @@ export function EditorPage() {
         element_type: "shape",
         page_id: activePageId,
         shape_type: "rectangle",
-        x: 180,
-        y: 550,
-        width: 200,
-        height: 120,
+        x,
+        y,
+        width: w,
+        height: h,
         fill_color: "#e0f2fe",
         border_color: "#0284c7",
         border_width: 2,
@@ -819,6 +844,9 @@ export function EditorPage() {
   const addCircle = () => {
     _snapshot();
     const id = getNextId("circle");
+    const w = 120;
+    const h = 120;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -826,10 +854,10 @@ export function EditorPage() {
         element_type: "shape",
         page_id: activePageId,
         shape_type: "circle",
-        x: 306,
-        y: 500,
-        width: 120,
-        height: 120,
+        x,
+        y,
+        width: w,
+        height: h,
         fill_color: "#fce7f3",
         border_color: "#db2777",
         border_width: 2,
@@ -843,6 +871,12 @@ export function EditorPage() {
   const addLine = () => {
     _snapshot();
     const id = getNextId("line");
+    const activePage = pages.find((p) => p.id === activePageId) || pages[0] || { width: 612, height: 792 };
+    const pw = activePage.width || 612;
+    const ph = activePage.height || 792;
+    const lineLen = Math.min(400, pw - 80);
+    const startX = Math.round((pw - lineLen) / 2);
+    const startY = Math.round(ph / 2);
     setElements((p) => [
       ...p,
       {
@@ -850,10 +884,10 @@ export function EditorPage() {
         element_type: "shape",
         page_id: activePageId,
         shape_type: "line",
-        x: 100,
-        y: 400,
-        x2: 500,
-        y2: 400,
+        x: startX,
+        y: startY,
+        x2: startX + lineLen,
+        y2: startY,
         border_color: "#475569",
         border_width: 2,
         z_index: p.length,
@@ -874,6 +908,9 @@ export function EditorPage() {
     
     _snapshot();
     const id = getNextId("image");
+    const w = 100;
+    const h = 100;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -881,10 +918,10 @@ export function EditorPage() {
         element_type: "image",
         page_id: activePageId,
         image_path: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`,
-        x: 100,
-        y: 600,
-        width: 100,
-        height: 100,
+        x,
+        y,
+        width: w,
+        height: h,
         z_index: p.length,
       },
     ]);
@@ -929,6 +966,9 @@ export function EditorPage() {
     
     _snapshot();
     const id = getNextId("image");
+    const w = 300;
+    const h = 200;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -936,10 +976,10 @@ export function EditorPage() {
         element_type: "image",
         page_id: activePageId,
         image_path: dataUrl,
-        x: 100,
-        y: 400,
-        width: 300,
-        height: 200,
+        x,
+        y,
+        width: w,
+        height: h,
         z_index: p.length,
       },
     ]);
@@ -972,6 +1012,9 @@ export function EditorPage() {
 
     _snapshot();
     const id = getNextId("image");
+    const w = 200;
+    const h = 50;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -979,10 +1022,10 @@ export function EditorPage() {
         element_type: "image",
         page_id: activePageId,
         image_path: dataUrl,
-        x: 100,
-        y: 600,
-        width: 200,
-        height: 50,
+        x,
+        y,
+        width: w,
+        height: h,
         z_index: p.length,
       },
     ]);
@@ -1031,12 +1074,38 @@ export function EditorPage() {
     _snapshot();
     const groupId = `group_${Date.now()}`;
     
-    // We need to pass dynamicData to elements() but our blocks.ts doesn't support that yet!
-    // We'll update utils/blocks.ts to accept dynamicData as 4th parameter.
-    const newEls = blockDef.elements(groupId, activePageId, elements.length, dynamicData).map((el, i) => {
+    const rawEls = blockDef.elements(groupId, activePageId, elements.length, dynamicData);
+
+    // Calculate bounding box of block elements
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    rawEls.forEach((el) => {
+      const w = (el as any).width || 100;
+      const h = (el as any).height || 20;
+      minX = Math.min(minX, el.x);
+      maxX = Math.max(maxX, el.x + w);
+      minY = Math.min(minY, el.y);
+      maxY = Math.max(maxY, el.y + h);
+    });
+
+    const blockWidth = maxX - minX;
+    const blockHeight = maxY - minY;
+
+    const activePage = pages.find((p) => p.id === activePageId) || pages[0] || { width: 612, height: 792 };
+    const pw = activePage.width || 612;
+    const ph = activePage.height || 792;
+
+    const targetCenterX = Math.max(20, Math.round((pw - blockWidth) / 2));
+    const targetCenterY = Math.max(20, Math.round((ph - blockHeight) / 2));
+
+    const deltaX = targetCenterX - minX;
+    const deltaY = targetCenterY - minY;
+
+    const newEls = rawEls.map((el, i) => {
       const isShape = el.element_type === "shape";
       return {
         ...el,
+        x: Math.round(el.x + deltaX),
+        y: Math.round(el.y + deltaY),
         id: getNextId(isShape ? "shape" : "text") + "_" + i,
       } as EditorElement;
     });
@@ -1048,6 +1117,11 @@ export function EditorPage() {
   const applyTemplate = async (templateId: string) => {
     const templateDef = RESUME_TEMPLATES.find((t) => t.id === templateId);
     if (!templateDef) return;
+
+    if (templateDef.isPremium && !isProTier) {
+      setShowUpgradeModal(true);
+      return;
+    }
 
     if (!(await confirm({ title: "Apply Template", description: "Applying a template will replace all current elements on this page. Continue?", danger: true }))) {
       return;
@@ -1660,6 +1734,9 @@ export function EditorPage() {
   const handleInsertAsset = (url: string) => {
     _snapshot();
     const id = getNextId("image");
+    const w = 200;
+    const h = 200;
+    const { x, y } = getCenterCoordinates(w, h);
     setElements((p) => [
       ...p,
       {
@@ -1667,10 +1744,10 @@ export function EditorPage() {
         element_type: "image",
         page_id: activePageId,
         image_path: url,
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 200,
+        x,
+        y,
+        width: w,
+        height: h,
         z_index: p.length,
       } as any,
     ]);
@@ -1719,10 +1796,11 @@ export function EditorPage() {
           "Content-Type": "application/json",
           "X-User-ID": user?.uid || "",
         },
-        body: JSON.stringify(elements),
+        body: JSON.stringify({ elements, pages }),
       });
 
-      if (res.ok) {
+      const contentType = res.headers.get("content-type") || "";
+      if (res.ok && contentType.includes("application/pdf")) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -1739,17 +1817,32 @@ export function EditorPage() {
         return;
       }
     } catch (e) {
-      console.warn("Python backend PDF render unavailable. Executing client-side fallback:", e);
+      console.warn("Python backend PDF render unavailable. Executing high-precision client engine:", e);
     }
 
-    // 2. Self-Healing Fallback: Native High-DPI Canvas PDF Engine (Zero External Dependencies)
+    // 2. High-Precision Client-Side Canvas PDF Engine
     if (!serverSuccess) {
       try {
-        console.log("[Self-Healing System] Auto-executing Native Client PDF engine...");
-        const pageEl = document.getElementById(`page-${activePageId}`) || document.querySelector(".editor-canvas");
+        const pageEl =
+          document.getElementById(activePageId) ||
+          document.getElementById(`page-${activePageId}`) ||
+          document.querySelector(`[data-page-id="${activePageId}"]`) ||
+          document.querySelector("[id*='page-']");
+
+        const activePage = pages.find((p) => p.id === activePageId) || pages[0] || {
+          width: 612,
+          height: 792,
+          bg_color: "#ffffff",
+        };
+
         if (pageEl) {
-          const imgUrl = await toPng(pageEl as HTMLElement, { pixelRatio: 2, fontEmbedCSS: '', skipFonts: true });
-          
+          const imgUrl = await toPng(pageEl as HTMLElement, {
+            pixelRatio: 3,
+            cacheBust: true,
+            backgroundColor: activePage.bg_color || "#ffffff",
+          });
+
+          // Print / PDF Save Window
           const iframe = document.createElement("iframe");
           iframe.style.position = "fixed";
           iframe.style.right = "0";
@@ -1758,7 +1851,7 @@ export function EditorPage() {
           iframe.style.height = "0";
           iframe.style.border = "0";
           document.body.appendChild(iframe);
-          
+
           const doc = iframe.contentWindow?.document;
           if (doc) {
             doc.open();
@@ -1768,9 +1861,9 @@ export function EditorPage() {
                 <head>
                   <title>${resumeTitle || "resume"}</title>
                   <style>
-                    @page { size: 612pt 792pt; margin: 0; }
-                    body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
-                    img { width: 100%; height: auto; display: block; }
+                    @page { size: ${activePage.width}pt ${activePage.height}pt; margin: 0; }
+                    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: ${activePage.bg_color || '#ffffff'}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    img { width: 100%; height: 100%; object-fit: contain; display: block; }
                   </style>
                 </head>
                 <body>
@@ -1779,18 +1872,29 @@ export function EditorPage() {
               </html>
             `);
             doc.close();
-            
+
             iframe.contentWindow?.focus();
             setTimeout(() => {
               iframe.contentWindow?.print();
               setTimeout(() => iframe.remove(), 1000);
             }, 300);
           }
+
+          // Direct high-res image backup download
+          const a = document.createElement("a");
+          a.href = imgUrl;
+          a.download = `${resumeTitle || "resume"}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
           serverSuccess = true;
+        } else {
+          alert("Could not locate active canvas page element. Please refresh and try again.");
         }
       } catch (fallbackErr) {
         console.error("Client PDF fallback error:", fallbackErr);
-        alert("Export encountered an issue. Please try exporting as PNG.");
+        alert("Export encountered an issue. Please try again.");
       }
     }
 
@@ -1874,39 +1978,13 @@ export function EditorPage() {
   const renderProperties = () => {
     if (!sel) {
       return (
-        <div className="p-5 space-y-6">
-          <div className="flex flex-col items-center justify-center py-6 text-center border-b border-app-border">
-            <div className="w-12 h-12 bg-app-bg border border-app-border rounded-full flex items-center justify-center mb-3">
-              <LucideIcons.FileText size={20} className="text-app-text-muted" />
-            </div>
-            <p className="text-[11px] font-bold text-app-text-secondary uppercase tracking-widest select-none">
-              Document Setup
-            </p>
-          </div>
-          
-          <Section title="Page Setup">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between bg-app-surface p-3 rounded-xl border border-app-border shadow-sm">
-                <span className="text-[11px] font-medium text-app-text">Format</span>
-                <span className="text-[10px] font-mono font-bold text-app-text-secondary bg-app-bg px-2 py-1 rounded shadow-sm border border-app-border">US Letter</span>
-              </div>
-              <div className="flex items-center justify-between bg-app-surface p-3 rounded-xl border border-app-border shadow-sm">
-                <span className="text-[11px] font-medium text-app-text">Orientation</span>
-                <span className="text-[10px] font-mono font-bold text-app-text-secondary bg-app-bg px-2 py-1 rounded shadow-sm border border-app-border">Portrait</span>
-              </div>
-            </div>
-          </Section>
-          
-          <Section title="Background">
-            <div className="flex items-center justify-between bg-app-surface p-3 rounded-xl border border-app-border shadow-sm">
-              <span className="text-[11px] font-medium text-app-text">Color</span>
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded border border-app-border bg-white shadow-inner" />
-                <span className="text-[10px] font-mono text-app-text-secondary uppercase">#FFFFFF</span>
-              </div>
-            </div>
-          </Section>
-        </div>
+        <PagePropertiesPanel
+          pages={pages}
+          setPages={setPages}
+          activePageId={activePageId}
+          setActivePageId={setActivePageId}
+          onSnapshot={_snapshot}
+        />
       );
     }
 
@@ -2586,8 +2664,8 @@ export function EditorPage() {
           <div className="w-px h-5 bg-app-border mx-1" />
           
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md border border-white/20">
-              <span className="text-white font-black text-xs">Ai</span>
+            <div className="w-7 h-7 bg-gradient-to-br from-brand-primary to-indigo-600 rounded-lg flex items-center justify-center shadow-md border border-white/20">
+              <LucideIcons.FileText className="w-4 h-4 text-white" />
             </div>
             <input
               type="text"
@@ -2664,6 +2742,19 @@ export function EditorPage() {
             title="Toggle Dark Mode"
           >
             <LucideIcons.Moon size={16} />
+          </button>
+
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setRightOpen((p) => !p)}
+            className={`hidden md:flex p-2 rounded-lg transition-colors ${
+              rightOpen
+                ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
+                : "text-app-text-muted hover:text-app-text hover:bg-app-bg"
+            }`}
+            title={rightOpen ? "Collapse Properties Panel" : "Expand Properties Panel"}
+          >
+            <LucideIcons.Sliders size={16} />
           </button>
           
           <button
@@ -2820,18 +2911,42 @@ export function EditorPage() {
                     <p className="text-[10px] text-app-text/40 mt-1">Start from a pre-designed layout</p>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-                    {RESUME_TEMPLATES.map((tpl) => (
-                      <div
-                        key={tpl.id}
-                        onClick={() => applyTemplate(tpl.id)}
-                        className="w-full p-3 rounded-xl bg-app-bg border border-app-border shadow-sm hover:border-app-accent hover:shadow-md transition-all cursor-pointer group flex flex-col gap-2"
-                      >
-                        <div className="w-full h-44 bg-app-surface border border-app-border rounded-lg p-2 overflow-hidden flex items-center justify-center">
-                          <TemplateThumbnailPreview template={tpl} />
+                    {RESUME_TEMPLATES.map((tpl) => {
+                      const isLocked = tpl.isPremium && !isProTier;
+                      return (
+                        <div
+                          key={tpl.id}
+                          onClick={() => applyTemplate(tpl.id)}
+                          className={`w-full p-3 rounded-xl bg-app-bg border shadow-sm transition-all cursor-pointer group flex flex-col gap-2 relative ${
+                            isLocked ? "border-amber-500/40 hover:border-amber-500" : "border-app-border hover:border-app-accent hover:shadow-md"
+                          }`}
+                        >
+                          <div className="w-full h-44 bg-app-surface border border-app-border rounded-lg p-2 overflow-hidden flex items-center justify-center relative">
+                            <TemplateThumbnailPreview template={tpl} />
+                            {isLocked && (
+                              <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white gap-1.5 p-2">
+                                <div className="p-2 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 shadow-md">
+                                  <LucideIcons.Lock className="w-5 h-5" />
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">PRO Template</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <h4 className="text-xs font-bold text-app-text uppercase tracking-wide truncate">{tpl.name}</h4>
+                            {isLocked ? (
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+                                PRO
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                                FREE
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <h4 className="text-xs font-bold text-app-text uppercase tracking-wide truncate">{tpl.name}</h4>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2846,42 +2961,61 @@ export function EditorPage() {
                         setPages([...pages, { id: newPageId, width: 612, height: 792 }]);
                         setActivePageId(newPageId);
                       }}
-                      className="p-1.5 bg-app-accent/10 text-app-accent hover:bg-app-accent/20 rounded-lg transition-colors"
+                      className="p-1.5 bg-app-accent/10 text-app-accent hover:bg-app-accent/20 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold px-2.5"
                     >
                       <LucideIcons.Plus size={14} />
+                      <span>Add</span>
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                    {pages.map((p, i) => (
-                      <div
-                        key={p.id}
-                        onClick={() => setActivePageId(p.id)}
-                        className={`group relative aspect-[0.77] w-full rounded-xl border-2 transition-all cursor-pointer overflow-hidden bg-white shadow-sm
-                          ${activePageId === p.id ? 'border-app-accent shadow-md' : 'border-app-border hover:border-app-text/20'}`}
-                      >
-                        <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded font-bold">
-                          {i + 1}
+
+                  <div className="flex-1 overflow-y-auto divide-y divide-app-border">
+                    <div className="p-4 grid grid-cols-2 gap-3">
+                      {pages.map((p, i) => (
+                        <div
+                          key={p.id}
+                          onClick={() => setActivePageId(p.id)}
+                          className={`group relative aspect-[0.77] w-full rounded-xl border-2 transition-all cursor-pointer overflow-hidden shadow-xs flex flex-col justify-between p-2
+                            ${activePageId === p.id ? 'border-brand-primary shadow-md ring-1 ring-brand-primary/30' : 'border-app-border hover:border-app-text/20'}`}
+                          style={{ backgroundColor: p.bg_color || '#ffffff' }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded font-bold">
+                              {i + 1}
+                            </span>
+
+                            {pages.length > 1 && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (await confirm({ title: "Delete Page", description: "Are you sure you want to delete this page?", danger: true })) {
+                                    setPages(pages.filter(pg => pg.id !== p.id));
+                                    if (activePageId === p.id) {
+                                      setActivePageId(pages[0].id === p.id ? pages[1].id : pages[0].id);
+                                    }
+                                    setElements(prev => prev.filter(el => (el.page_id || 'page-1') !== p.id));
+                                  }
+                                }}
+                                className="p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <LucideIcons.Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="text-[9px] font-bold text-center opacity-60 truncate font-mono">
+                            {p.width}×{p.height}
+                          </div>
                         </div>
-                        
-                        {pages.length > 1 && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (await confirm({ title: "Delete Page", description: "Are you sure you want to delete this page?", danger: true })) {
-                                setPages(pages.filter(pg => pg.id !== p.id));
-                                if (activePageId === p.id) {
-                                  setActivePageId(pages[0].id === p.id ? pages[1].id : pages[0].id);
-                                }
-                                setElements(prev => prev.filter(el => (el.page_id || 'page-1') !== p.id));
-                              }
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <LucideIcons.Trash2 size={12} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <PagePropertiesPanel
+                      pages={pages}
+                      setPages={setPages}
+                      activePageId={activePageId}
+                      setActivePageId={setActivePageId}
+                      onSnapshot={_snapshot}
+                    />
                   </div>
                 </div>
               )}
@@ -2920,8 +3054,8 @@ export function EditorPage() {
                 setActivePageId={setActivePageId}
                 selectedIds={selectedIds}
                 setSelectedIds={setSelectedIds}
-                pageWidth={612}
-                pageHeight={792}
+                pageWidth={pages.find((p) => p.id === activePageId)?.width || 612}
+                pageHeight={pages.find((p) => p.id === activePageId)?.height || 792}
                 onSnapshot={_snapshot}
                 zoom={zoom}
                 snapEnabled={snapEnabled}
@@ -2997,16 +3131,26 @@ export function EditorPage() {
         >
           <div className="flex flex-col h-full overflow-hidden">
             {/* Properties header */}
-            <div className="flex items-center gap-2 px-3 py-2.5 border-b border-app-border bg-app-bg/60 shrink-0 select-none">
-              <Settings2 size={13} className="text-slate-400" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-app-text-secondary">
-                Properties
-              </span>
-              {sel && (
-                <span className="ml-auto text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded-full px-2 py-0.5 font-semibold capitalize">
-                  {sel.element_type}
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-app-border bg-app-bg/60 shrink-0 select-none">
+              <div className="flex items-center gap-2">
+                <Settings2 size={13} className="text-slate-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-app-text-secondary">
+                  Properties
                 </span>
-              )}
+                {sel && (
+                  <span className="text-[10px] bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 rounded-full px-2 py-0.5 font-semibold capitalize">
+                    {sel.element_type}
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => setRightOpen(false)}
+                className="p-1 rounded-lg hover:bg-app-bg text-app-text-muted hover:text-app-text transition-colors cursor-pointer"
+                title="Collapse Properties Panel"
+              >
+                <LucideIcons.ChevronRight size={16} />
+              </button>
             </div>
 
             {/* Scrollable properties area */}
@@ -3015,6 +3159,16 @@ export function EditorPage() {
             </div>
           </div>
         </aside>
+
+        {!rightOpen && (
+          <button
+            onClick={() => setRightOpen(true)}
+            className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-app-surface border border-r-0 border-app-border rounded-l-xl p-2.5 shadow-lg text-app-text-secondary hover:text-brand-primary hover:bg-brand-primary/10 transition-all group cursor-pointer"
+            title="Expand Properties Panel"
+          >
+            <LucideIcons.ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+        )}
       </div>
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
@@ -3092,7 +3246,7 @@ export function EditorPage() {
               </span>
               <div className="flex items-center gap-2">
                 {mobilePanel === "pages" && (
-                  <button onClick={addPage} className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 transition-colors">
+                  <button onClick={handleAddPage} className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 transition-colors">
                     <LucideIcons.Plus size={16} />
                   </button>
                 )}
@@ -3512,6 +3666,14 @@ export function EditorPage() {
           )}
         </div>
       )}
+
+      <UpgradeTriggerModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        title="Unlock PRO Resume & Cover Letter Templates"
+        description="Upgrade to Pro access to unlock all executive templates and design tools."
+        featureName="PRO Templates"
+      />
     </div>
   );
 }

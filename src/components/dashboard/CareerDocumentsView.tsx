@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
-  FileText,
   Sparkles,
-  Send,
   Copy,
   Check,
   Loader2,
+  FileText,
+  Send,
   Mail,
   GraduationCap,
   Briefcase,
@@ -14,20 +15,23 @@ import {
   DollarSign,
   Share2,
   MessageSquare,
-  Lock,
-  Plus,
-  Download,
-  Printer,
   History,
   Trash2,
-  Sliders,
-  Award,
-  CheckCircle2,
-  Wand2
+  Download,
+  Printer,
+  Wand2,
+  BookmarkCheck,
+  ChevronDown,
+  ArrowRight,
+  Zap,
+  Palette
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useDialog } from "../../context/DialogContext";
 import { UpgradeTriggerModal } from "../common/UpgradeTriggerModal";
+import { generateCareerDocumentClient, convertDocumentTextToCanvasElements } from "../../lib/careerDocGenerator";
+import { CoverLetterTemplateModal } from "./CoverLetterTemplateModal";
+import { buildCoverLetterCanvasElements } from "../../lib/coverLetterTemplates";
 
 interface SavedDocument {
   id: string;
@@ -37,42 +41,32 @@ interface SavedDocument {
   createdAt: string;
 }
 
-const docTypes = [
-  { id: "cover_letter", label: "Cover Letter", icon: FileText, desc: "Tailored cover letter matching target job description", badge: "POPULAR" },
-  { id: "sop", label: "Statement of Purpose (SOP)", icon: GraduationCap, desc: "Academic & university admissions statement", badge: "ACADEMIC" },
-  { id: "lor", label: "Letter of Recommendation (LOR)", icon: UserCheck, desc: "Professors & managers reference letter", badge: "EXECUTIVE" },
-  { id: "resignation", label: "Resignation Letter", icon: Briefcase, desc: "Polite two-week notice & transition document", badge: "ESSENTIAL" },
-  { id: "cold_email", label: "Cold Outreach Email", icon: Mail, desc: "High-converting email to recruiters & hiring managers", badge: "OUTREACH" },
-  { id: "thank_you", label: "Thank You Email", icon: Send, desc: "Post-interview follow-up email script", badge: "INTERVIEW" },
-  { id: "salary_negotiation", label: "Salary Negotiation", icon: DollarSign, desc: "Counter-offer email & negotiation script", badge: "CAREER" },
-  { id: "linkedin_bio", label: "LinkedIn Bio & Headline", icon: Share2, desc: "High-visibility LinkedIn profile copy", badge: "SOCIAL" },
-  { id: "interview_answers", label: "Interview STAR Answers", icon: MessageSquare, desc: "Behavioral interview prep STAR scripts", badge: "PREP" },
+const mainDocTypes = [
+  { id: "cover_letter", label: "Job Cover Letter", icon: FileText, emoji: "💼", hint: "Letter for job applications" },
+  { id: "cold_email", label: "Recruiter Email", icon: Mail, emoji: "✉️", hint: "Outreach to HR & managers" },
+  { id: "sop", label: "University SOP", icon: GraduationCap, emoji: "🎓", hint: "Admissions essay" },
+  { id: "thank_you", label: "Thank You Email", icon: Send, emoji: "🙏", hint: "Follow-up after interview" },
+  { id: "resignation", label: "Resignation Letter", icon: Briefcase, emoji: "📝", hint: "Official 2-week notice" },
+  { id: "salary_negotiation", label: "Salary Negotiation", icon: DollarSign, emoji: "💰", hint: "Ask for higher pay" },
+  { id: "linkedin_bio", label: "LinkedIn Bio", icon: Share2, emoji: "🌐", hint: "Profile about section" },
+  { id: "lor", label: "Recommendation LOR", icon: UserCheck, emoji: "🌟", hint: "Reference letter" },
 ];
 
-const toneOptions = [
-  "Executive & Persuasive",
-  "Professional & Concise",
-  "Academic & Formal",
-  "High-Energy & Creative",
-];
-
-const quickPresets = [
-  { label: "FAANG SDE II", title: "Senior Software Engineer", company: "Google", notes: "Highlight 5+ yrs distributed systems & 99.99% uptime." },
-  { label: "Stanford SOP", title: "Master of Science in Computer Science", company: "Stanford University", notes: "Focus on AI research, machine learning projects & GPA 3.9." },
-  { label: "Product Manager", title: "Principal Product Manager", company: "Microsoft", notes: "Emphasis on cross-functional roadmap & 2M DAU growth." },
+const quickExamples = [
+  { label: "Software Engineer @ Google", doc_type: "cover_letter", role: "Senior Software Engineer", company: "Google" },
+  { label: "Product Manager @ Stripe", doc_type: "cover_letter", role: "Lead Product Manager", company: "Stripe" },
+  { label: "CS Masters @ Stanford", doc_type: "sop", role: "M.S. in Computer Science", company: "Stanford University" },
+  { label: "Recruiter Email @ Meta", doc_type: "cold_email", role: "Full Stack Developer", company: "Meta" },
 ];
 
 export function CareerDocumentsView() {
   const { user, credits, userPlan, refreshCredits } = useAuth();
   const { alert, confirm } = useDialog();
+  const navigate = useNavigate();
 
   const [selectedType, setSelectedType] = useState("cover_letter");
-  const [jobTitle, setJobTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [experience, setExperience] = useState("");
-  const [notes, setNotes] = useState("");
-  const [selectedTone, setSelectedTone] = useState("Executive & Persuasive");
-
+  const [promptInput, setPromptInput] = useState("");
+  
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [copied, setCopied] = useState(false);
@@ -81,13 +75,32 @@ export function CareerDocumentsView() {
   const [savedDocs, setSavedDocs] = useState<SavedDocument[]>([]);
   const [viewHistory, setViewHistory] = useState(false);
 
-  // Load saved documents from localStorage
+  const activeDoc = mainDocTypes.find((d) => d.id === selectedType) || mainDocTypes[0];
+
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [pendingTextToDesign, setPendingTextToDesign] = useState("");
+  const [pendingTitleToDesign, setPendingTitleToDesign] = useState("");
+
+  const handleOpenInCanvas = (contentToDesign?: string, docTitle?: string) => {
+    const textToUse = contentToDesign || generatedContent;
+    if (!textToUse) return;
+    const titleToUse = docTitle || activeDoc.label;
+    setPendingTextToDesign(textToUse);
+    setPendingTitleToDesign(titleToUse);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    if (!pendingTextToDesign) return;
+    const canvasElements = buildCoverLetterCanvasElements(pendingTitleToDesign, pendingTextToDesign, templateId);
+    localStorage.setItem("designed_resume", JSON.stringify(canvasElements));
+    navigate("/editor");
+  };
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`saved_career_docs_${user?.uid || "guest"}`);
-      if (stored) {
-        setSavedDocs(JSON.parse(stored));
-      }
+      if (stored) setSavedDocs(JSON.parse(stored));
     } catch (e) {
       console.error(e);
     }
@@ -113,7 +126,7 @@ export function CareerDocumentsView() {
   const deleteSavedDoc = async (id: string) => {
     const isConfirmed = await confirm({
       title: "Delete Document?",
-      description: "Are you sure you want to remove this saved document from history?",
+      description: "Remove this document from your history?",
     });
     if (isConfirmed) {
       const updated = savedDocs.filter((d) => d.id !== id);
@@ -126,60 +139,44 @@ export function CareerDocumentsView() {
     }
   };
 
-  const applyPreset = (preset: typeof quickPresets[0]) => {
-    setJobTitle(preset.title);
-    setCompany(preset.company);
-    setNotes(preset.notes);
-  };
-
   const handleGenerate = async () => {
     if (!user) {
-      await alert({ title: "Login Required", description: "Please log in to generate AI career documents." });
+      await alert({ title: "Login Required", description: "Please log in to generate documents." });
       return;
     }
 
-    const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
-    if (!isProTier) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
-    if (credits < 10) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
-    if (!jobTitle || !company) {
-      await alert({ title: "Missing Information", description: "Please enter both Target Role/Title and Target Company/Institution." });
+    if (!promptInput.trim()) {
+      await alert({
+        title: "Enter Role & Company",
+        description: "Please type the role and company (e.g. 'Software Engineer at Google').",
+      });
       return;
     }
 
     setGenerating(true);
     setGeneratedContent("");
 
+    // Parse role and company from user prompt
+    const parts = promptInput.split(/ at | @ | for | - /i);
+    const jobTitle = parts[0]?.trim() || promptInput.trim();
+    const company = parts[1]?.trim() || "Target Organization";
+
     try {
       const token = await user.getIdToken().catch(() => "");
-      const res = await fetch("/api/documents/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user.uid,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          doc_type: selectedType,
-          job_title: jobTitle,
-          company: company,
-          user_experience: experience,
-          additional_notes: `Tone: ${selectedTone}. ${notes}`,
-        }),
+      const data = await generateCareerDocumentClient({
+        doc_type: selectedType,
+        job_title: jobTitle,
+        company: company,
+        user_experience: promptInput,
+        additional_notes: "Professional & executive tone.",
+        uid: user.uid,
+        idToken: token,
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data && data.success && data.content) {
         setGeneratedContent(data.content);
-        saveToHistory(data.title || `${selectedType} for ${company}`, data.content, selectedType);
-        await refreshCredits();
+        saveToHistory(data.title || `${activeDoc.label} for ${company}`, data.content, selectedType);
+        await refreshCredits().catch(() => {});
       } else {
         throw new Error(data.error || "Failed to generate document");
       }
@@ -200,119 +197,93 @@ export function CareerDocumentsView() {
     const element = document.createElement("a");
     const file = new Blob([generatedContent], { type: "text/plain" });
     element.href = URL.createObjectURL(file);
-    element.download = `${selectedType}_${company.replace(/\s+/g, "_")}.md`;
+    element.download = `${selectedType}.md`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
   };
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>${selectedType} - ${company}</title>
-            <style>
-              body { font-family: sans-serif; padding: 40px; line-height: 1.6; color: #111; max-width: 800px; margin: 0 auto; }
-              pre { white-space: pre-wrap; font-family: sans-serif; font-size: 14px; }
-            </style>
-          </head>
-          <body>
-            <pre>${generatedContent}</pre>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-    }
-  };
-
   return (
-    <div className="space-y-6 text-app-text">
+    <div className="max-w-4xl mx-auto space-y-6 text-app-text pb-12">
       
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-app-surface border border-app-border rounded-3xl p-6 sm:p-8 shadow-sm">
+      {/* Top Header Controls */}
+      <div className="flex items-center justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-xs font-bold uppercase tracking-wider mb-3">
-            <Sparkles className="w-4 h-4 text-brand-primary" />
-            AI Career Document Suite
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-app-text tracking-tight">
-            Cover Letters, SOPs, LORs & Communications
+          <h2 className="text-xl sm:text-2xl font-black text-app-text flex items-center gap-2">
+            <span>✨</span> What do you need written today?
           </h2>
-          <p className="text-xs sm:text-sm text-app-text-muted mt-1 leading-relaxed max-w-2xl">
-            Generate tailored executive cover letters, admissions SOPs, reference LORs, resignation notices, and cold outreach scripts in seconds.
+          <p className="text-xs text-app-text-muted mt-0.5">
+            Select a document type, type your target role & company, and AI does the rest.
           </p>
         </div>
 
         <button
           onClick={() => setViewHistory(!viewHistory)}
-          className="px-4 py-2.5 rounded-2xl bg-app-bg border border-app-border hover:border-brand-primary/40 text-app-text font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm"
+          className="px-3.5 py-2 rounded-xl bg-app-surface border border-app-border hover:border-brand-primary/40 text-xs font-bold text-app-text transition-all flex items-center gap-2 shadow-xs shrink-0"
         >
           <History className="w-4 h-4 text-brand-primary" />
-          <span>{viewHistory ? "New Generator" : `Saved Docs (${savedDocs.length})`}</span>
+          <span>{viewHistory ? "Writer" : `Saved (${savedDocs.length})`}</span>
         </button>
       </div>
 
       {viewHistory ? (
-        /* Saved Documents History Grid */
-        <div className="bg-app-surface border border-app-border rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-app-border pb-4">
-            <h3 className="text-lg font-black text-app-text flex items-center gap-2">
-              <History className="w-5 h-5 text-brand-primary" />
-              Saved Career Documents ({savedDocs.length})
+        /* SAVED HISTORY VIEW */
+        <div className="bg-app-surface border border-app-border rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-app-border pb-3">
+            <h3 className="font-black text-sm text-app-text flex items-center gap-2">
+              <BookmarkCheck className="w-4 h-4 text-brand-primary" />
+              Saved Documents ({savedDocs.length})
             </h3>
             <button
               onClick={() => setViewHistory(false)}
               className="text-xs font-bold text-brand-primary hover:underline"
             >
-              + Create New Document
+              + Create New
             </button>
           </div>
 
           {savedDocs.length === 0 ? (
-            <div className="py-16 text-center text-app-text-muted space-y-3">
-              <FileText className="w-12 h-12 mx-auto text-app-text-muted opacity-40" />
-              <p className="font-bold text-sm">No saved career documents yet.</p>
-              <p className="text-xs">Generated cover letters, SOPs, and emails will automatically be saved here.</p>
+            <div className="py-12 text-center text-app-text-muted space-y-2">
+              <FileText className="w-10 h-10 mx-auto opacity-30 text-brand-primary" />
+              <p className="font-bold text-xs">No saved documents yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
               {savedDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  className="p-5 rounded-2xl bg-app-bg border border-app-border flex flex-col justify-between hover:border-brand-primary/30 transition-all shadow-sm group"
+                  className="p-4 rounded-2xl bg-app-bg border border-app-border flex items-center justify-between gap-4 hover:border-brand-primary/40 transition-all"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
                         {doc.doc_type.replace(/_/g, " ")}
                       </span>
-                      <span className="text-[11px] text-app-text-muted font-medium">{doc.createdAt}</span>
+                      <span className="text-[10px] text-app-text-muted">{doc.createdAt}</span>
                     </div>
-
-                    <h4 className="font-black text-sm text-app-text mb-2 truncate">{doc.title}</h4>
-                    <p className="text-xs text-app-text-muted line-clamp-3 font-mono leading-relaxed mb-4">
-                      {doc.content}
-                    </p>
+                    <h4 className="font-bold text-xs text-app-text truncate">{doc.title}</h4>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-app-border">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleOpenInCanvas(doc.content, doc.title)}
+                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-primary to-indigo-600 hover:from-indigo-600 hover:to-brand-primary text-white font-bold text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                    >
+                      <Palette className="w-3.5 h-3.5" />
+                      <span>Design in Canvas</span>
+                    </button>
                     <button
                       onClick={() => {
                         setGeneratedContent(doc.content);
                         setViewHistory(false);
                       }}
-                      className="text-xs font-bold text-brand-primary hover:underline"
+                      className="px-3 py-1.5 rounded-lg bg-app-surface border border-app-border hover:border-brand-primary/40 text-app-text font-bold text-xs transition-all"
                     >
-                      View & Export
+                      View Text
                     </button>
                     <button
                       onClick={() => deleteSavedDoc(doc.id)}
-                      className="p-1.5 rounded-lg text-app-text-muted hover:text-brand-danger hover:bg-brand-danger/10 transition-colors"
-                      title="Delete document"
+                      className="p-1.5 rounded-lg text-app-text-muted hover:text-rose-500 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -323,47 +294,35 @@ export function CareerDocumentsView() {
           )}
         </div>
       ) : (
-        /* Generator Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Document Type Selector */}
-          <div className="lg:col-span-1 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-app-text-muted px-1">
-              1. Choose Document Type
-            </h3>
+        /* INTERACTIVE SINGLE-CARD ASSISTANT */
+        <div className="space-y-6">
 
-            <div className="space-y-2.5 max-h-[620px] overflow-y-auto pr-1">
-              {docTypes.map((doc) => {
-                const Icon = doc.icon;
+          {/* 1. DOCUMENT TYPE SELECTOR PILLS */}
+          <div className="bg-app-surface border border-app-border rounded-3xl p-5 shadow-sm space-y-3">
+            <label className="text-xs font-bold text-app-text-muted uppercase tracking-wider block">
+              1. Select Document Type:
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {mainDocTypes.map((doc) => {
                 const isSelected = selectedType === doc.id;
                 return (
                   <button
                     key={doc.id}
                     onClick={() => setSelectedType(doc.id)}
-                    className={`w-full p-4 rounded-2xl border text-left transition-all flex items-start gap-3.5 group relative ${
+                    className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
                       isSelected
-                        ? "bg-brand-primary/10 border-brand-primary shadow-md"
-                        : "bg-app-surface border-app-border hover:border-brand-primary/40 shadow-sm"
+                        ? "bg-brand-primary text-white border-brand-primary shadow-md"
+                        : "bg-app-bg border-app-border text-app-text hover:border-brand-primary/40"
                     }`}
                   >
-                    <div
-                      className={`p-2.5 rounded-xl shrink-0 transition-colors ${
-                        isSelected ? "bg-brand-primary text-white shadow-sm" : "bg-app-bg text-app-text-muted group-hover:text-brand-primary"
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <h4 className={`font-black text-xs truncate ${isSelected ? "text-brand-primary" : "text-app-text"}`}>
-                          {doc.label}
-                        </h4>
-                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-app-bg text-app-text-muted border border-app-border shrink-0">
-                          {doc.badge}
-                        </span>
+                    <span className="text-lg shrink-0">{doc.emoji}</span>
+                    <div className="min-w-0">
+                      <div className={`font-black text-xs truncate ${isSelected ? "text-white" : "text-app-text"}`}>
+                        {doc.label}
                       </div>
-                      <p className="text-[11px] text-app-text-muted leading-tight line-clamp-2">{doc.desc}</p>
+                      <div className={`text-[10px] truncate ${isSelected ? "text-white/80" : "text-app-text-muted"}`}>
+                        {doc.hint}
+                      </div>
                     </div>
                   </button>
                 );
@@ -371,182 +330,123 @@ export function CareerDocumentsView() {
             </div>
           </div>
 
-          {/* Form & Result Area */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Input Form Card */}
-            <div className="bg-app-surface border border-app-border rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
-              
-              <div className="flex items-center justify-between border-b border-app-border pb-3">
-                <h3 className="font-extrabold text-sm text-app-text flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-brand-primary" />
-                  2. Customize Document Parameters
-                </h3>
+          {/* 2. SINGLE PROMPT INPUT CARD */}
+          <div className="bg-app-surface border border-app-border rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-app-text flex items-center gap-2">
+                <Wand2 className="w-4 h-4 text-brand-primary" />
+                <span>2. Enter Role & Company for {activeDoc.label}:</span>
+              </label>
 
-                {/* Quick Presets */}
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-app-text-muted">Presets:</span>
-                  {quickPresets.map((preset, i) => (
-                    <button
-                      key={i}
-                      onClick={() => applyPreset(preset)}
-                      className="px-2.5 py-1 rounded-lg bg-app-bg border border-app-border text-[10px] font-bold text-app-text hover:border-brand-primary/40 transition-all"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
+              {/* Quick Sample Chips */}
+              <div className="hidden sm:flex items-center gap-1.5">
+                <span className="text-[10px] text-app-text-muted font-bold">Try sample:</span>
+                {quickExamples.map((ex, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setSelectedType(ex.doc_type);
+                      setPromptInput(`${ex.role} at ${ex.company}`);
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-app-bg border border-app-border text-[10px] font-bold text-app-text hover:border-brand-primary/40 transition-all"
+                  >
+                    {ex.label}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Form Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-app-text">Target Job Title / Academic Program</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Senior Software Engineer"
-                    value={jobTitle}
-                    onChange={(e) => setJobTitle(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-app-bg border border-app-border text-xs text-app-text font-medium focus:border-brand-primary focus:outline-none transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold block mb-1 text-app-text">Target Company / University</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Google / Stanford University"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-app-bg border border-app-border text-xs text-app-text font-medium focus:border-brand-primary focus:outline-none transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold block mb-1 text-app-text">Tone & Style</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {toneOptions.map((tone) => (
-                    <button
-                      key={tone}
-                      onClick={() => setSelectedTone(tone)}
-                      className={`p-2.5 rounded-xl border text-[11px] font-bold transition-all text-center ${
-                        selectedTone === tone
-                          ? "bg-brand-primary/10 border-brand-primary text-brand-primary"
-                          : "bg-app-bg border-app-border text-app-text-muted hover:text-app-text"
-                      }`}
-                    >
-                      {tone}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold block mb-1 text-app-text">Candidate Key Accomplishments / Highlights (Optional)</label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Led cloud infrastructure team, scaled API to 10M users, reduced latency by 40%..."
-                  value={experience}
-                  onChange={(e) => setExperience(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-app-bg border border-app-border text-xs text-app-text font-medium focus:border-brand-primary focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold block mb-1 text-app-text">Additional Directives (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Emphasize leadership, keep under 300 words..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-app-bg border border-app-border text-xs text-app-text font-medium focus:border-brand-primary focus:outline-none transition-colors"
-                />
-              </div>
+            {/* Single Conversational Box */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={`e.g. Senior Software Engineer at Google`}
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleGenerate();
+                }}
+                className="w-full pl-4 pr-32 py-4 rounded-2xl bg-app-bg border border-app-border text-sm text-app-text font-medium focus:border-brand-primary focus:outline-none transition-colors shadow-inner"
+              />
 
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="w-full py-4 rounded-2xl font-black bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-secondary hover:to-brand-primary text-white text-xs sm:text-sm shadow-xl shadow-brand-primary/25 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 rounded-xl font-bold bg-brand-primary hover:bg-brand-secondary text-white text-xs shadow-md transition-all flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
               >
                 {generating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Drafting Executive Document...
+                    <span>Writing...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Generate {docTypes.find((d) => d.id === selectedType)?.label} (10 Credits)
+                    <span>Generate</span>
                   </>
                 )}
               </button>
             </div>
-
-            {/* Generated Result Display */}
-            {generatedContent && (
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-app-surface border border-brand-primary/30 rounded-3xl p-6 sm:p-8 shadow-xl space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-app-border pb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-app-text">AI Generated Output</h4>
-                      <p className="text-[11px] text-app-text-muted">100% Ready to copy or export</p>
-                    </div>
-                  </div>
-
-                  {/* Toolbar Actions */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={handleCopy}
-                      className="px-3.5 py-2 rounded-xl bg-app-bg border border-app-border text-xs font-bold text-app-text hover:border-brand-primary/40 transition-all flex items-center gap-1.5 shadow-sm"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          <span className="text-emerald-500">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-brand-primary" />
-                          <span>Copy Text</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={handleDownloadTxt}
-                      className="px-3.5 py-2 rounded-xl bg-app-bg border border-app-border text-xs font-bold text-app-text hover:border-brand-primary/40 transition-all flex items-center gap-1.5 shadow-sm"
-                      title="Download Markdown file"
-                    >
-                      <Download className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>Download .md</span>
-                    </button>
-
-                    <button
-                      onClick={handlePrint}
-                      className="px-3.5 py-2 rounded-xl bg-app-bg border border-app-border text-xs font-bold text-app-text hover:border-brand-primary/40 transition-all flex items-center gap-1.5 shadow-sm"
-                      title="Print / Save as PDF"
-                    >
-                      <Printer className="w-3.5 h-3.5 text-teal-500" />
-                      <span>Print / PDF</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-app-bg border border-app-border text-xs leading-relaxed text-app-text font-mono whitespace-pre-wrap max-h-[500px] overflow-y-auto shadow-inner">
-                  {generatedContent}
-                </div>
-              </motion.div>
-            )}
-
           </div>
+
+          {/* 3. GENERATED RESULT CARD */}
+          {generatedContent && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-app-surface border-2 border-brand-primary/40 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-app-border pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🎉</span>
+                  <div>
+                    <h4 className="font-black text-sm text-app-text">Your Generated {activeDoc.label}</h4>
+                    <p className="text-[10px] text-app-text-muted">Saved in history • Ready to copy</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => handleOpenInCanvas()}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-brand-primary to-indigo-600 hover:from-indigo-600 hover:to-brand-primary text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer"
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>Design in Canvas</span>
+                  </button>
+
+                  <button
+                    onClick={handleCopy}
+                    className="px-3.5 py-2 rounded-xl bg-app-bg border border-app-border hover:border-brand-primary/40 text-app-text font-bold text-xs transition-all flex items-center gap-1.5 shadow-2xs"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-500">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-brand-primary" />
+                        <span>Copy Text</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleDownloadTxt}
+                    className="px-3 py-2 rounded-xl bg-app-bg border border-app-border hover:border-brand-primary/40 text-xs font-bold text-app-text transition-all flex items-center gap-1 shadow-2xs"
+                  >
+                    <Download className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>.md</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-app-bg border border-app-border text-xs leading-relaxed text-app-text font-sans whitespace-pre-wrap max-h-[500px] overflow-y-auto shadow-inner select-text">
+                {generatedContent}
+              </div>
+            </motion.div>
+          )}
+
         </div>
       )}
 
@@ -557,6 +457,15 @@ export function CareerDocumentsView() {
         description="You have run out of AI credits or need Pro access to generate Cover Letters, SOPs, LORs, and Cold Emails."
         featureName="Career Document Suite"
       />
+
+      <CoverLetterTemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        docTitle={pendingTitleToDesign}
+        onSelectTemplate={handleSelectTemplate}
+      />
     </div>
   );
 }
+
+export default CareerDocumentsView;

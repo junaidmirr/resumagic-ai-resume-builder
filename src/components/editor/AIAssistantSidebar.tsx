@@ -42,7 +42,7 @@ export function AIAssistantSidebar({
   onInsertToCanvas,
   onApplyFix
 }: AIAssistantSidebarProps) {
-  const { user, refreshCredits, deductCredits } = useAuth();
+  const { user, credits, refreshCredits, deductCredits } = useAuth();
   const { openModal } = useAuthModal();
   const { alert } = useDialog();
   const [activeTab, setActiveTab] = useState<Tab>("generate");

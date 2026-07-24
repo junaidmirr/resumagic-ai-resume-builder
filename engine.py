@@ -161,6 +161,7 @@ class PDFEngine:
         self._lock = threading.RLock()
         self._elements: List[Any]   = []
         self._pages: List[str]      = ["page-1"]
+        self._page_meta: Dict[str, Dict[str, Any]] = {}
         self._element_counter: int  = 0
         self._undo_stack: List[str] = []
         self._redo_stack: List[str] = []
@@ -611,7 +612,25 @@ class PDFEngine:
 
                 new_elements = []
                 new_counter = 0
-                temp_pages = list(pages_data) if isinstance(pages_data, list) and pages_data else ["page-1"]
+                temp_pages = []
+                temp_meta = {}
+
+                if isinstance(pages_data, list):
+                    for p_item in pages_data:
+                        if isinstance(p_item, dict):
+                            pid = str(p_item.get("id", "page-1"))
+                            pw = float(p_item.get("width") or new_width)
+                            ph = float(p_item.get("height") or new_height)
+                            bg = str(p_item.get("bg_color") or "#ffffff")
+                            temp_meta[pid] = {"width": pw, "height": ph, "bg_color": bg}
+                            if pid not in temp_pages:
+                                temp_pages.append(pid)
+                        elif isinstance(p_item, str):
+                            if p_item not in temp_pages:
+                                temp_pages.append(p_item)
+
+                if not temp_pages:
+                    temp_pages = ["page-1"]
                 
                 for item in elements_data:
                     if not isinstance(item, dict):
@@ -647,6 +666,7 @@ class PDFEngine:
                 self._elements        = new_elements
                 self._element_counter = new_counter
                 self._pages           = temp_pages
+                self._page_meta       = temp_meta
                 self._undo_stack.clear()
                 self._redo_stack.clear()
                 self._prune_asset_cache()
@@ -661,6 +681,7 @@ class PDFEngine:
             self._elements        = []
             self._element_counter = 0
             self._pages           = ["page-1"]
+            self._page_meta       = {}
             self._prune_asset_cache()
 
     def render_to_pdf(self, output_path: str) -> bool:
@@ -705,8 +726,22 @@ class PDFEngine:
         # But we do sort only if they are entirely implicit 'page-X' that were injected.
         
         for i, pid in enumerate(self._pages):
+            meta = self._page_meta.get(pid, {"width": self.page_width, "height": self.page_height, "bg_color": "#ffffff"})
+            pw = meta.get("width", self.page_width)
+            ph = meta.get("height", self.page_height)
+            bg_color = meta.get("bg_color", "#ffffff")
+
             if i > 0:
                 c.showPage()
+                
+            c.setPageSize((pw, ph))
+
+            # Draw Page Background Color
+            if bg_color and str(bg_color).strip().lower() not in ("#ffffff", "white", "transparent", "none"):
+                c.saveState()
+                c.setFillColor(self._hex_to_color(bg_color))
+                c.rect(0, 0, pw, ph, fill=1, stroke=0)
+                c.restoreState()
                 
             for el in page_contents[pid]:
                 if isinstance(el, TextElement):

@@ -27,7 +27,7 @@ interface AuthContextType {
   verifyAccount: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
   credits: number;
-  refreshCredits: () => Promise<void>;
+  refreshCredits: (force?: boolean) => Promise<void>;
   deductCredits: (amount: number) => Promise<boolean>;
 }
 
@@ -62,17 +62,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const refreshCredits = async () => {
-    if (!auth.currentUser) return;
+  // Local storage user state cache helpers for 0-latency UI & reduced Firebase reads
+  const loadLocalCache = (uid: string) => {
     try {
-      const userRef = doc(db, "users", auth.currentUser.uid);
+      const raw = localStorage.getItem(`resumagic_user_cache_${uid}`);
+      if (raw) {
+        const cache = JSON.parse(raw);
+        if (typeof cache.credits === "number") setCredits(cache.credits);
+        if (cache.userPlan) setUserPlan(cache.userPlan);
+        if (typeof cache.isAdmin === "boolean") setIsAdmin(cache.isAdmin);
+        if (typeof cache.claimedSignupCredits === "boolean") setClaimedSignupCredits(cache.claimedSignupCredits);
+        return cache;
+      }
+    } catch (e) {
+      console.warn("[Auth] Failed to load local cache:", e);
+    }
+    return null;
+  };
+
+  const saveLocalCache = (uid: string, data: { credits: number; userPlan: string; isAdmin: boolean; claimedSignupCredits: boolean }) => {
+    try {
+      localStorage.setItem(
+        `resumagic_user_cache_${uid}`,
+        JSON.stringify({ ...data, lastFetched: Date.now() })
+      );
+    } catch (e) {
+      console.warn("[Auth] Failed to save local cache:", e);
+    }
+  };
+
+  const refreshCredits = async (force: boolean = false) => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+
+    if (!force) {
+      const cache = loadLocalCache(uid);
+      if (cache && Date.now() - (cache.lastFetched || 0) < 5 * 60 * 1000) {
+        return; // Cache is fresh (< 5 mins), save Firebase read operation!
+      }
+    }
+
+    try {
+      const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
       if (snap.exists()) {
         const data = snap.data();
-        setCredits(data.credits || 0);
-        setUserPlan(data.plan || "free");
-        setIsAdmin(!!data.admin);
-        setClaimedSignupCredits(!!data.claimedSignupCredits);
+        const newCredits = data.credits || 0;
+        const newPlan = data.plan || "free";
+        const newAdmin = !!data.admin;
+        const newClaimed = !!data.claimedSignupCredits;
+
+        setCredits(newCredits);
+        setUserPlan(newPlan);
+        setIsAdmin(newAdmin);
+        setClaimedSignupCredits(newClaimed);
+
+        saveLocalCache(uid, {
+          credits: newCredits,
+          userPlan: newPlan,
+          isAdmin: newAdmin,
+          claimedSignupCredits: newClaimed,
+        });
       }
     } catch (error) {
       console.error("[Auth] Failed to refresh credits:", error);
@@ -81,16 +131,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const claimSignupCredits = async (): Promise<boolean> => {
     if (!auth.currentUser) return false;
+    const uid = auth.currentUser.uid;
     try {
-      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
       if (snap.exists()) {
         const data = snap.data();
         if (!data.claimedSignupCredits) {
-          const newCredits = (data.credits || 0) + 50;
+          const newCredits = (data.credits || 0) + 15;
           await setDoc(userRef, { credits: newCredits, claimedSignupCredits: true }, { merge: true });
           setCredits(newCredits);
           setClaimedSignupCredits(true);
+          saveLocalCache(uid, {
+            credits: newCredits,
+            userPlan: userPlan,
+            isAdmin: isAdmin,
+            claimedSignupCredits: true,
+          });
           return true;
         }
       }
@@ -103,14 +160,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deductCredits = async (amount: number): Promise<boolean> => {
     if (!auth.currentUser) return false;
+    const uid = auth.currentUser.uid;
     try {
-      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
       if (snap.exists()) {
         const currentCredits = snap.data().credits || 0;
         if (currentCredits >= amount) {
-          await setDoc(userRef, { credits: currentCredits - amount }, { merge: true });
-          setCredits(currentCredits - amount);
+          const updated = currentCredits - amount;
+          await setDoc(userRef, { credits: updated }, { merge: true });
+          setCredits(updated);
+          saveLocalCache(uid, {
+            credits: updated,
+            userPlan: userPlan,
+            isAdmin: isAdmin,
+            claimedSignupCredits: claimedSignupCredits,
+          });
           return true;
         }
       }
@@ -126,6 +191,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(user);
       setLoading(false);
       if (user) {
+        // Render instantly from local cache without waiting for network
+        loadLocalCache(user.uid);
+        // Refresh from server only if cache expired
         await refreshCredits();
       } else {
         setCredits(0);

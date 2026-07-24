@@ -24,15 +24,15 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="p-8 border-b border-app-border shrink-0 bg-app-surface/50">
+      <div className="p-4 sm:p-6 lg:p-8 border-b border-app-border shrink-0 bg-app-surface/50">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto">
           <div>
-            <h2 className="text-2xl font-bold text-app-text mb-1 tracking-tight">Template Library</h2>
-            <p className="text-sm text-app-text-muted">Choose from 15 professional, highly converting designs.</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-app-text mb-1 tracking-tight">Template Library</h2>
+            <p className="text-xs sm:text-sm text-app-text-muted">Choose from 20+ professional, ATS-optimized designs.</p>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="relative w-full md:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-text-muted" />
               <input
                 type="text"
@@ -46,14 +46,14 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-2 scrollbar-none">
             {categories.map((category) => (
               <button
                 key={category}
                 onClick={() => setFilter(category)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
+                className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                   filter === category
                     ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
                     : "bg-app-surface border border-app-border text-app-text-muted hover:text-app-text hover:bg-app-bg"
@@ -64,7 +64,7 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
             ))}
           </div>
 
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-20">
             <AnimatePresence>
               {filteredTemplates.map((template) => (
                 <motion.div
@@ -74,11 +74,11 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                   key={template.id}
-                  className="group relative bg-app-surface rounded-2xl border border-app-border overflow-hidden hover:shadow-xl hover:shadow-brand-primary/10 transition-all duration-300"
+                  className="group relative bg-app-surface rounded-2xl border border-app-border overflow-hidden hover:shadow-xl hover:shadow-brand-primary/10 transition-all duration-300 flex flex-col justify-between"
                   onMouseEnter={() => setHoveredId(template.id)}
                   onMouseLeave={() => setHoveredId(null)}
                 >
-                  <div className="aspect-[1/1.4] relative overflow-hidden bg-app-bg p-3 flex items-center justify-center">
+                  <div className="aspect-[1/1.4] relative overflow-hidden bg-app-bg p-2.5 sm:p-3 flex items-center justify-center">
                     <TemplateThumbnailPreview template={template} />
 
                     {/* Premium Crown Tag Badge */}
@@ -93,8 +93,8 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
                       </div>
                     )}
                     
-                    {/* Hover Overlay */}
-                    <div className={`absolute inset-0 bg-app-surface/80 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-300 ${hoveredId === template.id ? 'opacity-100' : 'opacity-0'}`}>
+                    {/* Hover Overlay (Desktop) */}
+                    <div className={`hidden md:flex absolute inset-0 bg-app-surface/80 backdrop-blur-[2px] items-center justify-center transition-opacity duration-300 ${hoveredId === template.id ? 'opacity-100' : 'opacity-0'}`}>
                       <button
                         onClick={() => onUseTemplate(template)}
                         disabled={isCreating}
@@ -112,17 +112,33 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
                     </div>
                   </div>
                   
-                  <div className="p-4 border-t border-app-border">
-                    <h3 className="font-bold text-app-text mb-1 truncate">{template.name}</h3>
+                  <div className="p-3.5 sm:p-4 border-t border-app-border flex flex-col gap-2.5">
+                    <h3 className="font-bold text-sm sm:text-base text-app-text truncate">{template.name}</h3>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold px-2 py-1 bg-brand-primary/10 text-brand-primary rounded-md">
+                      <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 bg-brand-primary/10 text-brand-primary rounded-md">
                         {template.category}
                       </span>
-                      <div className="flex items-center gap-1 text-app-text-muted text-xs">
+                      <div className="flex items-center gap-1 text-app-text-muted text-[11px] sm:text-xs">
                         <Download className="w-3 h-3" />
                         <span>PDF</span>
                       </div>
                     </div>
+
+                    {/* Mobile Touch Use Template Button */}
+                    <button
+                      onClick={() => onUseTemplate(template)}
+                      disabled={isCreating}
+                      className="w-full py-2 bg-brand-primary text-white rounded-xl text-xs font-bold md:hidden flex items-center justify-center gap-1.5 shadow-md shadow-brand-primary/20 mt-1"
+                    >
+                      {isCreating && hoveredId === template.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          <Star className="w-3.5 h-3.5" fill="currentColor" />
+                          Use Template
+                        </>
+                      )}
+                    </button>
                   </div>
                 </motion.div>
               ))}

@@ -56,10 +56,23 @@ export function Navbar() {
     }
   };
 
+  const handleNavAnchor = (hash: string) => {
+    setIsMobileMenuOpen(false);
+    if (location.pathname !== "/") {
+      navigate(`/${hash}`);
+    } else {
+      const el = document.querySelector(hash);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
   const isNavActive = (path: string) => location.pathname === path;
 
   return (
-    <motion.header
+    <>
+      <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
@@ -83,16 +96,18 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-7">
-            <a href="#features" className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">Features</a>
-            <a href="#how-it-works" className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">How it Works</a>
-            <a href="#templates" className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">Templates</a>
+            <button onClick={() => handleNavAnchor("#features")} className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">Features</button>
+            <button onClick={() => handleNavAnchor("#how-it-works")} className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">How it Works</button>
+            <button onClick={() => handleNavAnchor("#templates")} className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">Templates</button>
             <Link to="/resources/interview-guide" className={`text-sm font-medium transition-colors ${isNavActive('/resources/interview-guide') ? 'text-brand-primary font-bold' : 'text-app-text-secondary hover:text-brand-primary'}`}>
               Interview Guide
             </Link>
             <Link to="/resume-examples" className={`text-sm font-medium transition-colors ${isNavActive('/resume-examples') ? 'text-brand-primary font-bold' : 'text-app-text-secondary hover:text-brand-primary'}`}>
               Examples
             </Link>
-            <a href="#pricing" className="text-sm font-medium text-app-text-secondary hover:text-brand-primary transition-colors">Pricing</a>
+            <Link to="/pricing" className={`text-sm font-medium transition-colors ${isNavActive('/pricing') ? 'text-brand-primary font-bold' : 'text-app-text-secondary hover:text-brand-primary'}`}>
+              Pricing
+            </Link>
           </nav>
 
           {/* Auth Actions & Theme Toggle (Desktop) */}
@@ -203,208 +218,206 @@ export function Navbar() {
           </div>
         </div>
       </div>
+    </motion.header>
 
-      {/* Mobile Side Opening Drawer */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 md:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
+    {/* Mobile Side Opening Drawer (Outside Header Stacking Context for Full Screen Viewport Fixed Placement) */}
+    <AnimatePresence>
+      {isMobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] md:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
 
-            {/* Slide-in Drawer Container */}
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed top-0 right-0 bottom-0 w-[85vw] max-w-sm bg-app-surface border-l border-app-border shadow-2xl z-50 md:hidden flex flex-col overflow-hidden"
-            >
-              {/* Drawer Header */}
-              <div className="p-4 sm:p-5 flex items-center justify-between border-b border-app-border bg-app-bg/50">
-                <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2">
-                  <img src={defaultLogoLight} alt="Resumagic" className="h-7 logo-light" />
-                  <img src={defaultLogoDark} alt="Resumagic" className="h-7 logo-dark" />
-                </Link>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={toggleTheme}
-                    className="p-2 text-app-text hover:bg-app-bg rounded-xl transition-colors"
+          {/* Slide-in Drawer Container */}
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed top-0 right-0 bottom-0 w-[85vw] max-w-sm bg-app-surface border-l border-app-border shadow-2xl z-[100] md:hidden flex flex-col overflow-hidden"
+          >
+            {/* Drawer Header */}
+            <div className="p-4 sm:p-5 flex items-center justify-between border-b border-app-border bg-app-bg/50">
+              <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2">
+                <img src={defaultLogoLight} alt="Resumagic" className="h-7 logo-light" />
+                <img src={defaultLogoDark} alt="Resumagic" className="h-7 logo-dark" />
+              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 text-app-text hover:bg-app-bg rounded-xl transition-colors"
+                >
+                  <Moon className="w-4 h-4 logo-dark" />
+                  <Sun className="w-4 h-4 logo-light" />
+                </button>
+                <button 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 text-app-text-secondary hover:text-app-text hover:bg-app-bg rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              
+              {/* Category 1: Resume Builder & Core Tools */}
+              <div>
+                <span className="text-[11px] font-bold tracking-wider uppercase text-app-text-muted px-2 mb-2 block">
+                  Resume Tools & Builder
+                </span>
+                <div className="space-y-1">
+                  <Link
+                    to={user ? "/dashboard" : "/build"}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
                   >
-                    <Moon className="w-4 h-4 logo-dark" />
-                    <Sun className="w-4 h-4 logo-light" />
+                    <Sparkles className="w-4 h-4 text-brand-primary" />
+                    AI Resume Builder
+                    <span className="ml-auto text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full font-bold">PRO</span>
+                  </Link>
+                  <button
+                    onClick={() => handleNavAnchor("#templates")}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors text-left"
+                  >
+                    <Layers className="w-4 h-4 text-teal-500" />
+                    Template Library (20+)
+                  </button>
+                  <Link
+                    to="/resume-examples"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-indigo-500" />
+                    Resume Examples
+                  </Link>
+                </div>
+              </div>
+
+              {/* Category 2: Career Prep & Guides */}
+              <div>
+                <span className="text-[11px] font-bold tracking-wider uppercase text-app-text-muted px-2 mb-2 block">
+                  Interview & Resources
+                </span>
+                <div className="space-y-1">
+                  <Link
+                    to="/resources/interview-guide"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
+                  >
+                    <Target className="w-4 h-4 text-rose-500" />
+                    Interview Guide (STAR)
+                  </Link>
+                  <button
+                    onClick={() => handleNavAnchor("#how-it-works")}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors text-left"
+                  >
+                    <HelpCircle className="w-4 h-4 text-amber-500" />
+                    How It Works
+                  </button>
+                  <button
+                    onClick={() => handleNavAnchor("#features")}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors text-left"
+                  >
+                    <Award className="w-4 h-4 text-sky-500" />
+                    Features & AI Engine
+                  </button>
+                  <Link
+                    to="/pricing"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4 text-emerald-500" />
+                    Pricing & Credits
+                  </Link>
+                </div>
+              </div>
+
+              {/* Category 3: Support & Help */}
+              <div>
+                <span className="text-[11px] font-bold tracking-wider uppercase text-app-text-muted px-2 mb-2 block">
+                  Support & Help
+                </span>
+                <div className="space-y-1">
+                  <Link
+                    to="/contact"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
+                  >
+                    <Mail className="w-4 h-4 text-slate-400" />
+                    Contact & Support
+                  </Link>
+                  <Link
+                    to="/careers"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
+                  >
+                    <Briefcase className="w-4 h-4 text-indigo-400" />
+                    Careers at Resumagic
+                  </Link>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Drawer Footer (Auth & User Status) */}
+            <div className="p-4 sm:p-5 border-t border-app-border bg-app-bg/80 backdrop-blur-md mt-auto">
+              {user ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
+                      {user.email?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="flex flex-col overflow-hidden min-w-0">
+                      <span className="text-sm font-bold text-app-text truncate">{user.email}</span>
+                      <span className="text-xs text-brand-primary font-medium">Verified Account</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <Link 
+                      to="/dashboard"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-2 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-bold shadow-md shadow-brand-primary/20"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
+                    </Link>
+                    <button 
+                      onClick={handleLogout}
+                      className="flex items-center justify-center gap-2 py-2.5 bg-brand-danger/10 text-brand-danger rounded-xl text-xs font-bold hover:bg-brand-danger/20 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  <button 
+                    onClick={() => { setIsMobileMenuOpen(false); openModal({ title: "Welcome Back" }); }}
+                    className="w-full py-3 bg-app-surface border border-app-border rounded-xl text-app-text font-bold text-sm hover:border-brand-primary transition-colors"
+                  >
+                    Log In
                   </button>
                   <button 
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-2 text-app-text-secondary hover:text-app-text hover:bg-app-bg rounded-xl transition-colors"
+                    onClick={() => { setIsMobileMenuOpen(false); openModal({ title: "Create your account" }); }}
+                    className="w-full py-3 bg-gradient-to-r from-brand-primary to-brand-secondary text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-primary/25 hover:opacity-95 transition-opacity"
                   >
-                    <X className="w-5 h-5" />
+                    Start Building for Free
                   </button>
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-6">
-                
-                {/* Category 1: Resume Builder & Core Tools */}
-                <div>
-                  <span className="text-[11px] font-bold tracking-wider uppercase text-app-text-muted px-2 mb-2 block">
-                    Resume Tools & Builder
-                  </span>
-                  <div className="space-y-1">
-                    <Link
-                      to={user ? "/dashboard" : "/build"}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <Sparkles className="w-4 h-4 text-brand-primary" />
-                      AI Resume Builder
-                      <span className="ml-auto text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full font-bold">PRO</span>
-                    </Link>
-                    <a
-                      href="#templates"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <Layers className="w-4 h-4 text-teal-500" />
-                      Template Library (20+)
-                    </a>
-                    <Link
-                      to="/resume-examples"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <FileText className="w-4 h-4 text-indigo-500" />
-                      Resume Examples
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Category 2: Career Prep & Guides */}
-                <div>
-                  <span className="text-[11px] font-bold tracking-wider uppercase text-app-text-muted px-2 mb-2 block">
-                    Interview & Resources
-                  </span>
-                  <div className="space-y-1">
-                    <Link
-                      to="/resources/interview-guide"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <Target className="w-4 h-4 text-rose-500" />
-                      Interview Guide (STAR)
-                    </Link>
-                    <a
-                      href="#how-it-works"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <HelpCircle className="w-4 h-4 text-amber-500" />
-                      How It Works
-                    </a>
-                    <a
-                      href="#features"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <Award className="w-4 h-4 text-sky-500" />
-                      Features & AI Engine
-                    </a>
-                    <a
-                      href="#pricing"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <CreditCard className="w-4 h-4 text-emerald-500" />
-                      Pricing & Credits
-                    </a>
-                  </div>
-                </div>
-
-                {/* Category 3: Support & Help */}
-                <div>
-                  <span className="text-[11px] font-bold tracking-wider uppercase text-app-text-muted px-2 mb-2 block">
-                    Support & Help
-                  </span>
-                  <div className="space-y-1">
-                    <Link
-                      to="/contact"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <Mail className="w-4 h-4 text-slate-400" />
-                      Contact & Support
-                    </Link>
-                    <Link
-                      to="/careers"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                    >
-                      <Briefcase className="w-4 h-4 text-indigo-400" />
-                      Careers at Resumagic
-                    </Link>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Drawer Footer (Auth & User Status) */}
-              <div className="p-4 sm:p-5 border-t border-app-border bg-app-bg/80 backdrop-blur-md mt-auto">
-                {user ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
-                        {user.email?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                      <div className="flex flex-col overflow-hidden min-w-0">
-                        <span className="text-sm font-bold text-app-text truncate">{user.email}</span>
-                        <span className="text-xs text-brand-primary font-medium">Verified Account</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      <Link 
-                        to="/dashboard"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center justify-center gap-2 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-bold shadow-md shadow-brand-primary/20"
-                      >
-                        <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
-                      </Link>
-                      <button 
-                        onClick={handleLogout}
-                        className="flex items-center justify-center gap-2 py-2.5 bg-brand-danger/10 text-brand-danger rounded-xl text-xs font-bold hover:bg-brand-danger/20 transition-colors"
-                      >
-                        <LogOut className="w-3.5 h-3.5" /> Sign Out
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2.5">
-                    <button 
-                      onClick={() => { setIsMobileMenuOpen(false); openModal({ title: "Welcome Back" }); }}
-                      className="w-full py-3 bg-app-surface border border-app-border rounded-xl text-app-text font-bold text-sm hover:border-brand-primary transition-colors"
-                    >
-                      Log In
-                    </button>
-                    <button 
-                      onClick={() => { setIsMobileMenuOpen(false); openModal({ title: "Create your account" }); }}
-                      className="w-full py-3 bg-gradient-to-r from-brand-primary to-brand-secondary text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-primary/25 hover:opacity-95 transition-opacity"
-                    >
-                      Start Building for Free
-                    </button>
-                  </div>
-                )}
-              </div>
-
-            </motion.div>
-          </>
-        )}
+          </motion.div>
+        </>
+      )}
       </AnimatePresence>
-    </motion.header>
+    </>
   );
 }

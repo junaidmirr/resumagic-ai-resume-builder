@@ -354,15 +354,25 @@ def parse_resume():
 def render_pdf():
     temp_files = []
     try:
-        raw_elements = request.json
-        if not raw_elements:
+        payload = request.json
+        if not payload:
             return jsonify({"error": "No JSON payload provided"}), 400
             
         print("[PDFEngine Server] Received render request")
+
+        if isinstance(payload, dict):
+            raw_elements = payload.get("elements", [])
+            raw_pages = payload.get("pages", [])
+        elif isinstance(payload, list):
+            raw_elements = payload
+            raw_pages = []
+        else:
+            raw_elements = []
+            raw_pages = []
         
         # Sanitize elements & handle base64 images safely
         clean_elements = []
-        for el in (raw_elements if isinstance(raw_elements, list) else []):
+        for el in raw_elements:
             if not isinstance(el, dict): continue
             clean_el = dict(el)
             if clean_el.get('element_type') == 'image':
@@ -384,7 +394,10 @@ def render_pdf():
         # Initialise engine and import frontend state
         engine = PDFEngine()
         import json
-        success = engine.import_state(json.dumps(clean_elements))
+        success = engine.import_state(json.dumps({
+            "elements": clean_elements,
+            "pages": raw_pages
+        }))
         
         if not success:
             return jsonify({"error": "Failed to parse template state"}), 400

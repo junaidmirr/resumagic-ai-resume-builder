@@ -24,7 +24,10 @@ import {
   Sliders,
   Zap,
   RefreshCw,
-  Receipt
+  Receipt,
+  Copy,
+  Check,
+  Clock
 } from "lucide-react";
 
 export function SettingsView() {
@@ -35,8 +38,15 @@ export function SettingsView() {
   const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "billing" | "security">("profile");
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(false);
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const handleCopyOrderId = (orderId: string) => {
+    navigator.clipboard.writeText(orderId);
+    setCopiedOrderId(orderId);
+    setTimeout(() => setCopiedOrderId(null), 2000);
+  };
 
   const fetchUserTransactions = async () => {
     if (!user) return;
@@ -406,55 +416,101 @@ export function SettingsView() {
                   </div>
 
                   {/* Payment & Credit Purchase History */}
-                  <div className="bg-app-surface border border-app-border rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-bold text-sm text-app-text flex items-center gap-2">
-                        <Receipt className="w-4 h-4 text-brand-primary" />
-                        Payment & Credit Purchase History
-                      </h4>
+                  <div className="bg-app-surface border border-app-border rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-app-border pb-4">
+                      <div>
+                        <h4 className="font-black text-sm sm:text-base text-app-text flex items-center gap-2">
+                          <Receipt className="w-4 h-4 text-brand-primary" />
+                          Payment & Credit Purchase History
+                        </h4>
+                        <p className="text-xs text-app-text-muted mt-0.5">
+                          View your payment receipts, transaction order IDs, and credited points.
+                        </p>
+                      </div>
+
                       <button
                         onClick={fetchUserTransactions}
                         disabled={loadingTx}
-                        className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1.5 disabled:opacity-50"
+                        className="px-3.5 py-2 rounded-xl bg-app-bg border border-app-border hover:border-brand-primary/40 text-xs font-bold text-app-text hover:text-brand-primary transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-2xs disabled:opacity-50"
                       >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loadingTx ? "animate-spin" : ""}`} />
-                        Sync & Refresh Balance
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingTx ? "animate-spin text-brand-primary" : ""}`} />
+                        <span>Sync Balance</span>
                       </button>
                     </div>
 
                     {transactions.length === 0 ? (
-                      <div className="text-center py-6 border border-dashed border-app-border rounded-xl bg-app-bg/50">
-                        <p className="text-xs text-app-text-muted">No completed payment transactions found yet.</p>
+                      <div className="text-center py-10 border border-dashed border-app-border rounded-2xl bg-app-bg/50 space-y-2">
+                        <Receipt className="w-8 h-8 mx-auto text-app-text-muted opacity-30" />
+                        <p className="text-xs font-bold text-app-text">No payment transactions found yet.</p>
+                        <p className="text-[11px] text-app-text-muted">Completed credit packs and plan purchases will appear here.</p>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {transactions.map((tx) => (
-                          <div
-                            key={tx.id}
-                            className="p-3.5 rounded-xl bg-app-bg border border-app-border flex items-center justify-between text-xs"
-                          >
-                            <div className="space-y-0.5">
-                              <div className="font-bold text-app-text flex items-center gap-2">
-                                <span className="uppercase font-mono text-[10px] px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                                  {tx.plan_id || "Order"}
-                                </span>
-                                <span className="font-mono text-app-text-muted text-[11px]">{tx.order_id || tx.id}</span>
-                              </div>
-                              <div className="text-[11px] text-app-text-muted">
-                                {tx.created_at || tx.timestamp ? new Date(tx.created_at || tx.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Recent"}
-                              </div>
-                            </div>
+                      <div className="space-y-3">
+                        {transactions.map((tx) => {
+                          const orderId = tx.order_id || tx.id || "";
+                          const isCopied = copiedOrderId === orderId;
 
-                            <div className="text-right space-y-0.5">
-                              <div className="font-black text-emerald-500 text-xs">
-                                +{tx.credits_added || 0} AI Credits
+                          return (
+                            <div
+                              key={tx.id}
+                              className="p-4 rounded-2xl bg-app-bg border border-app-border hover:border-brand-primary/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs group"
+                            >
+                              {/* Left Info: Plan, Order ID with Copy Button & Date */}
+                              <div className="space-y-1.5 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="uppercase font-mono text-[10px] font-black px-2.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shrink-0">
+                                    {tx.plan_id ? tx.plan_id.replace(/_/g, " ") : "Order"}
+                                  </span>
+
+                                  {/* Order ID + Copy Button */}
+                                  {orderId && (
+                                    <div className="inline-flex items-center gap-1.5 bg-app-surface px-2.5 py-1 rounded-xl border border-app-border text-[11px] font-mono text-app-text font-medium truncate max-w-full">
+                                      <span className="truncate">{orderId}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyOrderId(orderId)}
+                                        title="Copy Order ID"
+                                        className="p-1 rounded-md text-app-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition-colors shrink-0 cursor-pointer"
+                                      >
+                                        {isCopied ? (
+                                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                        ) : (
+                                          <Copy className="w-3.5 h-3.5" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1.5 text-[11px] text-app-text-muted">
+                                  <Clock className="w-3 h-3 text-app-text-muted/60" />
+                                  <span>
+                                    {tx.created_at || tx.timestamp
+                                      ? new Date(tx.created_at || tx.timestamp).toLocaleDateString("en-IN", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : "Recent Order"}
+                                  </span>
+                                </div>
                               </div>
-                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                                PAID (₹{tx.amount_paid || 0})
-                              </span>
+
+                              {/* Right Info: Credits Added & Paid Badge */}
+                              <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 border-app-border/60 pt-2 sm:pt-0 shrink-0">
+                                <div className="font-black text-emerald-500 text-xs sm:text-sm flex items-center gap-1">
+                                  <span>+{tx.credits_added || 0} AI Credits</span>
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  PAID (₹{tx.amount_paid || 0})
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

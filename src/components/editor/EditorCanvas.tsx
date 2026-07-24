@@ -470,7 +470,7 @@ export function EditorCanvas({
     */
     <div
       ref={wrapperRef}
-      className="relative w-full h-full touch-none overflow-auto"
+      className="relative w-full h-full overflow-auto touch-pan-x touch-pan-y custom-canvas-scroll select-none"
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
@@ -483,11 +483,11 @@ export function EditorCanvas({
         the page is centred even when zoomed out, but scrollable when zoomed in.
       */}
       <div
-        className="flex flex-col items-center py-12 gap-12"
+        className="flex flex-col items-center py-6 sm:py-12 gap-6 sm:gap-12"
         style={{
           minWidth: "100%",
           minHeight: "100%",
-          width: scale !== null ? Math.max(pageWidth * scale + 64, 0) : "100%",
+          width: scale !== null ? Math.max(pageWidth * scale + 48, pageWidth) : "100%",
         }}
       >
         {scale === null ? (
@@ -500,7 +500,8 @@ export function EditorCanvas({
             return (
               <div
                 key={page.id}
-                id={`page-${page.id}`}
+                id={page.id}
+                data-page-id={page.id}
                 className={`bg-white shadow-2xl relative select-none flex-shrink-0 transition-all overflow-hidden ${isActive ? 'ring-2 ring-teal-500 ring-offset-4 ring-offset-[#1e1e1e]' : 'opacity-90 hover:opacity-100'}`}
                 onPointerDown={() => {
                   setActivePageId(page.id);
@@ -510,8 +511,21 @@ export function EditorCanvas({
                 style={{
                   width: page.width * scale,
                   height: page.height * scale,
+                  backgroundColor: page.bg_color || "#ffffff",
                 }}
               >
+                {/* Printable Margin Guideline box */}
+                {page.margin ? (
+                  <div
+                    className="absolute border border-dashed border-indigo-400/30 pointer-events-none z-0"
+                    style={{
+                      left: page.margin * scale,
+                      top: page.margin * scale,
+                      width: (page.width - page.margin * 2) * scale,
+                      height: (page.height - page.margin * 2) * scale,
+                    }}
+                  />
+                ) : null}
                 {pageElements.map((el) => {
               const isSel = selectedIds.includes(el.id);
               const baseStyle: React.CSSProperties = {

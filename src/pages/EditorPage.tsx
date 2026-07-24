@@ -12,6 +12,7 @@ import { useDialog } from "../context/DialogContext";
 import { Chatbot } from "../components/Chatbot";
 import { AIAssistantSidebar } from "../components/editor/AIAssistantSidebar";
 import { AssetsPanel } from "../components/editor/AssetsPanel";
+import { DrawingModal } from "../components/editor/DrawingModal";
 import type { EditorElement, Page, ShapeElement } from "../types/editor";
 import { ImageCropModal } from "../components/editor/ImageCropModal";
 import { RESUME_BLOCKS } from "../utils/blocks";
@@ -580,6 +581,7 @@ export function EditorPage() {
   const [processingIds, setProcessingIds] = useState<string[]>([]);
   const [loadingAIAction, setLoadingAIAction] = useState<string | null>(null);
   const [cropSource, setCropSource] = useState<string | null>(null);
+  const [showDrawingModal, setShowDrawingModal] = useState(false);
 
   // Keep selectedIds in a ref so updateProp never needs it as dependency
   const selectedIdsRef = useRef<string[]>([]);
@@ -1754,20 +1756,31 @@ export function EditorPage() {
       openModal({ title: "Login Required", subtitle: "Please log in to export your resume.", showBlankOption: false });
       return;
     }
-    const pageEl = document.getElementById(`page-${activePageId}`);
-    if (!pageEl) return;
+    const pageEl =
+      document.getElementById(activePageId) ||
+      document.getElementById(`page-${activePageId}`) ||
+      document.querySelector(`[data-page-id="${activePageId}"]`) ||
+      document.querySelector(".resume-page");
+
+    if (!pageEl) {
+      alert("Could not locate active canvas page element. Please refresh and try again.");
+      return;
+    }
+
     try {
       setIsExporting(true);
       const url = format === "png" 
-        ? await toPng(pageEl, { pixelRatio: 2, fontEmbedCSS: '', skipFonts: true })
-        : await toJpeg(pageEl, { pixelRatio: 2, quality: 1.0, fontEmbedCSS: '', skipFonts: true });
+        ? await toPng(pageEl as HTMLElement, { pixelRatio: 3, cacheBust: true, backgroundColor: "#ffffff" })
+        : await toJpeg(pageEl as HTMLElement, { pixelRatio: 3, quality: 0.95, cacheBust: true, backgroundColor: "#ffffff" });
         
       const a = document.createElement("a");
       a.href = url;
-      a.download = `resume.${format}`;
+      a.download = `${resumeTitle || "resume"}.${format}`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
     } catch (e: any) {
-      console.error(e);
+      console.error("[Export Image Error]", e);
       alert("Failed to export image: " + (e.message || String(e)));
     } finally {
       setIsExporting(false);
@@ -1896,6 +1909,41 @@ export function EditorPage() {
 
   // Removed legacy JSON handling as per user request (SaaS Migration)
 
+  const handleSaveDrawing = (d: {
+    path_d: string;
+    border_color: string;
+    border_width: number;
+    opacity: number;
+    pen_type: any;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => {
+    _snapshot();
+    const id = getNextId("path");
+    setElements((prev) => [
+      ...prev,
+      {
+        id,
+        element_type: "shape",
+        shape_type: "path",
+        page_id: activePageId,
+        path_d: d.path_d,
+        border_color: d.border_color,
+        border_width: d.border_width,
+        opacity: d.opacity,
+        pen_type: d.pen_type,
+        x: d.x,
+        y: d.y,
+        width: d.width,
+        height: d.height,
+        z_index: prev.length,
+      } as any,
+    ]);
+    setSelectedIds([id]);
+  };
+
   // ── Tools ─────────────────────────────────────────────────
   const tools = [
     {
@@ -1907,20 +1955,19 @@ export function EditorPage() {
       action: addText,
     },
     {
+      id: "draw",
+      icon: LucideIcons.PenTool,
+      label: "Draw",
+      hoverCls: "hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600",
+      action: () => setShowDrawingModal(true),
+    },
+    {
       id: "image",
       icon: ImageIcon,
       label: "Image",
       hoverCls:
         "hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600",
       action: addImage,
-    },
-    {
-      id: "icon",
-      icon: Smile,
-      label: "Icons",
-      hoverCls:
-        "hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:text-amber-600",
-      action: () => setShowIconModal(true),
     },
     {
       id: "rect",
@@ -3448,6 +3495,13 @@ export function EditorPage() {
           </div>
         </div>
       )}
+
+      {/* ── VECTOR DRAWING STUDIO MODAL ── */}
+      <DrawingModal
+        isOpen={showDrawingModal}
+        onClose={() => setShowDrawingModal(false)}
+        onSave={handleSaveDrawing}
+      />
 
       {/* ── ICON / EMOJI MODAL ── */}
       {showIconModal && (

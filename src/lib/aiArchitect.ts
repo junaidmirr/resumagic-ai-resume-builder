@@ -23,8 +23,15 @@ export interface DesignPlan {
   special_elements?: string[];
 }
 
-// Frontend routes all AI tasks securely via backend API (/api/*)
-const genAI = null;
+const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
+let genAI: GoogleGenerativeAI | null = null;
+if (apiKey) {
+  try {
+    genAI = new GoogleGenerativeAI(apiKey);
+  } catch (e) {
+    console.warn("[AI-Architect] Failed to init client GoogleGenerativeAI:", e);
+  }
+}
 
 // Official Google Gemini API Available Models List
 export const GEMINI_MODELS = [
@@ -224,22 +231,39 @@ Output ONLY valid raw JSON without markdown or conversational text.`;
   if (previousPlan) prompt += `Previous Plan:\n${JSON.stringify(previousPlan, null, 2)}\n`;
   if (refinement) prompt += `Refinement Instruction: ${refinement}\n`;
 
-  for (const modelName of GEMINI_MODELS) {
-    try {
-      console.log(`[AI-Architect Direct] Trying model ${modelName}...`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(`${sysPrompt}\n\n${prompt}`);
-      const text = result.response.text();
-      const plan = cleanJSONResponse(text);
-      if (plan && plan.title && plan.color_palette) {
-        console.log(`[AI-Architect Direct] ✅ Plan received from Gemini API (${modelName}): ${plan.title}`);
-        return plan;
-      }
-    } catch (err: any) {
-      if (!err?.message?.includes("404")) {
-        console.warn(`[AI-Architect Direct] Model ${modelName} call issue:`, err);
+  if (genAI) {
+    for (const modelName of GEMINI_MODELS) {
+      try {
+        console.log(`[AI-Architect Direct] Trying model ${modelName}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(`${sysPrompt}\n\n${prompt}`);
+        const text = result.response.text();
+        const plan = cleanJSONResponse(text);
+        if (plan && plan.title && plan.color_palette) {
+          console.log(`[AI-Architect Direct] ✅ Plan received from Gemini API (${modelName}): ${plan.title}`);
+          return plan;
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes("404")) {
+          console.warn(`[AI-Architect Direct] Model ${modelName} call issue:`, err);
+        }
       }
     }
+  }
+
+  // Fallback to Backend Proxy Route if client API unavailable
+  try {
+    const res = await fetch("/api/ai-architect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "plan", prompt: `${userPrompt}. Refinement: ${refinement}` }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.plan && data.plan.title) return data.plan;
+    }
+  } catch (e) {
+    console.warn("[AI-Architect] Backend plan call fallback error:", e);
   }
 
   return createFallbackPlan(userPrompt, refinement);
@@ -288,23 +312,42 @@ ENGINE CAPABILITIES TO USE:
 
 Return ONLY a raw JSON array of the final EditorElement objects.`;
 
-  for (const modelName of GEMINI_MODELS) {
-    try {
-      console.log(`[AI-Architect Direct] Building graphics with model ${modelName}...`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(execPrompt);
-      const text = result.response.text();
-      const elements = cleanJSONResponse(text);
-      if (Array.isArray(elements) && elements.length > 0) {
-        const normalized = normalizeEditorElements(elements);
-        console.log(`[AI-Architect Direct] ✅ Successfully generated ${normalized.length} normalized elements via Gemini API (${modelName})!`);
-        return normalized;
-      }
-    } catch (err: any) {
-      if (!err?.message?.includes("404")) {
-        console.warn(`[AI-Architect Direct] Build error with model ${modelName}:`, err);
+  if (genAI) {
+    for (const modelName of GEMINI_MODELS) {
+      try {
+        console.log(`[AI-Architect Direct] Building graphics with model ${modelName}...`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(execPrompt);
+        const text = result.response.text();
+        const elements = cleanJSONResponse(text);
+        if (Array.isArray(elements) && elements.length > 0) {
+          const normalized = normalizeEditorElements(elements);
+          console.log(`[AI-Architect Direct] ✅ Successfully generated ${normalized.length} normalized elements via Gemini API (${modelName})!`);
+          return normalized;
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes("404")) {
+          console.warn(`[AI-Architect Direct] Build error with model ${modelName}:`, err);
+        }
       }
     }
+  }
+
+  // Fallback to Backend Proxy Route
+  try {
+    const res = await fetch("/api/ai-architect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "build", prompt: `Create resume for ${userPrompt}. Plan: ${plan.title}` }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.elements) && data.elements.length > 0) {
+        return normalizeEditorElements(data.elements);
+      }
+    }
+  } catch (e) {
+    console.warn("[AI-Architect] Backend build call fallback error:", e);
   }
 
   return generateFallbackElements(plan);

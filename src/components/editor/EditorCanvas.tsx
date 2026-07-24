@@ -690,9 +690,17 @@ export function EditorCanvas({
                               onPointerDown={(e) => startDrag(e, el)}
                               onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                               d={el.path_d}
-                              fill={el.fill_color || "transparent"}
-                              stroke={isSel ? "#14b8a6" : (el.border_color || "transparent")}
-                              strokeWidth={isSel ? Math.max((el.border_width || 0) + 2, 2) : (el.border_width || 0)}
+                              fill={el.fill_color || "none"}
+                              stroke={isSel ? "#14b8a6" : (el.border_color || "#000000")}
+                              strokeWidth={isSel ? Math.max((el.border_width || 2) + 2, 3) : (el.border_width || 2)}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeDasharray={el.pen_type === "dashed" ? `${(el.border_width || 2) * 2},${(el.border_width || 2) * 1.5}` : undefined}
+                              opacity={el.pen_type === "highlighter" ? 0.45 : (el.opacity ?? 1)}
+                              style={{
+                                filter: el.pen_type === "neon" ? `drop-shadow(0 0 6px ${el.border_color || "#14b8a6"})` : undefined,
+                                mixBlendMode: el.pen_type === "highlighter" ? "multiply" : "normal",
+                              }}
                             />
                           )}
                           {el.shape_type === "polygon" && el.points && (

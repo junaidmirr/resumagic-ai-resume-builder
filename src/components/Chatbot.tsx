@@ -10,7 +10,7 @@ interface ChatbotProps {
 }
 
 export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
-  const { user, refreshCredits, deductCredits } = useAuth();
+  const { user, credits, refreshCredits, deductCredits } = useAuth();
   const { alert } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);

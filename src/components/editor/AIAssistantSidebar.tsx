@@ -31,7 +31,27 @@ interface AIAssistantSidebarProps {
   onApplyFix?: (fix: AIFixItem) => Promise<void> | void;
 }
 
-type Tab = "generate" | "analyze" | "chat" | "import";
+interface AISessionCache {
+  activeTab: Tab;
+  jobDescription: string;
+  chatInput: string;
+  lastAction: string | null;
+  result: string | null;
+  fixes: AIFixItem[];
+  rejectionReason: string | null;
+  followUpPrompt: string;
+}
+
+const aiSessionCache: AISessionCache = {
+  activeTab: "generate",
+  jobDescription: "",
+  chatInput: "",
+  lastAction: null,
+  result: null,
+  fixes: [],
+  rejectionReason: null,
+  followUpPrompt: "",
+};
 
 export function AIAssistantSidebar({ 
   elements,
@@ -45,17 +65,58 @@ export function AIAssistantSidebar({
   const { user, credits, refreshCredits, deductCredits } = useAuth();
   const { openModal } = useAuthModal();
   const { alert } = useDialog();
-  const [activeTab, setActiveTab] = useState<Tab>("generate");
-  const [jobDescription, setJobDescription] = useState("");
-  const [chatInput, setChatInput] = useState("");
+
+  const [activeTab, setActiveTabState] = useState<Tab>(aiSessionCache.activeTab);
+  const [jobDescription, setJobDescriptionState] = useState(aiSessionCache.jobDescription);
+  const [chatInput, setChatInputState] = useState(aiSessionCache.chatInput);
   
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [lastAction, setLastAction] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
-  const [fixes, setFixes] = useState<AIFixItem[]>([]);
-  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
-  const [followUpPrompt, setFollowUpPrompt] = useState("");
+  const [lastAction, setLastActionState] = useState<string | null>(aiSessionCache.lastAction);
+  const [result, setResultState] = useState<string | null>(aiSessionCache.result);
+  const [fixes, setFixesState] = useState<AIFixItem[]>(aiSessionCache.fixes);
+  const [rejectionReason, setRejectionReasonState] = useState<string | null>(aiSessionCache.rejectionReason);
+  const [followUpPrompt, setFollowUpPromptState] = useState(aiSessionCache.followUpPrompt);
   const [copied, setCopied] = useState(false);
+
+  const setActiveTab = (t: Tab) => {
+    aiSessionCache.activeTab = t;
+    setActiveTabState(t);
+  };
+
+  const setJobDescription = (val: string) => {
+    aiSessionCache.jobDescription = val;
+    setJobDescriptionState(val);
+  };
+
+  const setChatInput = (val: string) => {
+    aiSessionCache.chatInput = val;
+    setChatInputState(val);
+  };
+
+  const setResult = (val: string | null) => {
+    aiSessionCache.result = val;
+    setResultState(val);
+  };
+
+  const setFixes = (val: AIFixItem[]) => {
+    aiSessionCache.fixes = val;
+    setFixesState(val);
+  };
+
+  const setRejectionReason = (val: string | null) => {
+    aiSessionCache.rejectionReason = val;
+    setRejectionReasonState(val);
+  };
+
+  const setLastAction = (val: string | null) => {
+    aiSessionCache.lastAction = val;
+    setLastActionState(val);
+  };
+
+  const setFollowUpPrompt = (val: string) => {
+    aiSessionCache.followUpPrompt = val;
+    setFollowUpPromptState(val);
+  };
 
   const handleApplyFix = async (fix: AIFixItem) => {
     if (!onApplyFix) return;

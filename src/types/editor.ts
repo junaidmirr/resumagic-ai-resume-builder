@@ -48,6 +48,7 @@ export interface ShapeElement extends ElementBase {
   control_y?: number; // Quadratic Bezier control point Y
   path_d?: string; // For custom SVG paths (e.g. bezier waves)
   points?: number[]; // For polygons: [x1, y1, x2, y2, ...]
+  pen_type?: 'pen' | 'highlighter' | 'neon' | 'dashed' | 'calligraphy';
 }
 
 export interface ImageElement extends ElementBase {

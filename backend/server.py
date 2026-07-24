@@ -647,6 +647,31 @@ def ai_assistant():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/ai-architect', methods=['POST'])
+def ai_architect():
+    try:
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 10):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+            
+        data = request.get_json(silent=True) or {}
+        prompt = data.get('prompt', '')
+        elements = data.get('elements', [])
+        action = data.get('action', 'build')
+        
+        parser = AIParserEngine()
+        if action == 'plan':
+            plan = parser.generate_architect_plan(prompt)
+            return jsonify({"status": "success", "plan": plan})
+        else:
+            result = parser.ai_chat_edit(elements, prompt)
+            if uid and isinstance(result, dict) and "elements" in result:
+                deduct_user_credits(uid, 10)
+            return jsonify(result)
+    except Exception as e:
+        print(f"❌ AI Architect Exception: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/verify-turnstile', methods=['POST'])
 def verify_turnstile():
     try:

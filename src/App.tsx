@@ -59,6 +59,7 @@ function App() {
                 {/* Company Pages */}
                 <Route path="/about" element={<AboutUsPage />} />
                 <Route path="/contact" element={<ContactPage />} />
+                <Route path="/careers" element={<AboutUsPage />} />
 
                 {/* Protected SaaS Routes */}
                 <Route

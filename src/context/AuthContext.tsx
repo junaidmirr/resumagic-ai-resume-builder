@@ -106,6 +106,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
         const newCredits = data.credits || 0;
         let newPlan = data.plan || data.userPlan || data.lastPurchasedPlan || "free";
 

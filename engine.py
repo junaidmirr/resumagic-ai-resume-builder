@@ -450,17 +450,9 @@ class PDFEngine:
         with self._lock:
             self._check_limits()
             
-            if not image_path.startswith("data:image/"):
-                abs_path = os.path.realpath(image_path)
-                abs_whitelist = os.path.realpath(ALLOWED_IMAGE_DIR)
-                
-                if not abs_path.startswith(abs_whitelist + os.sep) and abs_path != abs_whitelist:
-                    logger.warning(f"Path outside allowed directory: {image_path}")
-                    raise PermissionError("Access denied.")
-                    
-                if not os.path.exists(abs_path):
-                    logger.error(f"Image not found: {image_path}")
-                    raise FileNotFoundError(f"Image not found: {image_path}")
+            if not image_path.startswith("data:image/") and not image_path.startswith("http://") and not image_path.startswith("https://"):
+                if not os.path.exists(image_path):
+                    logger.warning(f"Local image file not found: {image_path}")
             
             self._snapshot()
             self._register_page(page_id)
@@ -915,117 +907,11 @@ class PDFEngine:
         elif el.shape_type == "path":
             path_d = getattr(el, 'path_d', '')
             if path_d:
-                if el.fill_color and el.fill_color != "transparent":
+                if el.fill_color and el.fill_color not in ("none", "transparent", ""):
                     c.setFillColor(self._hex_to_color(el.fill_color))
-                p = c.beginPath()
-                
-                import re
-                tokens = re.findall(r'[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', path_d)
-                
-                i = 0
-                current_x = 0.0
-                current_y = 0.0
-                start_x = 0.0
-                start_y = 0.0
-                last_cmd = None
-                
-                try:
-                    while i < len(tokens):
-                        cmd = tokens[i]
-                        if not cmd.isalpha():
-                            if last_cmd:
-                                cmd = last_cmd
-                            else:
-                                i += 1
-                                continue
-                        else:
-                            i += 1
+                p = self._parse_svg_path(path_d, c)
 
-                        last_cmd = cmd
-                        cmd_upper = cmd.upper()
-                        is_relative = cmd.islower()
-
-                        if cmd_upper == 'M':
-                            while i + 1 < len(tokens) and not tokens[i].isalpha():
-                                nx = float(tokens[i])
-                                ny = float(tokens[i+1])
-                                i += 2
-                                if is_relative:
-                                    current_x += nx
-                                    current_y += ny
-                                else:
-                                    current_x = nx
-                                    current_y = ny
-                                p.moveTo(current_x, current_y)
-                                start_x, start_y = current_x, current_y
-                                last_cmd = 'l' if is_relative else 'L'
-
-                        elif cmd_upper == 'L':
-                            while i + 1 < len(tokens) and not tokens[i].isalpha():
-                                nx = float(tokens[i])
-                                ny = float(tokens[i+1])
-                                i += 2
-                                if is_relative:
-                                    current_x += nx
-                                    current_y += ny
-                                else:
-                                    current_x = nx
-                                    current_y = ny
-                                p.lineTo(current_x, current_y)
-
-                        elif cmd_upper == 'H':
-                            while i < len(tokens) and not tokens[i].isalpha():
-                                nx = float(tokens[i])
-                                i += 1
-                                if is_relative:
-                                    current_x += nx
-                                else:
-                                    current_x = nx
-                                p.lineTo(current_x, current_y)
-
-                        elif cmd_upper == 'V':
-                            while i < len(tokens) and not tokens[i].isalpha():
-                                ny = float(tokens[i])
-                                i += 1
-                                if is_relative:
-                                    current_y += ny
-                                else:
-                                    current_y = ny
-                                p.lineTo(current_x, current_y)
-
-                        elif cmd_upper == 'C':
-                            while i + 5 < len(tokens) and not tokens[i].isalpha():
-                                x1 = float(tokens[i]) + (current_x if is_relative else 0)
-                                y1 = float(tokens[i+1]) + (current_y if is_relative else 0)
-                                x2 = float(tokens[i+2]) + (current_x if is_relative else 0)
-                                y2 = float(tokens[i+3]) + (current_y if is_relative else 0)
-                                ex = float(tokens[i+4]) + (current_x if is_relative else 0)
-                                ey = float(tokens[i+5]) + (current_y if is_relative else 0)
-                                i += 6
-                                p.curveTo(x1, y1, x2, y2, ex, ey)
-                                current_x, current_y = ex, ey
-
-                        elif cmd_upper == 'Q':
-                            while i + 3 < len(tokens) and not tokens[i].isalpha():
-                                qcx = float(tokens[i]) + (current_x if is_relative else 0)
-                                qcy = float(tokens[i+1]) + (current_y if is_relative else 0)
-                                qex = float(tokens[i+2]) + (current_x if is_relative else 0)
-                                qey = float(tokens[i+3]) + (current_y if is_relative else 0)
-                                i += 4
-                                cp1_x = current_x + (2.0/3.0) * (qcx - current_x)
-                                cp1_y = current_y + (2.0/3.0) * (qcy - current_y)
-                                cp2_x = qex + (2.0/3.0) * (qcx - qex)
-                                cp2_y = qey + (2.0/3.0) * (qcy - qey)
-                                p.curveTo(cp1_x, cp1_y, cp2_x, cp2_y, qex, qey)
-                                current_x, current_y = qex, qey
-
-                        elif cmd_upper == 'Z':
-                            p.close()
-                            current_x, current_y = start_x, start_y
-                except Exception as ex:
-                    logger.warning(f"Error parsing SVG path string '{path_d[:30]}...': {ex}")
-
-                fill = 1 if el.fill_color and el.fill_color != "transparent" else 0
+                fill = 1 if el.fill_color and el.fill_color not in ("none", "transparent", "") else 0
                 stroke = 1 if el.border_width and el.border_width > 0 else 0
                 
                 c.saveState()
@@ -1033,13 +919,129 @@ class PDFEngine:
                 c.drawPath(p, stroke=stroke, fill=fill)
                 c.restoreState()
 
+    def _parse_svg_path(self, path_d: str, c: rl_canvas.Canvas):
+        p = c.beginPath()
+        import re
+        tokens = re.findall(r'[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?', path_d)
+        
+        i = 0
+        current_x = 0.0
+        current_y = 0.0
+        start_x = 0.0
+        start_y = 0.0
+        last_cmd = None
+        
+        try:
+            while i < len(tokens):
+                cmd = tokens[i]
+                if not cmd.isalpha():
+                    if last_cmd:
+                        cmd = last_cmd
+                    else:
+                        i += 1
+                        continue
+                else:
+                    i += 1
+
+                last_cmd = cmd
+                cmd_upper = cmd.upper()
+                is_relative = cmd.islower()
+
+                if cmd_upper == 'M':
+                    while i + 1 < len(tokens) and not tokens[i].isalpha():
+                        nx = float(tokens[i])
+                        ny = float(tokens[i+1])
+                        i += 2
+                        if is_relative:
+                            current_x += nx
+                            current_y += ny
+                        else:
+                            current_x = nx
+                            current_y = ny
+                        p.moveTo(current_x, current_y)
+                        start_x, start_y = current_x, current_y
+                        last_cmd = 'l' if is_relative else 'L'
+
+                elif cmd_upper == 'L':
+                    while i + 1 < len(tokens) and not tokens[i].isalpha():
+                        nx = float(tokens[i])
+                        ny = float(tokens[i+1])
+                        i += 2
+                        if is_relative:
+                            current_x += nx
+                            current_y += ny
+                        else:
+                            current_x = nx
+                            current_y = ny
+                        p.lineTo(current_x, current_y)
+
+                elif cmd_upper == 'H':
+                    while i < len(tokens) and not tokens[i].isalpha():
+                        nx = float(tokens[i])
+                        i += 1
+                        if is_relative:
+                            current_x += nx
+                        else:
+                            current_x = nx
+                        p.lineTo(current_x, current_y)
+
+                elif cmd_upper == 'V':
+                    while i < len(tokens) and not tokens[i].isalpha():
+                        ny = float(tokens[i])
+                        i += 1
+                        if is_relative:
+                            current_y += ny
+                        else:
+                            current_y = ny
+                        p.lineTo(current_x, current_y)
+
+                elif cmd_upper == 'C':
+                    while i + 5 < len(tokens) and not tokens[i].isalpha():
+                        x1 = float(tokens[i]) + (current_x if is_relative else 0)
+                        y1 = float(tokens[i+1]) + (current_y if is_relative else 0)
+                        x2 = float(tokens[i+2]) + (current_x if is_relative else 0)
+                        y2 = float(tokens[i+3]) + (current_y if is_relative else 0)
+                        ex = float(tokens[i+4]) + (current_x if is_relative else 0)
+                        ey = float(tokens[i+5]) + (current_y if is_relative else 0)
+                        i += 6
+                        p.curveTo(x1, y1, x2, y2, ex, ey)
+                        current_x, current_y = ex, ey
+
+                elif cmd_upper == 'Q':
+                    while i + 3 < len(tokens) and not tokens[i].isalpha():
+                        qcx = float(tokens[i]) + (current_x if is_relative else 0)
+                        qcy = float(tokens[i+1]) + (current_y if is_relative else 0)
+                        qex = float(tokens[i+2]) + (current_x if is_relative else 0)
+                        qey = float(tokens[i+3]) + (current_y if is_relative else 0)
+                        i += 4
+                        cp1_x = current_x + (2.0/3.0) * (qcx - current_x)
+                        cp1_y = current_y + (2.0/3.0) * (qcy - current_y)
+                        cp2_x = qex + (2.0/3.0) * (qcx - qex)
+                        cp2_y = qey + (2.0/3.0) * (qcy - qey)
+                        p.curveTo(cp1_x, cp1_y, cp2_x, cp2_y, qex, qey)
+                        current_x, current_y = qex, qey
+
+                elif cmd_upper == 'Z':
+                    p.close()
+                    current_x, current_y = start_x, start_y
+        except Exception as ex:
+            logger.warning(f"Error parsing SVG path string '{path_d[:30]}...': {ex}")
+        return p
+
     def _draw_image(self, c: rl_canvas.Canvas, el: ImageElement):
         try:
-            if not el.image_path:
+            img_source = getattr(el, 'image_path', '') or ''
+            is_icon = getattr(el, 'is_icon', False)
+            icon_name = getattr(el, 'icon_name', '') or ''
+
+            if is_icon and not img_source and icon_name:
+                img_source = f"https://api.iconify.design/lucide/{icon_name.lower()}.svg"
+
+            if not img_source:
                 return
 
             c.saveState()
-            
+
             rotation = getattr(el, 'rotation', 0)
             if rotation != 0:
                 cx = el.x + el.width / 2.0
@@ -1047,76 +1049,117 @@ class PDFEngine:
                 c.translate(cx, cy)
                 c.rotate(-rotation) 
                 c.translate(-cx, -cy)
-                
-            radius = getattr(el, 'border_radius', 0)
 
-            if getattr(el, 'shadow', False):
-                c.saveState()
-                c.setFillColorRGB(0, 0, 0, alpha=0.3)
-                if el.mask_shape == "circle":
-                    c.circle(el.x + el.width/2 + 4, el.y + el.height/2 - 4, min(el.width, el.height)/2, fill=1, stroke=0)
-                elif el.mask_shape == "rounded" or radius > 0:
-                    r = radius if radius > 0 else 15
-                    c.roundRect(el.x + 4, el.y - 4, el.width, el.height, r, fill=1, stroke=0)
-                elif el.mask_shape == "heart":
-                    pass 
-                else:
-                    c.rect(el.x + 4, el.y - 4, el.width, el.height, fill=1, stroke=0)
-                c.restoreState()
+            # Fetch / load image bytes
+            img_bytes = None
+            content_type = ""
 
-            img_source = el.image_path
-            opacity = getattr(el, 'opacity', 1.0)
-            
-            from reportlab.lib.utils import ImageReader
-            try:
-                if Image is not None:
-                    if img_source.startswith("data:image"):
-                        header, encoded = img_source.split(",", 1)
-                        img_data = base64.b64decode(encoded)
-                        img_pil = Image.open(io.BytesIO(img_data))
-                    else:
-                        img_pil = Image.open(img_source)
-                        
-                    img_pil = img_pil.convert("RGBA")
-                    if opacity < 1.0:
-                        alpha = img_pil.split()[3]
-                        alpha = ImageEnhance.Brightness(alpha).enhance(opacity)
-                        img_pil.putalpha(alpha)
-                        
-                    temp_io = io.BytesIO()
-                    img_pil.save(temp_io, format="PNG")
-                    temp_io.seek(0)
-                    final_img_source = ImageReader(temp_io)
-                else:
-                    final_img_source = img_source
-            except Exception as e:
-                # User Request: "I'd either skip the element entirely (matching the decompression-bomb case...)"
-                logger.error(f"Failed to process image (skipping render): {e}")
+            if img_source.startswith("http://") or img_source.startswith("https://"):
+                try:
+                    import urllib.request
+                    req = urllib.request.Request(img_source, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        img_bytes = resp.read()
+                        content_type = resp.headers.get("Content-Type", "").lower()
+                except Exception as net_err:
+                    logger.warning(f"Failed to fetch remote image from {img_source[:60]}: {net_err}")
+                    c.restoreState()
+                    return
+
+            elif img_source.startswith("data:image"):
+                header, encoded = img_source.split(",", 1)
+                img_bytes = base64.b64decode(encoded)
+                content_type = header.lower()
+
+            elif os.path.exists(img_source):
+                with open(img_source, "rb") as f:
+                    img_bytes = f.read()
+
+            if not img_bytes:
                 c.restoreState()
                 return
 
-            if el.mask_shape == "circle":
-                p = c.beginPath()
-                p.circle(el.x + el.width/2, el.y + el.height/2, min(el.width, el.height)/2)
-                c.clipPath(p, stroke=0, fill=0)
-            elif el.mask_shape == "rounded":
-                p = c.beginPath()
-                r = radius if radius > 0 else 15
-                p.roundRect(el.x, el.y, el.width, el.height, r)
-                c.clipPath(p, stroke=0, fill=0)
-            elif el.mask_shape == "none" and radius > 0:
-                p = c.beginPath()
-                p.roundRect(el.x, el.y, el.width, el.height, radius)
-                c.clipPath(p, stroke=0, fill=0)
+            # Check if SVG vector image (Iconify icons, SVG logos, etc.)
+            is_svg = "svg" in content_type or img_source.endswith(".svg") or img_bytes.startswith(b"<svg") or b"<svg" in img_bytes[:100]
 
-            c.drawImage(final_img_source,
-                        el.x, el.y,
-                        width=el.width, height=el.height,
-                        preserveAspectRatio=False,
-                        mask="auto")
+            if is_svg:
+                try:
+                    import xml.etree.ElementTree as ET
+                    svg_str = img_bytes.decode('utf-8', errors='ignore')
+                    root = ET.fromstring(svg_str)
+                    
+                    view_box = root.attrib.get('viewBox', '0 0 24 24').split()
+                    vb_w = float(view_box[2]) if len(view_box) >= 4 else 24.0
+                    vb_h = float(view_box[3]) if len(view_box) >= 4 else 24.0
+
+                    paths_d = []
+                    for elem in root.iter():
+                        if elem.tag.endswith('path') and 'd' in elem.attrib:
+                            paths_d.append(elem.attrib['d'])
+
+                    if paths_d:
+                        icon_color = getattr(el, 'border_color', '') or getattr(el, 'text_color', '') or "#000000"
+                        if icon_color == "transparent" or not icon_color:
+                            icon_color = "#000000"
+
+                        sx = el.width / vb_w
+                        sy = el.height / vb_h
+
+                        c.translate(el.x, el.y)
+                        c.scale(sx, sy)
+                        c.translate(0, vb_h)
+                        c.scale(1, -1)
+
+                        c.setFillColor(self._hex_to_color(icon_color))
+                        c.setStrokeColor(self._hex_to_color(icon_color))
+
+                        for d_str in paths_d:
+                            p = self._parse_svg_path(d_str, c)
+                            c.drawPath(p, fill=1, stroke=0)
+
+                        c.restoreState()
+                        return
+                except Exception as svg_err:
+                    logger.warning(f"Vector SVG render fallback notice: {svg_err}")
+
+            # Handle Raster Image (Unsplash Stock Photos, JPEG, PNG, WebP) via Pillow
+            if Image is not None:
+                img_pil = Image.open(io.BytesIO(img_bytes))
+                img_pil = img_pil.convert("RGBA")
+
+                opacity = getattr(el, 'opacity', 1.0)
+                if opacity < 1.0:
+                    alpha = img_pil.split()[3]
+                    alpha = ImageEnhance.Brightness(alpha).enhance(opacity)
+                    img_pil.putalpha(alpha)
+
+                temp_io = io.BytesIO()
+                img_pil.save(temp_io, format="PNG")
+                temp_io.seek(0)
+
+                from reportlab.lib.utils import ImageReader
+                final_img_source = ImageReader(temp_io)
+
+                radius = getattr(el, 'border_radius', 0)
+                if el.mask_shape == "circle":
+                    p = c.beginPath()
+                    p.circle(el.x + el.width/2, el.y + el.height/2, min(el.width, el.height)/2)
+                    c.clipPath(p, stroke=0, fill=0)
+                elif el.mask_shape == "rounded" or (el.mask_shape == "none" and radius > 0):
+                    p = c.beginPath()
+                    r = radius if radius > 0 else 15
+                    p.roundRect(el.x, el.y, el.width, el.height, r)
+                    c.clipPath(p, stroke=0, fill=0)
+
+                c.drawImage(final_img_source, el.x, el.y, width=el.width, height=el.height, mask='auto')
+
             c.restoreState()
         except Exception as e:
-            logger.error(f"draw_image error: {e}", exc_info=True)
+            logger.error(f"Failed to process image: {e}")
+            try:
+                c.restoreState()
+            except Exception:
+                pass
 
     @staticmethod
     def _resolve_font(base: str, bold: bool, italic: bool) -> str:

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, Sparkles, X, Copy, Check, Square } from "lucide-react";
+import { Send, Bot, User, Loader2, Clock, Sparkles, X, Copy, Check, Square } from "lucide-react";
 import type { EditorElement } from "../types/editor";
 import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
@@ -27,6 +27,21 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
   const [stage, setStage] = useState<"Planning..." | "Executing..." | null>(
     null,
   );
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setElapsedMs(0);
+      return;
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      setElapsedMs(Date.now() - startTime);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const formattedTimer = `${(elapsedMs / 1000).toFixed(1)}s`;
   const endRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -213,6 +228,9 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
               <Loader2 size={16} className="animate-spin text-teal-500" />
               <span className="text-xs font-medium text-teal-600 dark:text-teal-400 uppercase tracking-wider">
                 {stage}
+              </span>
+              <span className="font-mono text-xs font-bold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20 flex items-center gap-1">
+                <Clock size={12} className="animate-pulse text-teal-500" /> {formattedTimer}
               </span>
             </div>
           </div>

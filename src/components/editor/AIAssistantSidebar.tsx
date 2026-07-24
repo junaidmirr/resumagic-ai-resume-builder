@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useAuthModal } from "../onboarding/AuthModalContext";
 import { useDialog } from "../../context/DialogContext";
@@ -12,6 +12,7 @@ import {
   TrendingUp, 
   Send,
   Loader2,
+  Clock,
   Copy,
   Check,
   PlusCircle,
@@ -31,26 +32,36 @@ interface AIAssistantSidebarProps {
   onApplyFix?: (fix: AIFixItem) => Promise<void> | void;
 }
 
+interface TabCache {
+  result: string | null;
+  fixes: AIFixItem[];
+  lastAction: string | null;
+  rejectionReason: string | null;
+}
+
 interface AISessionCache {
   activeTab: Tab;
   jobDescription: string;
   chatInput: string;
-  lastAction: string | null;
-  result: string | null;
-  fixes: AIFixItem[];
-  rejectionReason: string | null;
   followUpPrompt: string;
+  tabStates: Record<string, TabCache>;
 }
+
+const defaultTabStates: Record<string, TabCache> = {
+  tools: { result: null, fixes: [], lastAction: null, rejectionReason: null },
+  generate: { result: null, fixes: [], lastAction: null, rejectionReason: null },
+  ats: { result: null, fixes: [], lastAction: null, rejectionReason: null },
+  analyze: { result: null, fixes: [], lastAction: null, rejectionReason: null },
+  fix: { result: null, fixes: [], lastAction: null, rejectionReason: null },
+  architect: { result: null, fixes: [], lastAction: null, rejectionReason: null },
+};
 
 const aiSessionCache: AISessionCache = {
   activeTab: "generate",
   jobDescription: "",
   chatInput: "",
-  lastAction: null,
-  result: null,
-  fixes: [],
-  rejectionReason: null,
   followUpPrompt: "",
+  tabStates: JSON.parse(JSON.stringify(defaultTabStates)),
 };
 
 export function AIAssistantSidebar({ 
@@ -71,12 +82,42 @@ export function AIAssistantSidebar({
   const [chatInput, setChatInputState] = useState(aiSessionCache.chatInput);
   
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [lastAction, setLastActionState] = useState<string | null>(aiSessionCache.lastAction);
-  const [result, setResultState] = useState<string | null>(aiSessionCache.result);
-  const [fixes, setFixesState] = useState<AIFixItem[]>(aiSessionCache.fixes);
-  const [rejectionReason, setRejectionReasonState] = useState<string | null>(aiSessionCache.rejectionReason);
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (loadingAction === null) {
+      setElapsedMs(0);
+      return;
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      setElapsedMs(Date.now() - startTime);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [loadingAction]);
+
+  const formattedTimer = `${(elapsedMs / 1000).toFixed(1)}s`;
+
+  const [tabStates, setTabStates] = useState<Record<string, TabCache>>(aiSessionCache.tabStates);
   const [followUpPrompt, setFollowUpPromptState] = useState(aiSessionCache.followUpPrompt);
   const [copied, setCopied] = useState(false);
+
+  // Computed per-tab state
+  const currentTabState = tabStates[activeTab] || { result: null, fixes: [], lastAction: null, rejectionReason: null };
+  const result = currentTabState.result;
+  const fixes = currentTabState.fixes;
+  const lastAction = currentTabState.lastAction;
+  const rejectionReason = currentTabState.rejectionReason;
+
+  const updateCurrentTabState = (patch: Partial<TabCache>) => {
+    setTabStates((prev) => {
+      const existing = prev[activeTab] || { result: null, fixes: [], lastAction: null, rejectionReason: null };
+      const updated = { ...existing, ...patch };
+      const next = { ...prev, [activeTab]: updated };
+      aiSessionCache.tabStates = next;
+      return next;
+    });
+  };
 
   const setActiveTab = (t: Tab) => {
     aiSessionCache.activeTab = t;
@@ -93,25 +134,10 @@ export function AIAssistantSidebar({
     setChatInputState(val);
   };
 
-  const setResult = (val: string | null) => {
-    aiSessionCache.result = val;
-    setResultState(val);
-  };
-
-  const setFixes = (val: AIFixItem[]) => {
-    aiSessionCache.fixes = val;
-    setFixesState(val);
-  };
-
-  const setRejectionReason = (val: string | null) => {
-    aiSessionCache.rejectionReason = val;
-    setRejectionReasonState(val);
-  };
-
-  const setLastAction = (val: string | null) => {
-    aiSessionCache.lastAction = val;
-    setLastActionState(val);
-  };
+  const setResult = (val: string | null) => updateCurrentTabState({ result: val });
+  const setFixes = (val: AIFixItem[]) => updateCurrentTabState({ fixes: val });
+  const setRejectionReason = (val: string | null) => updateCurrentTabState({ rejectionReason: val });
+  const setLastAction = (val: string | null) => updateCurrentTabState({ lastAction: val });
 
   const setFollowUpPrompt = (val: string) => {
     aiSessionCache.followUpPrompt = val;
@@ -380,9 +406,12 @@ export function AIAssistantSidebar({
 
         {/* Loading Spinner */}
         {loadingAction !== null && loadingAction !== "write_resume" && loadingAction !== "applying_fix" && (
-          <div className="flex flex-col items-center justify-center p-8 text-app-text-muted">
-            <Loader2 className="w-6 h-6 animate-spin mb-2 text-brand-primary" />
+          <div className="flex flex-col items-center justify-center p-8 text-app-text-muted space-y-2">
+            <Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
             <span className="text-xs font-medium animate-pulse">AI is working on it...</span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-primary/10 border border-brand-primary/20 text-brand-primary rounded-full font-mono text-xs font-bold">
+              <Clock className="w-3 h-3 animate-pulse" /> Elapsed: {formattedTimer}
+            </div>
           </div>
         )}
 

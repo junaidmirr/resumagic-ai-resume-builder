@@ -4,8 +4,9 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../theme-provider";
 import { useDialog } from "../../context/DialogContext";
 import { Link } from "react-router-dom";
+import { updateProfile } from "firebase/auth";
 import { db } from "../../lib/firebase";
-import { collection, getDocs, query, limit } from "firebase/firestore";
+import { collection, getDocs, query, limit, doc, updateDoc } from "firebase/firestore";
 import { 
   User, 
   Palette, 
@@ -30,6 +31,29 @@ import {
   Clock
 } from "lucide-react";
 
+const CARTOON_AVATARS = [
+  {
+    id: "astro_dev",
+    name: "Astro Dev 🚀",
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%236366f1'/><circle cx='50' cy='40' r='20' fill='%23ffe0b2'/><circle cx='43' cy='38' r='3' fill='%232d3748'/><circle cx='57' cy='38' r='3' fill='%232d3748'/><path d='M44 48 Q50 54 56 48' stroke='%23e53e3e' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M25 80 C25 62 75 62 75 80' fill='%234338ca'/><circle cx='70' cy='30' r='8' fill='%23fbbf24'/></svg>",
+  },
+  {
+    id: "tech_lead",
+    name: "Tech Lead 💻",
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%230d9488'/><circle cx='50' cy='40' r='20' fill='%23fde047'/><circle cx='43' cy='38' r='3' fill='%231e293b'/><circle cx='57' cy='38' r='3' fill='%231e293b'/><path d='M44 48 Q50 53 56 48' stroke='%230f766e' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M20 85 C20 62 80 62 80 85' fill='%23115e59'/><rect x='32' y='22' width='36' height='10' rx='3' fill='%230f766e'/></svg>",
+  },
+  {
+    id: "creative_designer",
+    name: "Designer 🎨",
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23ec4899'/><circle cx='50' cy='40' r='20' fill='%23ffedd5'/><circle cx='43' cy='38' r='3' fill='%23831843'/><circle cx='57' cy='38' r='3' fill='%23831843'/><path d='M45 49 Q50 54 55 49' stroke='%23be185d' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M22 82 C22 62 78 62 78 82' fill='%23be185d'/><path d='M30 25 C40 15 60 15 70 25' fill='%23f43f5e'/></svg>",
+  },
+  {
+    id: "executive_pro",
+    name: "Executive 👔",
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%238b5cf6'/><circle cx='50' cy='40' r='20' fill='%23fed7aa'/><circle cx='43' cy='38' r='3' fill='%234c1d95'/><circle cx='57' cy='38' r='3' fill='%234c1d95'/><path d='M44 48 Q50 53 56 48' stroke='%236d28d9' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M22 82 C22 60 78 60 78 82' fill='%235b21b6'/><polygon points='50,55 46,75 50,72 54,75' fill='%23f59e0b'/></svg>",
+  },
+];
+
 export function SettingsView() {
   const { user, credits, userPlan, logout, refreshCredits } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -40,6 +64,7 @@ export function SettingsView() {
   const [loadingTx, setLoadingTx] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.photoURL || "");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleCopyOrderId = (orderId: string) => {
@@ -83,11 +108,33 @@ export function SettingsView() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setIsSavingProfile(true);
-    setTimeout(() => {
+    try {
+      const trimmedName = displayName.trim() || user.displayName || "Resumagic User";
+
+      // Update Firebase Auth user profile
+      await updateProfile(user, {
+        displayName: trimmedName,
+        photoURL: selectedAvatar || null,
+      });
+
+      // Update Firestore user document
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        displayName: trimmedName,
+        photoURL: selectedAvatar || null,
+        updatedAt: new Date().toISOString(),
+      }).catch(() => null);
+
+      await refreshCredits();
+      alert({ title: "Profile Preferences Saved! ✨", description: "Your display name and profile picture have been updated across your account." });
+    } catch (err: any) {
+      console.error("[Settings] Profile update failed:", err);
+      alert({ title: "Update Error", description: err.message || "Failed to update profile." });
+    } finally {
       setIsSavingProfile(false);
-      alert({ title: "Updated", description: "Profile preferences updated successfully!" });
-    }, 600);
+    }
   };
 
   const handleResetPassword = () => {
@@ -190,8 +237,10 @@ export function SettingsView() {
 
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-app-border">
                       <div className="relative">
-                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-3xl shadow-lg border-2 border-white/20">
-                          {user?.photoURL ? (
+                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-3xl shadow-lg border-2 border-white/20 overflow-hidden">
+                          {selectedAvatar ? (
+                            <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                          ) : user?.photoURL ? (
                             <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
                           ) : (
                             user?.email?.charAt(0).toUpperCase() || 'U'
@@ -204,7 +253,7 @@ export function SettingsView() {
 
                       <div className="flex-1 text-center sm:text-left min-w-0">
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                          <h4 className="text-lg font-bold text-app-text truncate">{user?.displayName || user?.email?.split('@')[0] || "Resumagic User"}</h4>
+                          <h4 className="text-lg font-bold text-app-text truncate">{displayName || user?.displayName || user?.email?.split('@')[0] || "Resumagic User"}</h4>
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             Verified Account
                           </span>
@@ -242,6 +291,46 @@ export function SettingsView() {
                             />
                             <Mail className="w-4 h-4 text-app-text-muted absolute right-3 top-1/2 -translate-y-1/2" />
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Custom Cartoon SVG Avatar Selection */}
+                      <div className="pt-3">
+                        <label className="block text-xs font-bold text-app-text-muted uppercase tracking-wider mb-2">
+                          Choose Profile Avatar Picture
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          {/* Option 0: Default Mail Avatar */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAvatar("")}
+                            className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${
+                              !selectedAvatar
+                                ? "bg-brand-primary/10 border-brand-primary text-brand-primary font-bold shadow-sm ring-2 ring-brand-primary/30"
+                                : "bg-app-bg border-app-border text-app-text-muted hover:border-app-border/80"
+                            }`}
+                          >
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                              {user?.email?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <span className="text-[10px] truncate max-w-full">Default Mail</span>
+                          </button>
+
+                          {CARTOON_AVATARS.map((av) => (
+                            <button
+                              key={av.id}
+                              type="button"
+                              onClick={() => setSelectedAvatar(av.url)}
+                              className={`p-2.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${
+                                selectedAvatar === av.url
+                                  ? "bg-brand-primary/10 border-brand-primary text-brand-primary font-bold shadow-sm ring-2 ring-brand-primary/30"
+                                  : "bg-app-bg border-app-border text-app-text-muted hover:border-app-border/80"
+                              }`}
+                            >
+                              <img src={av.url} alt={av.name} className="w-10 h-10 rounded-full object-cover shadow-sm" />
+                              <span className="text-[10px] truncate max-w-full font-semibold">{av.name}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
 

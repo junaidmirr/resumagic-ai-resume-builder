@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toPng, toJpeg } from "html-to-image";
+import jsPDF from "jspdf";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAuthModal } from "../components/onboarding/AuthModalContext";
@@ -518,13 +519,38 @@ function ActionBtn({
 
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 export function EditorPage() {
-  const { user, refreshCredits, credits, deductCredits, userPlan } = useAuth();
+  const { user, refreshCredits, credits, deductCredits, userPlan, logout } = useAuth();
   const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const { theme, setTheme } = useTheme();
   const { showAuthModal } = useAuthModal();
   const { confirm, prompt, alert } = useDialog();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (err: any) {
+      console.error("[Editor] Logout error:", err);
+    }
+  };
+
+  const handleGoToSettings = async () => {
+    setShowProfileMenu(false);
+    const shouldSave = await confirm({
+      title: "Save Resume before Settings?",
+      description: "Do you want to save your current resume changes to the cloud before navigating to Settings?",
+      confirmText: "Save & Go to Settings",
+      cancelText: "Discard & Go to Settings",
+    });
+
+    if (shouldSave) {
+      await handleSaveResume();
+    }
+    navigate("/dashboard?tab=settings");
+  };
   const [elements, setElements] = useState<EditorElement[]>([]);
   const [pages, setPages] = useState<Page[]>([{ id: "page-1", width: 612, height: 792 }]);
   const [activePageId, setActivePageId] = useState<string>("page-1");
@@ -604,25 +630,107 @@ export function EditorPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Cloud Loading
+  // ── Emergency Local Canvas Auto-Save & Refresh Recovery ─────────
+  const cacheKey = `resumagic_canvas_cache_${resumeId || 'draft'}`;
+
+  // 1. Auto-save canvas to local emergency cache on every element/page change
   useEffect(() => {
+    if (elements.length > 0) {
+      try {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            elements,
+            pages,
+            resumeTitle,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (err) {
+        console.warn("[Canvas Local Cache Warning] Could not save emergency cache:", err);
+      }
+    }
+  }, [elements, pages, resumeTitle, cacheKey]);
+
+  // 2. BeforeUnload handler to guarantee emergency cache flush before page reload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (elements.length > 0) {
+        try {
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              elements,
+              pages,
+              resumeTitle,
+              timestamp: Date.now(),
+            })
+          );
+        } catch (e) {
+          console.warn("[BeforeUnload Cache]", e);
+        }
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [elements, pages, resumeTitle, cacheKey]);
+
+  // 3. Load & Auto-Restore Canvas on Mount / Refresh
+  useEffect(() => {
+    let restoredFromCache = false;
+
+    // Check emergency local cache first for instant reload recovery
+    const rawCache = localStorage.getItem(cacheKey);
+    if (rawCache) {
+      try {
+        const cached = JSON.parse(rawCache);
+        if (cached && Array.isArray(cached.elements) && cached.elements.length > 0) {
+          setElements(cached.elements);
+          if (Array.isArray(cached.pages) && cached.pages.length > 0) {
+            setPages(cached.pages);
+          }
+          if (cached.resumeTitle) {
+            setResumeTitle(cached.resumeTitle);
+          }
+          setUndoStack([cached.elements]);
+          const maxNum = Math.max(
+            0,
+            ...cached.elements.map((e: any) => {
+              const parts = e.id?.split("_") || [];
+              return parseInt(parts[parts.length - 1]) || 0;
+            })
+          );
+          counterRef.current = maxNum;
+          restoredFromCache = true;
+        }
+      } catch (err) {
+        console.error("[Canvas Cache Restore Error]", err);
+      }
+    }
+
+    // Cloud / Database Load (if not already restored or if Cloud data is fresher)
     if (resumeId) {
       resumeService.getResume(resumeId, user?.uid).then((res) => {
         if (res) {
-          setElements(res.elements);
-          setResumeTitle(res.title);
-          setUndoStack([res.elements]);
-          const maxNum = Math.max(
-            0,
-            ...res.elements.map((e) => {
-              const parts = e.id?.split("_") || [];
-              return parseInt(parts[parts.length - 1]) || 0;
-            }),
-          );
-          counterRef.current = maxNum;
+          if (!restoredFromCache) {
+            setElements(res.elements);
+            if (res.pages && Array.isArray(res.pages)) {
+              setPages(res.pages);
+            }
+            setResumeTitle(res.title);
+            setUndoStack([res.elements]);
+            const maxNum = Math.max(
+              0,
+              ...res.elements.map((e: any) => {
+                const parts = e.id?.split("_") || [];
+                return parseInt(parts[parts.length - 1]) || 0;
+              })
+            );
+            counterRef.current = maxNum;
+          }
         }
       });
-    } else {
+    } else if (!restoredFromCache) {
       // Check for AI-designed resume from Wizard (legacy/transition)
       const designed = localStorage.getItem("designed_resume");
       if (designed) {
@@ -639,7 +747,7 @@ export function EditorPage() {
         }
       }
     }
-  }, [resumeId, user?.uid]);
+  }, [resumeId, user?.uid, cacheKey]);
 
   const handleExit = async () => {
     const shouldSave = await confirm({
@@ -1726,19 +1834,36 @@ export function EditorPage() {
     setShowIconModal(false);
   };
 
-  const handleInsertAsset = (url: string) => {
+  const handleInsertAsset = async (url: string, w: number = 200, h: number = 200) => {
     _snapshot();
     const id = getNextId("image");
-    const w = 200;
-    const h = 200;
     const { x, y } = getCenterCoordinates(w, h);
+
+    let finalImagePath = url;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const blob = await res.blob();
+          finalImagePath = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string) || url);
+            reader.onerror = () => resolve(url);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (err) {
+        console.warn("[Asset Data URL Conversion Notice] Falling back to URL:", err);
+      }
+    }
+
     setElements((p) => [
       ...p,
       {
         id,
         element_type: "image",
         page_id: activePageId,
-        image_path: url,
+        image_path: finalImagePath,
         x,
         y,
         width: w,
@@ -1770,8 +1895,8 @@ export function EditorPage() {
     try {
       setIsExporting(true);
       const url = format === "png" 
-        ? await toPng(pageEl as HTMLElement, { pixelRatio: 3, cacheBust: true, backgroundColor: "#ffffff" })
-        : await toJpeg(pageEl as HTMLElement, { pixelRatio: 3, quality: 0.95, cacheBust: true, backgroundColor: "#ffffff" });
+        ? await toPng(pageEl as HTMLElement, { pixelRatio: 3, cacheBust: true, fontEmbedCSS: '', skipFonts: true, backgroundColor: "#ffffff" })
+        : await toJpeg(pageEl as HTMLElement, { pixelRatio: 3, quality: 0.95, cacheBust: true, fontEmbedCSS: '', skipFonts: true, backgroundColor: "#ffffff" });
         
       const a = document.createElement("a");
       a.href = url;
@@ -1795,7 +1920,10 @@ export function EditorPage() {
 
     let serverSuccess = false;
     try {
-      // 1. Primary Attempt: Python ReportLab High-Precision Vector Engine
+      // 1. Primary Attempt: Python ReportLab Engine with 3.5s Fast Timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
       const res = await fetch("/api/render", {
         method: "POST",
         headers: {
@@ -1803,30 +1931,35 @@ export function EditorPage() {
           "X-User-ID": user?.uid || "",
         },
         body: JSON.stringify({ elements, pages }),
-      });
+        signal: controller.signal,
+      }).catch(() => null);
 
-      const contentType = res.headers.get("content-type") || "";
-      if (res.ok && contentType.includes("application/pdf")) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${resumeTitle || "resume"}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        refreshCredits();
-        serverSuccess = true;
-      } else if (res.status === 402) {
+      clearTimeout(timeoutId);
+
+      if (res && res.ok) {
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/pdf")) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${resumeTitle || "resume"}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          refreshCredits();
+          serverSuccess = true;
+        }
+      } else if (res && res.status === 402) {
         alert("Insufficient credits to export PDF. Please recharge.");
         setIsExporting(false);
         return;
       }
     } catch (e) {
-      console.warn("Python backend PDF render unavailable. Executing high-precision client engine:", e);
+      console.warn("[PDF Export] Backend engine notice. Executing high-precision client engine:", e);
     }
 
-    // 2. High-Precision Client-Side Canvas PDF Engine
+    // 2. High-Precision Client Canvas Engine Fallback
     if (!serverSuccess) {
       try {
         const pageEl =
@@ -1845,66 +1978,34 @@ export function EditorPage() {
           const imgUrl = await toPng(pageEl as HTMLElement, {
             pixelRatio: 3,
             cacheBust: true,
+            fontEmbedCSS: '',
+            skipFonts: true,
             backgroundColor: activePage.bg_color || "#ffffff",
           });
 
-          // Print / PDF Save Window
-          const iframe = document.createElement("iframe");
-          iframe.style.position = "fixed";
-          iframe.style.right = "0";
-          iframe.style.bottom = "0";
-          iframe.style.width = "0";
-          iframe.style.height = "0";
-          iframe.style.border = "0";
-          document.body.appendChild(iframe);
+          // Direct PDF Document Generation & Download
+          const pdf = new jsPDF({
+            orientation: activePage.width > activePage.height ? "landscape" : "portrait",
+            unit: "pt",
+            format: [activePage.width, activePage.height],
+          });
 
-          const doc = iframe.contentWindow?.document;
-          if (doc) {
-            doc.open();
-            doc.write(`
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <title>${resumeTitle || "resume"}</title>
-                  <style>
-                    @page { size: ${activePage.width}pt ${activePage.height}pt; margin: 0; }
-                    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: ${activePage.bg_color || '#ffffff'}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    img { width: 100%; height: 100%; object-fit: contain; display: block; }
-                  </style>
-                </head>
-                <body>
-                  <img src="${imgUrl}" />
-                </body>
-              </html>
-            `);
-            doc.close();
-
-            iframe.contentWindow?.focus();
-            setTimeout(() => {
-              iframe.contentWindow?.print();
-              setTimeout(() => iframe.remove(), 1000);
-            }, 300);
-          }
-
-          // Direct high-res image backup download
-          const a = document.createElement("a");
-          a.href = imgUrl;
-          a.download = `${resumeTitle || "resume"}.png`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-
+          pdf.addImage(imgUrl, "PNG", 0, 0, activePage.width, activePage.height);
+          pdf.save(`${resumeTitle || "resume"}.pdf`);
+          refreshCredits();
           serverSuccess = true;
         } else {
           alert("Could not locate active canvas page element. Please refresh and try again.");
         }
-      } catch (fallbackErr) {
-        console.error("Client PDF fallback error:", fallbackErr);
-        alert("Export encountered an issue. Please try again.");
+      } catch (fallbackErr: any) {
+        console.error("[PDF Export Fallback Error]", fallbackErr);
+        alert("Export encountered an issue: " + (fallbackErr.message || String(fallbackErr)));
+      } finally {
+        setIsExporting(false);
       }
+    } else {
+      setIsExporting(false);
     }
-
-    setIsExporting(false);
   };
 
   // Removed legacy JSON handling as per user request (SaaS Migration)
@@ -1930,6 +2031,7 @@ export function EditorPage() {
         shape_type: "path",
         page_id: activePageId,
         path_d: d.path_d,
+        fill_color: "none",
         border_color: d.border_color,
         border_width: d.border_width,
         opacity: d.opacity,
@@ -2820,19 +2922,75 @@ export function EditorPage() {
           <div className="w-px h-5 bg-app-border mx-1 hidden sm:block" />
           
           {user && (
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-yellow-100/50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full text-xs font-bold mr-1">
-              <LucideIcons.Zap size={14} className="fill-yellow-500 text-yellow-500" />
-              {credits}
+            <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-xs font-bold shrink-0 border border-amber-500/20 shadow-sm">
+              <LucideIcons.Zap size={13} className="fill-amber-500 text-amber-500 shrink-0" />
+              <span>{credits}</span>
             </div>
           )}
 
-          <button className="hidden sm:flex w-7 h-7 rounded-full bg-app-bg border-2 border-app-border overflow-hidden shadow-sm items-center justify-center">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-            ) : (
-              <LucideIcons.User size={14} className="text-app-text-muted" />
+          <div className="relative">
+            <button 
+              onClick={() => setShowProfileMenu((p) => !p)}
+              className="flex w-7 h-7 rounded-full bg-app-bg border-2 border-app-border overflow-hidden shadow-sm items-center justify-center shrink-0 hover:border-brand-primary transition-all active:scale-95"
+              title="User Account Menu"
+            >
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                <LucideIcons.User size={14} className="text-app-text-muted" />
+              )}
+            </button>
+
+            {/* Responsive User Account Dropdown Popover */}
+            {showProfileMenu && (
+              <div className="absolute right-0 mt-2 w-64 p-3 bg-app-surface/95 backdrop-blur-xl border border-app-border rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 origin-top-right space-y-3">
+                <div className="flex items-center gap-3 pb-2.5 border-b border-app-border">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0 overflow-hidden">
+                    {user?.photoURL ? (
+                      <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                    ) : (
+                      user?.email?.charAt(0).toUpperCase() || "U"
+                    )}
+                  </div>
+                  <div className="flex flex-col overflow-hidden min-w-0">
+                    <span className="text-xs font-bold text-app-text truncate">
+                      {user?.displayName || user?.email?.split("@")[0] || "User Account"}
+                    </span>
+                    <span className="text-[11px] text-app-text-muted truncate">{user?.email}</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[9px] px-1.5 py-0.2 bg-brand-primary/10 text-brand-primary font-black uppercase rounded border border-brand-primary/20">
+                        {userPlan || "FREE"}
+                      </span>
+                      <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold uppercase rounded border border-amber-500/20">
+                        {credits} PTS
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <button
+                    onClick={handleGoToSettings}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary rounded-xl transition-all text-left"
+                  >
+                    <LucideIcons.Settings size={14} className="text-brand-primary" />
+                    Go to Settings
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all text-left"
+                  >
+                    <LucideIcons.LogOut size={14} />
+                    Sign Out
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
+          </div>
 
           <button
             onMouseDown={(e) => e.preventDefault()}

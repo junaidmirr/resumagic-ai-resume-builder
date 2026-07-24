@@ -32,7 +32,7 @@ export function AdminLoginPage() {
         const data = snap.data();
 
         if (data && data.admin === true) {
-          navigate("/admin");
+          navigate("/worklabs_adminforresumagic/dashboard");
         } else {
           await logout();
           setError("Access Denied: Your account does not have administrator privileges (admin=true).");

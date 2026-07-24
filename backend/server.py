@@ -380,8 +380,9 @@ def render_pdf():
                 if path.startswith('data:image'):
                     try:
                         header, encoded = path.split(',', 1)
-                        ext = header.split(';')[0].split('/')[1]
-                        if ext not in ('png', 'jpeg', 'jpg', 'webp'): ext = 'png'
+                        ext = 'png'
+                        if 'jpeg' in header or 'jpg' in header: ext = 'jpg'
+                        elif 'svg' in header: ext = 'svg'
                         fd, tmp_path = tempfile.mkstemp(suffix='.' + ext)
                         with os.fdopen(fd, 'wb') as f:
                             f.write(base64.b64decode(encoded))
@@ -389,6 +390,19 @@ def render_pdf():
                         temp_files.append(tmp_path)
                     except Exception as e:
                         print(f"Failed to decode base64 image: {e}")
+                elif path.startswith('http://') or path.startswith('https://'):
+                    try:
+                        import requests
+                        resp = requests.get(path, headers={"User-Agent": "Mozilla/5.0"}, timeout=2.5)
+                        if resp.status_code == 200:
+                            ext = '.svg' if ('svg' in resp.headers.get('content-type', '') or path.endswith('.svg')) else '.png'
+                            fd, tmp_path = tempfile.mkstemp(suffix=ext)
+                            with os.fdopen(fd, 'wb') as f:
+                                f.write(resp.content)
+                            clean_el['image_path'] = tmp_path
+                            temp_files.append(tmp_path)
+                    except Exception as e:
+                        print(f"Failed to pre-download remote image {path[:60]}: {e}")
             clean_elements.append(clean_el)
         
         # Initialise engine and import frontend state

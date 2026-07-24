@@ -690,7 +690,7 @@ export function EditorCanvas({
                               onPointerDown={(e) => startDrag(e, el)}
                               onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                               d={el.path_d}
-                              fill={el.fill_color || "none"}
+                              fill={el.fill_color && el.fill_color !== "none" && el.fill_color !== "transparent" ? el.fill_color : "none"}
                               stroke={isSel ? "#14b8a6" : (el.border_color || "#000000")}
                               strokeWidth={isSel ? Math.max((el.border_width || 2) + 2, 3) : (el.border_width || 2)}
                               strokeLinecap="round"

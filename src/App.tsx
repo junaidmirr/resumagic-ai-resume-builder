@@ -23,11 +23,26 @@ import { StatusPage } from "./pages/StatusPage";
 import { AboutUsPage } from "./pages/AboutUsPage";
 import { ContactPage } from "./pages/ContactPage";
 
+import React, { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import { AuthModal } from "./components/onboarding/AuthModal";
 import { DialogProvider } from "./context/DialogContext";
 import { NotificationProvider } from "./context/NotificationContext";
-import { AdminLoginPage } from "./pages/AdminLoginPage";
-import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+
+// Dynamic Code-Splitting Lazy Imports for Secret Admin Panel (kept out of initial client bundle)
+const AdminLoginPage = lazy(() => import("./pages/AdminLoginPage").then((m) => ({ default: m.AdminLoginPage })));
+const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage").then((m) => ({ default: m.AdminDashboardPage })));
+
+function AdminLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
+      <div className="flex items-center gap-3">
+        <Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
+        <span className="text-sm font-semibold tracking-wider uppercase text-slate-400">Loading Secret Admin Portal...</span>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -41,8 +56,24 @@ function App() {
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
-                  <Route path="/admin_login" element={<AdminLoginPage />} />
-                  <Route path="/admin" element={<AdminDashboardPage />} />
+                  
+                  {/* Code-Split Secret Admin Routes */}
+                  <Route
+                    path="/worklabs_adminforresumagic"
+                    element={
+                      <Suspense fallback={<AdminLoadingFallback />}>
+                        <AdminLoginPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/worklabs_adminforresumagic/dashboard"
+                    element={
+                      <Suspense fallback={<AdminLoadingFallback />}>
+                        <AdminDashboardPage />
+                      </Suspense>
+                    }
+                  />
 
                 {/* Resource Pages */}
                 <Route path="/resources/blog" element={<CareerBlogPage />} />

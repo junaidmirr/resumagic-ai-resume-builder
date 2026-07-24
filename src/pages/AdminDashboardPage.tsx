@@ -92,7 +92,7 @@ export function AdminDashboardPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!user || !isAdmin) {
-        navigate("/admin_login");
+        navigate("/worklabs_adminforresumagic");
       }
     }
   }, [user, isAdmin, authLoading, navigate]);

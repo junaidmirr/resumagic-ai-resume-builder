@@ -14,7 +14,7 @@ import defaultLogoLight from '../../assets/default.png';
 import defaultLogoDark from '../../assets/default-dark.png';
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, credits, logout } = useAuth();
   const { openModal } = useAuthModal();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -200,6 +200,15 @@ export function Navbar() {
 
           {/* Mobile Menu Toggle Button */}
           <div className="flex md:hidden items-center gap-2">
+            {user && (
+              <Link
+                to="/pricing"
+                className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-xs font-bold border border-amber-500/20 shadow-sm shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5 fill-amber-500 text-amber-500 shrink-0" />
+                <span>{credits}</span>
+              </Link>
+            )}
             <button
               onClick={toggleTheme}
               className="p-2 text-app-text hover:bg-app-surface rounded-xl transition-colors"

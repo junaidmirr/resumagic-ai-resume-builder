@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Sparkles, 
   X, 
@@ -7,6 +7,7 @@ import {
   CheckCircle2, 
   RotateCcw, 
   Loader2, 
+  Clock,
   Layers, 
   Palette, 
   QrCode, 
@@ -42,6 +43,21 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
   const [refinementInput, setRefinementInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<DesignPlan | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setElapsedMs(0);
+      return;
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      setElapsedMs(Date.now() - startTime);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  const formattedTimer = `${(elapsedMs / 1000).toFixed(1)}s`;
 
   if (!isOpen) return null;
 
@@ -289,9 +305,12 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
               </div>
               <div>
                 <h4 className="font-bold text-lg text-app-text">AI Architect is Building Your Resume</h4>
-                <p className="text-xs text-app-text-muted mt-1 max-w-sm">
+                <p className="text-xs text-app-text-muted mt-1 max-w-sm mb-3">
                   Composing custom layout elements, skill progress bar loaders, typography, and section graphics via AI...
                 </p>
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 rounded-full font-mono text-xs font-bold shadow-sm">
+                  <Clock className="w-3.5 h-3.5 animate-pulse" /> Elapsed: {formattedTimer}
+                </div>
               </div>
             </div>
           )}
@@ -312,8 +331,15 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
                 disabled={loading || !prompt.trim()}
                 className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                Generate Design Plan
+                {loading ? (
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Generating ({formattedTimer})
+                  </span>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" /> Generate Design Plan
+                  </>
+                )}
               </button>
             </>
           )}
@@ -331,8 +357,15 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
                 disabled={loading}
                 className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                Proceed & Build Resume 🚀
+                {loading ? (
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Building ({formattedTimer})
+                  </span>
+                ) : (
+                  <>
+                    <ArrowRight className="w-4 h-4" /> Proceed & Build Resume 🚀
+                  </>
+                )}
               </button>
             </>
           )}

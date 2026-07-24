@@ -10,6 +10,12 @@ export default defineConfig({
   },
   build: {
     cssMinify: 'esbuild', // Use esbuild for minification as lightningcss has issues with Tailwind 4 @theme
+    rollupOptions: {
+      external: ['canvas'],
+    },
+  },
+  optimizeDeps: {
+    exclude: ['canvas'],
   },
   server: {
     watch: {

@@ -353,14 +353,6 @@ export function Navbar() {
                     <Mail className="w-4 h-4 text-slate-400" />
                     Contact & Support
                   </Link>
-                  <Link
-                    to="/careers"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary transition-colors"
-                  >
-                    <Briefcase className="w-4 h-4 text-indigo-400" />
-                    Careers at Resumagic
-                  </Link>
                 </div>
               </div>
 

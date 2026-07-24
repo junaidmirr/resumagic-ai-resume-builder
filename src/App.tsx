@@ -21,7 +21,6 @@ import { ResumeExamplesPage } from "./pages/ResumeExamplesPage";
 import { HelpCenterPage } from "./pages/HelpCenterPage";
 import { StatusPage } from "./pages/StatusPage";
 import { AboutUsPage } from "./pages/AboutUsPage";
-import { CareersPage } from "./pages/CareersPage";
 import { ContactPage } from "./pages/ContactPage";
 
 import { AuthModal } from "./components/onboarding/AuthModal";
@@ -59,7 +58,6 @@ function App() {
 
                 {/* Company Pages */}
                 <Route path="/about" element={<AboutUsPage />} />
-                <Route path="/careers" element={<CareersPage />} />
                 <Route path="/contact" element={<ContactPage />} />
 
                 {/* Protected SaaS Routes */}

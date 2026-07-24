@@ -111,6 +111,7 @@ export function EditorCanvas({
   // ── Pointer handlers ──────────────────────────────────────
   const startDrag = (e: ReactPointerEvent, el: EditorElement) => {
     e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
     if (el.locked) return; // Prevent interaction if locked
 
     let nextIds = [...selectedIds];
@@ -158,7 +159,9 @@ export function EditorCanvas({
     setAction("move");
     setOrigEls(localElements.filter((x) => finalIds.includes(x.id)));
     setDragStart({ x: e.clientX, y: e.clientY });
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
   };
 
   const startResize = (
@@ -167,6 +170,7 @@ export function EditorCanvas({
     handle: string,
   ) => {
     e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
     if (el.locked) return; // Prevent interaction if locked
     setSelectedIds([el.id]); // Resize stays single-element for now or group-aware late
     if (snapEnabled) {
@@ -187,7 +191,9 @@ export function EditorCanvas({
     setHandleType(handle);
     setOrigEls([el]);
     setDragStart({ x: e.clientX, y: e.clientY });
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
   };
 
   const handlePointerMove = (e: ReactPointerEvent) => {
@@ -549,7 +555,7 @@ export function EditorCanvas({
                     }}
                     onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                     onDoubleClick={() => setEditingTextId(el.id)}
-                    className={`absolute ${!isEditing ? "cursor-move" : ""}
+                    className={`absolute touch-none ${!isEditing ? "cursor-move" : ""}
                       ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                     style={{
                       ...baseStyle,
@@ -643,7 +649,7 @@ export function EditorCanvas({
                       key={el.id}
                       onPointerDown={(e) => startDrag(e, el)}
                       onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                      className={`absolute cursor-move
+                      className={`absolute cursor-move touch-none
                         ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                       style={{
                         ...baseStyle,
@@ -659,7 +665,7 @@ export function EditorCanvas({
                   return (
                     <div
                       key={el.id}
-                      className="absolute pointer-events-none"
+                      className="absolute pointer-events-none touch-none"
                       style={{
                         left: 0,
                         bottom: 0,
@@ -669,14 +675,14 @@ export function EditorCanvas({
                       }}
                     >
                       <svg
-                        className="w-full h-full overflow-visible"
+                        className="w-full h-full overflow-visible touch-none"
                         viewBox={`0 0 ${pageWidth} ${pageHeight}`}
                         style={{ display: "block" }}
                       >
                         <g transform={`scale(1, -1) translate(${el.x || 0}, -${pageHeight - (el.y || 0)})`}>
                           {el.shape_type === "path" && el.path_d && (
                             <path
-                              className={`pointer-events-auto cursor-move ${isSel ? 'stroke-teal-500' : ''}`}
+                              className={`pointer-events-auto cursor-move touch-none ${isSel ? 'stroke-teal-500' : ''}`}
                               onPointerDown={(e) => startDrag(e, el)}
                               onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                               d={el.path_d}
@@ -687,7 +693,7 @@ export function EditorCanvas({
                           )}
                           {el.shape_type === "polygon" && el.points && (
                             <polygon
-                              className={`pointer-events-auto cursor-move ${isSel ? 'stroke-teal-500' : ''}`}
+                              className={`pointer-events-auto cursor-move touch-none ${isSel ? 'stroke-teal-500' : ''}`}
                               onPointerDown={(e) => startDrag(e, el)}
                               onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                               points={Array.isArray(el.points) ? el.points.reduce((acc, val, i) => acc + (i % 2 === 0 ? val + "," : val + " "), "") : el.points}
@@ -709,7 +715,7 @@ export function EditorCanvas({
                       key={el.id}
                       onPointerDown={(e) => startDrag(e, el)}
                       onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                      className={`absolute cursor-move rounded-full
+                      className={`absolute cursor-move rounded-full touch-none
                         ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                       style={{
                         position: "absolute",
@@ -921,7 +927,7 @@ export function EditorCanvas({
                     key={el.id}
                     onPointerDown={(e) => startDrag(e, el)}
                     onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                    className={`absolute cursor-move
+                    className={`absolute cursor-move touch-none
                       ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                     style={{
                       ...baseStyle,

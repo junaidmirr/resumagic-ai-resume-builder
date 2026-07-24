@@ -88,7 +88,11 @@ export function EditorCanvas({
       const pad = 32;
       const sx = (width - pad) / pageWidth;
       const sy = (height - pad) / pageHeight;
-      setBaseScale(Math.min(sx, sy));
+
+      // Prevent canvas from shrinking into a tiny box when virtual keyboard opens or on mobile viewports
+      const isMobileOrKeyboard = width < 768 || (height < 520 && height / width < 1.25) || editingTextId !== null;
+      const targetScale = isMobileOrKeyboard ? sx : Math.min(sx, sy);
+      setBaseScale(targetScale);
     };
 
     const rect = wrapper.getBoundingClientRect();
@@ -102,7 +106,7 @@ export function EditorCanvas({
     });
     ro.observe(wrapper);
     return () => ro.disconnect();
-  }, [pageWidth, pageHeight]);
+  }, [pageWidth, pageHeight, editingTextId]);
 
   // Final scale = base × zoom factor
   // baseScale already fits the page; zoom% multiplies on top of that
@@ -755,7 +759,7 @@ export function EditorCanvas({
                   return (
                     <div
                       key={el.id}
-                      className="absolute"
+                      className="absolute touch-none"
                       onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       style={{
                         left: minX * scale,
@@ -766,7 +770,7 @@ export function EditorCanvas({
                       }}
                     >
                       <svg
-                        className="w-full h-full overflow-visible"
+                        className="w-full h-full overflow-visible touch-none"
                         style={{ display: "block" }}
                       >
                         {el.shape_type === "arrow" && (
@@ -800,10 +804,10 @@ export function EditorCanvas({
                               stroke="transparent"
                               strokeWidth={Math.max(
                                 (el.border_width || 2) * scale,
-                                16,
+                                32,
                               )}
                               fill="none"
-                              className="cursor-move"
+                              className="cursor-move touch-none"
                               onPointerDown={(e) => startDrag(e, el)}
                             />
                             <path
@@ -836,9 +840,9 @@ export function EditorCanvas({
                               stroke="transparent"
                               strokeWidth={Math.max(
                                 (el.border_width || 2) * scale,
-                                16,
+                                32,
                               )}
-                              className="cursor-move"
+                              className="cursor-move touch-none"
                               onPointerDown={(e) => startDrag(e, el)}
                             />
                             <line

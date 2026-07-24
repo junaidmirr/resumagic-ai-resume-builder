@@ -1142,8 +1142,10 @@ def cashfree_verify_payment():
                     new_credits = curr_credits + added_credits
                     
                     update_fields = {"credits": new_credits}
-                    if plan.get("type") in ["subscription", "lifetime"]:
+                    if plan.get("type") in ["subscription", "lifetime"] or "pro" in plan_id or "starter" in plan_id or "career" in plan_id:
                         update_fields["plan"] = plan_type
+                        update_fields["userPlan"] = plan_type
+                        update_fields["lastPurchasedPlan"] = plan_type
                         
                     user_ref.set(update_fields, merge=True)
                     
@@ -1151,6 +1153,7 @@ def cashfree_verify_payment():
                     tx_ref.set({
                         "order_id": order_id,
                         "plan_id": plan_id,
+                        "tier": plan_type,
                         "credits_added": added_credits,
                         "amount_paid": cf_data.get("order_amount", plan["price"]),
                         "status": "PAID",
@@ -1162,9 +1165,10 @@ def cashfree_verify_payment():
             return jsonify({
                 "success": True,
                 "order_status": "PAID",
-                "message": f"Payment successful! Added {added_credits} AI credits to your account.",
+                "message": f"Payment successful! Account upgraded to {plan_type.upper()} and {added_credits} AI credits added.",
                 "credits_added": added_credits,
-                "plan": plan_type
+                "plan": plan_type,
+                "userPlan": plan_type
             })
         else:
             return jsonify({
@@ -1209,7 +1213,12 @@ def cashfree_webhook():
                     
                     tx_doc = user_ref.collection("transactions").document(order_id).get()
                     if not tx_doc.exists:
-                        user_ref.set({"credits": curr_credits + added_credits, "plan": matched_plan}, merge=True)
+                        user_ref.set({
+                            "credits": curr_credits + added_credits, 
+                            "plan": matched_plan,
+                            "userPlan": matched_plan,
+                            "lastPurchasedPlan": matched_plan
+                        }, merge=True)
                         user_ref.collection("transactions").document(order_id).set({
                             "order_id": order_id,
                             "credits_added": added_credits,

@@ -226,17 +226,34 @@ export default function PricingPage() {
         if (user?.uid) {
           try {
             const addedCredits = data.credits_added || 150;
+            const rawId = (planId || "").toLowerCase();
+            const normTier = rawId.includes("pro")
+              ? (rawId.includes("career") ? "career_pro" : "pro")
+              : rawId.includes("starter")
+              ? "starter"
+              : rawId.includes("lifetime")
+              ? "lifetime"
+              : null;
+
             const userRef = doc(db, "users", user.uid);
             const userSnap = await getDoc(userRef);
             const currentCredits = userSnap.exists() ? (userSnap.data()?.credits || 0) : 0;
             const newTotal = currentCredits + addedCredits;
 
-            await setDoc(userRef, { credits: newTotal }, { merge: true });
+            const updatePayload: any = { credits: newTotal };
+            if (normTier) {
+              updatePayload.plan = normTier;
+              updatePayload.userPlan = normTier;
+              updatePayload.lastPurchasedPlan = normTier;
+            }
+
+            await setDoc(userRef, updatePayload, { merge: true });
 
             const txRef = doc(db, "users", user.uid, "transactions", orderId);
             await setDoc(txRef, {
               order_id: orderId,
               plan_id: planId || "purchase",
+              tier: normTier || "credit_pack",
               credits_added: addedCredits,
               amount_paid: data.amount_paid || 0,
               status: "PAID",
@@ -247,7 +264,7 @@ export default function PricingPage() {
           }
         }
 
-        await refreshCredits();
+        await refreshCredits(true);
         window.history.replaceState({}, document.title, window.location.pathname);
         await alert({
           title: "Payment Successful! 🎉",

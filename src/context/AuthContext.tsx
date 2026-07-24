@@ -29,6 +29,7 @@ interface AuthContextType {
   credits: number;
   refreshCredits: (force?: boolean) => Promise<void>;
   deductCredits: (amount: number) => Promise<boolean>;
+  updateUserPlan: (planName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -105,10 +106,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        const data = snap.data();
         const newCredits = data.credits || 0;
-        const newPlan = data.plan || "free";
+        let newPlan = data.plan || data.userPlan || data.lastPurchasedPlan || "free";
+
+        // Auto-heal plan status for users with paid transactions / credit balances
+        if (newPlan === "free" || !newPlan) {
+          if (newCredits >= 800 || data.lastPurchasedPlan === "pro" || data.lastPurchasedPlan === "pro_yearly" || data.lastPurchasedPlan === "pro_monthly") {
+            newPlan = "pro";
+            setDoc(userRef, { plan: "pro", userPlan: "pro", lastPurchasedPlan: "pro" }, { merge: true }).catch(console.error);
+          } else if (newCredits >= 100 || data.lastPurchasedPlan === "starter") {
+            newPlan = "starter";
+            setDoc(userRef, { plan: "starter", userPlan: "starter", lastPurchasedPlan: "starter" }, { merge: true }).catch(console.error);
+          }
+        }
+
         const newAdmin = !!data.admin;
         const newClaimed = !!data.claimedSignupCredits;
 
@@ -126,6 +137,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("[Auth] Failed to refresh credits:", error);
+    }
+  };
+
+  const updateUserPlan = async (planName: string) => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    try {
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, { plan: planName, userPlan: planName, lastPurchasedPlan: planName }, { merge: true });
+      setUserPlan(planName);
+      saveLocalCache(uid, {
+        credits,
+        userPlan: planName,
+        isAdmin,
+        claimedSignupCredits,
+      });
+    } catch (e) {
+      console.error("[Auth] Failed to update user plan:", e);
     }
   };
 
@@ -329,6 +358,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credits,
         refreshCredits,
         deductCredits,
+        updateUserPlan,
       }}
     >
       {!loading && children}

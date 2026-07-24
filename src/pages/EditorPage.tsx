@@ -595,14 +595,7 @@ export function EditorPage() {
 
   useEffect(() => {
     const check = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        // Compute mobile auto-fit zoom so Letter page fits screen width
-        const availWidth = window.innerWidth - 32;
-        const fitZoom = Math.max(30, Math.min(85, Math.floor((availWidth / 612) * 100)));
-        setZoom(fitZoom);
-      }
+      setIsMobile(window.innerWidth < 768);
     };
     check();
     window.addEventListener("resize", check);

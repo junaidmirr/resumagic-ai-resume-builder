@@ -865,60 +865,91 @@ export function EditorCanvas({
                           </>
                         )}
                       </svg>
-                      {isSel && (
-                        <>
-                          <div
-                            onPointerDown={(e) => startResize(e, el, "start")}
-                            className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
-                            style={{
-                              width: HANDLE_SIZE,
-                              height: HANDLE_SIZE,
-                              left: px1 - HANDLE_SIZE / 2,
-                              top: sy1 - HANDLE_SIZE / 2,
-                            }}
-                          />
-                          <div
-                            onPointerDown={(e) => startResize(e, el, "bezier")}
-                            onDoubleClick={(e) => {
-                              e.stopPropagation();
-                              setElements((prev) =>
-                                prev.map((x) =>
-                                  x.id === el.id
-                                    ? { ...x, control_x: undefined, control_y: undefined }
-                                    : x
-                                )
-                              );
-                              onSnapshot();
-                            }}
-                            title="Double-click to straighten line"
-                            className="absolute bg-white border-2 border-teal-500 shadow-md z-50 cursor-crosshair rounded-full hover:bg-teal-50 touch-none"
-                            style={{
-                              width: HANDLE_SIZE,
-                              height: HANDLE_SIZE,
-                              left:
-                                (el.control_x !== undefined
-                                  ? (el.control_x - minX) * scale
-                                  : (px1 + px2) / 2) -
-                                HANDLE_SIZE / 2,
-                              top:
-                                (el.control_y !== undefined
-                                  ? bh * scale - (el.control_y - minY) * scale
-                                  : (sy1 + sy2) / 2) -
-                                HANDLE_SIZE / 2,
-                            }}
-                          />
-                          <div
-                            onPointerDown={(e) => startResize(e, el, "end")}
-                            className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
-                            style={{
-                              width: HANDLE_SIZE,
-                              height: HANDLE_SIZE,
-                              left: px2 - HANDLE_SIZE / 2,
-                              top: sy2 - HANDLE_SIZE / 2,
-                            }}
-                          />
-                        </>
-                      )}
+                      {isSel && (() => {
+                        const dx = (el.x2 ?? el.x) - el.x;
+                        const dy = (el.y2 ?? el.y) - el.y;
+                        const lineAngleRad = Math.atan2(dy, dx);
+                        let lineAngleDeg = Math.round((lineAngleRad * 180) / Math.PI);
+                        if (lineAngleDeg < 0) lineAngleDeg += 360;
+
+                        let bendAngleDeg = 0;
+                        if (el.control_x !== undefined && el.control_y !== undefined) {
+                          const chordLen = Math.sqrt(dx * dx + dy * dy);
+                          if (chordLen > 0) {
+                            const vx = el.control_x - el.x;
+                            const vy = el.control_y - el.y;
+                            const cross = dx * vy - dy * vx;
+                            bendAngleDeg = Math.round((Math.atan2(cross, (chordLen * chordLen) / 2) * 180) / Math.PI);
+                          }
+                        }
+
+                        const handleX = el.control_x !== undefined ? (el.control_x - minX) * scale : (px1 + px2) / 2;
+                        const handleY = el.control_y !== undefined ? bh * scale - (el.control_y - minY) * scale : (sy1 + sy2) / 2;
+
+                        return (
+                          <>
+                            {/* Realtime Angle & Bend Meter Tooltip Badge */}
+                            <div
+                              className="absolute z-50 pointer-events-none px-2.5 py-1 rounded-full bg-slate-900/90 text-white font-mono text-[11px] font-bold shadow-xl border border-teal-500/50 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
+                              style={{
+                                left: handleX,
+                                top: handleY - 36,
+                                transform: "translateX(-50%)",
+                              }}
+                            >
+                              <span className="text-teal-400 font-black">📐 {lineAngleDeg}°</span>
+                              {bendAngleDeg !== 0 && (
+                                <span className="text-amber-400 border-l border-slate-700 pl-1.5 font-bold">
+                                  🌀 Bend: {bendAngleDeg > 0 ? `+${bendAngleDeg}` : bendAngleDeg}°
+                                </span>
+                              )}
+                            </div>
+
+                            <div
+                              onPointerDown={(e) => startResize(e, el, "start")}
+                              className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
+                              style={{
+                                width: HANDLE_SIZE,
+                                height: HANDLE_SIZE,
+                                left: px1 - HANDLE_SIZE / 2,
+                                top: sy1 - HANDLE_SIZE / 2,
+                              }}
+                            />
+                            <div
+                              onPointerDown={(e) => startResize(e, el, "bezier")}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setElements((prev) =>
+                                  prev.map((x) =>
+                                    x.id === el.id
+                                      ? { ...x, control_x: undefined, control_y: undefined }
+                                      : x
+                                  )
+                                );
+                                onSnapshot();
+                              }}
+                              title="Double-click to straighten line"
+                              className="absolute bg-white border-2 border-teal-500 shadow-md z-50 cursor-crosshair rounded-full hover:bg-teal-50 touch-none"
+                              style={{
+                                width: HANDLE_SIZE,
+                                height: HANDLE_SIZE,
+                                left: handleX - HANDLE_SIZE / 2,
+                                top: handleY - HANDLE_SIZE / 2,
+                              }}
+                            />
+                            <div
+                              onPointerDown={(e) => startResize(e, el, "end")}
+                              className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
+                              style={{
+                                width: HANDLE_SIZE,
+                                height: HANDLE_SIZE,
+                                left: px2 - HANDLE_SIZE / 2,
+                                top: sy2 - HANDLE_SIZE / 2,
+                              }}
+                            />
+                          </>
+                        );
+                      })()}
                     </div>
                   );
                 }

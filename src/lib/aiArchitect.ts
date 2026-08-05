@@ -35,16 +35,10 @@ if (apiKey) {
 
 // Official Google Gemini API Available Models List
 export const GEMINI_MODELS = [
-  "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.6-flash",
-  "gemini-3.1-pro",
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
   "gemini-2.0-flash",
+  "gemini-1.5-flash",
   "gemini-2.0-flash-lite",
-  "gemini-flash-latest",
-  "gemini-pro-latest"
+  "gemini-1.5-pro"
 ];
 
 function cleanJSONResponse(raw: string): any {
@@ -67,30 +61,14 @@ function cleanJSONResponse(raw: string): any {
 }
 
 export function normalizeEditorElements(rawList: any[], targetPageId: string = "page-1"): EditorElement[] {
-  if (!Array.isArray(rawList)) return [];
+  if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
-  // Determine if Y coordinates in rawList are Top-Down (0 at top of page, 792 at bottom)
-  let isTopDown = false;
-  for (const item of rawList) {
-    const txt = String(item.text || item.content || item.heading || item.name || '').toLowerCase();
-    if (txt.length > 0 && typeof item.y === 'number' && item.y < 350 && idx_is_early(item, rawList)) {
-      isTopDown = true;
-      break;
-    }
-  }
-
-  function idx_is_early(target: any, list: any[]) {
-    const idx = list.indexOf(target);
-    return idx >= 0 && idx < 5;
-  }
-
-  return rawList.map((item, idx) => {
-    // Unique ID guarantee
+  // Step 1: Normalize element structure & calculate exact text heights
+  const normalized: EditorElement[] = rawList.map((item, idx) => {
     const id = item.id && String(item.id).trim().length > 0
       ? String(item.id)
       : `el_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
 
-    // Element Type ('text' | 'shape' | 'image')
     let elementType: 'text' | 'shape' | 'image' = 'text';
     const rawType = String(item.element_type || item.type || item.kind || '').toLowerCase();
     if (rawType.includes('shape') || item.shape_type || item.shape) {
@@ -105,59 +83,62 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
     const x = typeof item.x === 'number' && !isNaN(item.x) ? item.x : 40;
     const rawY = typeof item.y === 'number' && !isNaN(item.y) ? item.y : (50 + idx * 22);
 
-    // Convert top-down Y (0=top) to bottom-up Y (792=top) if needed
-    let y = isTopDown
-      ? Math.max(10, Math.min(770, 792 - rawY - 20))
-      : Math.max(10, Math.min(770, rawY));
+    const font_size = Number(item.font_size || item.fontSize || item.size || 11);
+    const font_name = String(item.font_name || item.fontFamily || item.font || "Helvetica");
+    const text_color = String(item.text_color || item.textColor || item.color || "#1E293B");
 
-    const z_index = typeof item.z_index === 'number' ? item.z_index : (elementType === 'shape' ? 1 : 2 + idx);
-
+    let text = "";
     if (elementType === 'text') {
       let rawText = item.text ?? item.content ?? item.value ?? item.label ?? item.heading ?? item.title ?? item.description ?? "";
       if (typeof rawText === 'object') {
         try { rawText = JSON.stringify(rawText); } catch (e) { rawText = "Text Block"; }
       }
-      const text = String(rawText).trim() || "Text Block";
+      text = String(rawText).trim() || "Text Block";
+    }
 
-      const font_size = Number(item.font_size || item.fontSize || item.size || 11);
-      const font_name = String(item.font_name || item.fontFamily || item.font || "Helvetica");
-      const text_color = String(item.text_color || item.textColor || item.color || "#1E293B");
-      const width = Number(item.width || Math.max(120, Math.min(532, text.length * font_size * 0.55)));
-      const height = Number(item.height || Math.max(16, Math.ceil(font_size * 1.4)));
+    const width = Number(item.width || (elementType === 'text' ? Math.max(140, Math.min(532, text.length * font_size * 0.55)) : 100));
 
+    // Dynamic line wrapping height calculation
+    let calculatedHeight = Number(item.height || 20);
+    if (elementType === 'text') {
+      const approxCharsPerLine = Math.max(15, Math.floor(width / (font_size * 0.55)));
+      const numLines = Math.max(1, Math.ceil(text.length / approxCharsPerLine));
+      calculatedHeight = Math.max(16, Math.ceil(numLines * font_size * 1.35));
+    }
+
+    const z_index = typeof item.z_index === 'number' ? item.z_index : (elementType === 'shape' ? 1 : 2 + idx);
+
+    if (elementType === 'text') {
       return {
         id,
         element_type: 'text',
         page_id,
         text,
         x,
-        y,
+        y: rawY,
         width,
-        height,
+        height: calculatedHeight,
         font_size,
         font_name,
         text_color,
         bold: Boolean(item.bold || item.isBold),
         italic: Boolean(item.italic || item.isItalic),
+        underline: Boolean(item.underline || item.isUnderline),
         align: item.align || 'left',
         z_index,
       } as any;
     } else if (elementType === 'shape') {
       const shape_type = item.shape_type || item.shape || (item.x2 !== undefined ? 'line' : 'rectangle');
-      const width = Number(item.width || (shape_type === 'line' ? Math.abs((item.x2 || x) - x) : 532));
-      const height = Number(item.height || (shape_type === 'line' ? 2 : 20));
-      const fill_color = String(item.fill_color || item.fillColor || item.fill || item.color || "#475569");
-
       return {
         id,
         element_type: 'shape',
         page_id,
         shape_type,
         x,
-        y,
-        width,
-        height,
-        fill_color,
+        y: rawY,
+        width: Number(item.width || (shape_type === 'line' ? Math.abs((item.x2 || x) - x) : 532)),
+        height: Number(item.height || (shape_type === 'line' ? 2 : 20)),
+        fill_color: String(item.fill_color || item.fillColor || item.fill || item.color || "#475569"),
         border_color: item.border_color || item.borderColor || item.stroke,
         border_width: Number(item.border_width || item.strokeWidth || 0),
         border_radius: Number(item.border_radius || item.borderRadius || 0),
@@ -171,7 +152,7 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
         element_type: 'image',
         page_id,
         x,
-        y,
+        y: rawY,
         width: Number(item.width || 24),
         height: Number(item.height || 24),
         image_path: String(item.image_path || item.src || ''),
@@ -181,6 +162,79 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
       } as any;
     }
   });
+
+  // Step 2: Detect 2-Column vs Single-Column Layout Structure
+  const isTwoColumn = normalized.some((e) => e.x >= 200 && e.x < 400 && e.y < 650) &&
+                      normalized.some((e) => e.x < 180 && e.y < 650);
+
+  // Step 3: Categorize Header vs Left vs Main Stream
+  const headerElements: EditorElement[] = [];
+  const leftElements: EditorElement[] = [];
+  const mainElements: EditorElement[] = [];
+
+  normalized.forEach((el, index) => {
+    (el as any)._originalIndex = index;
+
+    const isHeaderItem = index < 3 || 
+                         (el as any).font_size >= 18 || 
+                         (el.y > 690 && (el.element_type === 'image' || el.element_type === 'shape' || el.y > 700));
+
+    if (isHeaderItem) {
+      headerElements.push(el);
+    } else if (isTwoColumn && el.x < 200) {
+      leftElements.push(el);
+    } else {
+      mainElements.push(el);
+    }
+  });
+
+  // Helper: Stacks elements top-down ensuring zero overlap (CSS bottom = topY - height)
+  function solveTopDownStack(elements: EditorElement[], startTopY: number, defaultWidth: number) {
+    if (elements.length === 0) return startTopY;
+
+    elements.sort((a, b) => (a as any)._originalIndex - (b as any)._originalIndex);
+
+    let curTopY = startTopY;
+    elements.forEach((el) => {
+      if (el.element_type === 'text') {
+        if (!el.width || el.width < 100) el.width = defaultWidth;
+        const approxCharsPerLine = Math.max(15, Math.floor(el.width / (el.font_size * 0.55)));
+        const numLines = Math.max(1, Math.ceil(el.text.length / approxCharsPerLine));
+        el.height = Math.max(16, Math.ceil(numLines * el.font_size * 1.35));
+      }
+
+      // Set bottom coordinate so top edge sits at curTopY
+      el.y = curTopY - (el.height || 18);
+
+      const isBoldHeading = el.element_type === 'text' && (el as any).bold && (el as any).font_size >= 12;
+      const isSubHeading = el.element_type === 'text' && (el as any).bold;
+      const padding = isBoldHeading ? 14 : (isSubHeading ? 8 : 6);
+
+      // Next element's top edge starts below this element's bottom edge
+      curTopY = el.y - padding;
+    });
+
+    return Math.min(...elements.map((e) => e.y));
+  }
+
+  // Stack Header Elements from Y_top = 752
+  const headerBottomY = solveTopDownStack(headerElements, 752, 532);
+
+  // Content Stream starts below header
+  const contentStartTopY = headerElements.length > 0 ? headerBottomY - 14 : 660;
+
+  // Position Left Column & Main Column
+  if (isTwoColumn) {
+    solveTopDownStack(leftElements, contentStartTopY, 170);
+    solveTopDownStack(mainElements, contentStartTopY, 342);
+  } else {
+    solveTopDownStack(mainElements, contentStartTopY, 532);
+  }
+
+  // Clean up temporary internal field
+  normalized.forEach((el) => delete (el as any)._originalIndex);
+
+  return normalized;
 }
 
 export async function generateArchitectPlanDirect(

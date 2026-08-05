@@ -211,6 +211,13 @@ export function AIAssistantSidebar({
       } else {
         setResult(data.result || null);
         setFixes(data.fixes || []);
+
+        // AUTOMATICALLY APPLY GENERATED ELEMENTS TO CANVAS IF RETURNED
+        const returnedEls = (data as any).elements;
+        if (Array.isArray(returnedEls) && returnedEls.length > 0 && onInsertToCanvas) {
+          onInsertToCanvas(JSON.stringify(returnedEls));
+        }
+
         // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
         await deductCredits(10).catch(console.error);
         refreshCredits();

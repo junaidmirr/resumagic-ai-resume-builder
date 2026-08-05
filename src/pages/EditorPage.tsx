@@ -20,8 +20,9 @@ import { RESUME_BLOCKS } from "../utils/blocks";
 import { templates as RESUME_TEMPLATES } from "../lib/templates";
 import { TemplateThumbnailPreview } from "../components/dashboard/TemplateThumbnailPreview";
 import { extractTextFromPDF } from "../lib/pdfParser";
-import { buildResumeFromImportedText } from "../lib/aiArchitect";
+import { buildResumeFromImportedText, normalizeEditorElements } from "../lib/aiArchitect";
 import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
+import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
 import { PagePropertiesPanel } from "../components/editor/PagePropertiesPanel";
 import {
   Trash2,
@@ -523,6 +524,7 @@ export function EditorPage() {
   const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showAIArchitectModal, setShowAIArchitectModal] = useState(false);
   const { theme, setTheme } = useTheme();
   const { showAuthModal } = useAuthModal();
   const { confirm, prompt, alert } = useDialog();
@@ -675,40 +677,62 @@ export function EditorPage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [elements, pages, resumeTitle, cacheKey]);
 
-  // 3. Load & Auto-Restore Canvas on Mount / Refresh
+  // Helper: Detect if browser tab was actually reloaded vs normal SPA navigation
+  const isPageReload = () => {
+    try {
+      const navEntries = performance.getEntriesByType("navigation");
+      if (navEntries.length > 0) {
+        return (navEntries[0] as PerformanceNavigationTiming).type === "reload";
+      }
+      return (performance as any).navigation?.type === 1;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // 3. Load & Auto-Restore Canvas ONLY on accidental browser reload
   useEffect(() => {
     let restoredFromCache = false;
+    const isReload = isPageReload();
 
-    // Check emergency local cache first for instant reload recovery
-    const rawCache = localStorage.getItem(cacheKey);
-    if (rawCache) {
-      try {
-        const cached = JSON.parse(rawCache);
-        if (cached && Array.isArray(cached.elements) && cached.elements.length > 0) {
-          setElements(cached.elements);
-          if (Array.isArray(cached.pages) && cached.pages.length > 0) {
-            setPages(cached.pages);
+    if (isReload) {
+      // Check emergency local cache ONLY on accidental browser reload
+      const rawCache = localStorage.getItem(cacheKey);
+      if (rawCache) {
+        try {
+          const cached = JSON.parse(rawCache);
+          if (cached && Array.isArray(cached.elements) && cached.elements.length > 0) {
+            setElements(cached.elements);
+            if (Array.isArray(cached.pages) && cached.pages.length > 0) {
+              setPages(cached.pages);
+            }
+            if (cached.resumeTitle) {
+              setResumeTitle(cached.resumeTitle);
+            }
+            setUndoStack([cached.elements]);
+            const maxNum = Math.max(
+              0,
+              ...cached.elements.map((e: any) => {
+                const parts = e.id?.split("_") || [];
+                return parseInt(parts[parts.length - 1]) || 0;
+              })
+            );
+            counterRef.current = maxNum;
+            restoredFromCache = true;
           }
-          if (cached.resumeTitle) {
-            setResumeTitle(cached.resumeTitle);
-          }
-          setUndoStack([cached.elements]);
-          const maxNum = Math.max(
-            0,
-            ...cached.elements.map((e: any) => {
-              const parts = e.id?.split("_") || [];
-              return parseInt(parts[parts.length - 1]) || 0;
-            })
-          );
-          counterRef.current = maxNum;
-          restoredFromCache = true;
+        } catch (err) {
+          console.error("[Canvas Cache Restore Error]", err);
         }
-      } catch (err) {
-        console.error("[Canvas Cache Restore Error]", err);
       }
+    } else {
+      // Normal SPA route transition: Clear previous un-saved draft cache
+      try {
+        localStorage.removeItem(cacheKey);
+        localStorage.removeItem("resumagic_canvas_cache_draft");
+      } catch (e) {}
     }
 
-    // Cloud / Database Load (if not already restored or if Cloud data is fresher)
+    // Cloud / Database Load
     if (resumeId) {
       resumeService.getResume(resumeId, user?.uid).then((res) => {
         if (res) {
@@ -731,7 +755,7 @@ export function EditorPage() {
         }
       });
     } else if (!restoredFromCache) {
-      // Check for AI-designed resume from Wizard (legacy/transition)
+      // Check for AI-designed resume from Wizard
       const designed = localStorage.getItem("designed_resume");
       if (designed) {
         try {
@@ -745,6 +769,10 @@ export function EditorPage() {
         } finally {
           localStorage.removeItem("designed_resume");
         }
+      } else {
+        // Clear canvas elements if no designed resume and not reloading
+        setElements([]);
+        setUndoStack([[]]);
       }
     }
   }, [resumeId, user?.uid, cacheKey]);
@@ -788,6 +816,10 @@ export function EditorPage() {
           } else {
              await resumeService.createResume(user?.uid || "guest", docName || "Untitled", elements);
           }
+          try {
+            localStorage.removeItem(cacheKey);
+            localStorage.removeItem("resumagic_canvas_cache_draft");
+          } catch (e) {}
           navigate("/dashboard");
         } catch (err) {
           console.error("Cloud Save Failed:", err);
@@ -797,6 +829,11 @@ export function EditorPage() {
         }
       }
     } else {
+      // Discard changes & wipe canvas cache
+      try {
+        localStorage.removeItem(cacheKey);
+        localStorage.removeItem("resumagic_canvas_cache_draft");
+      } catch (e) {}
       navigate("/dashboard");
     }
   };
@@ -1688,6 +1725,24 @@ export function EditorPage() {
 
   const handleInsertToCanvas = (textToInsert: string) => {
     _snapshot();
+
+    if (typeof textToInsert === "string") {
+      const trimmed = textToInsert.trim();
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          const rawEls = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.elements) ? parsed.elements : null);
+          if (rawEls && rawEls.length > 0) {
+            const normalized = normalizeEditorElements(rawEls, activePageId);
+            setElements(normalized);
+            return;
+          }
+        } catch (e) {
+          // fallback to standard text insertion
+        }
+      }
+    }
+
     const newEl: EditorElement = {
       id: getNextId("text") + "_ai",
       element_type: "text",
@@ -2792,9 +2847,9 @@ export function EditorPage() {
       style={{ height: "100dvh", overflow: "hidden" }}
     >
       {/* ── TOP BAR ── */}
-      <header className="h-14 bg-app-surface/70 backdrop-blur-xl border-b border-app-border flex items-center justify-between px-4 shrink-0 z-30 shadow-sm select-none">
+      <header className="h-14 bg-app-surface/70 backdrop-blur-xl border-b border-app-border flex items-center justify-between px-3 shrink-0 z-30 shadow-sm select-none gap-2 overflow-x-auto no-scrollbar">
         {/* LEFT: Brand & Document Name */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleExit}
             className="p-1.5 rounded-lg hover:bg-app-bg transition-colors text-app-text-secondary hover:text-app-text"
@@ -2803,22 +2858,22 @@ export function EditorPage() {
             <LucideIcons.LayoutGrid size={18} />
           </button>
           
-          <div className="w-px h-5 bg-app-border mx-1" />
+          <div className="w-px h-5 bg-app-border mx-0.5" />
           
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-brand-primary to-indigo-600 rounded-lg flex items-center justify-center shadow-md border border-white/20">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-7 h-7 bg-gradient-to-br from-brand-primary to-indigo-600 rounded-lg flex items-center justify-center shadow-md border border-white/20 shrink-0">
               <LucideIcons.FileText className="w-4 h-4 text-white" />
             </div>
             <input
               type="text"
               value={resumeTitle}
               onChange={(e) => setResumeTitle(e.target.value)}
-              className="bg-transparent font-bold text-sm tracking-tight outline-none focus:bg-app-bg hover:bg-app-bg focus:px-2 hover:px-2 rounded transition-all w-32 sm:w-48 text-app-text"
+              className="bg-transparent font-bold text-xs sm:text-sm tracking-tight outline-none focus:bg-app-bg hover:bg-app-bg focus:px-2 hover:px-2 rounded transition-all w-24 sm:w-40 text-app-text truncate"
               placeholder="Untitled Document"
             />
           </div>
           
-          <div className="hidden lg:flex items-center gap-2 ml-2 px-2.5 py-1 bg-app-bg rounded-full border border-app-border text-[10px] font-bold text-app-text-muted">
+          <div className="hidden xl:flex items-center gap-2 ml-1 px-2.5 py-1 bg-app-bg rounded-full border border-app-border text-[10px] font-bold text-app-text-muted shrink-0">
             {isSyncing ? (
               <>
                 <RefreshCw size={12} className="animate-spin text-indigo-500" />
@@ -2835,8 +2890,8 @@ export function EditorPage() {
           </div>
         </div>
 
-        {/* CENTER: Tool Toggles */}
-        <div className="hidden md:flex items-center justify-center gap-1 shrink-0 absolute left-1/2 -translate-x-1/2 bg-app-bg/80 backdrop-blur-md p-1 rounded-xl border border-app-border shadow-sm">
+        {/* CENTER: Tool Toggles (Undo/Redo & Zoom) */}
+        <div className="hidden md:flex items-center justify-center gap-1 shrink-0 bg-app-bg/80 backdrop-blur-md p-1 rounded-xl border border-app-border shadow-sm">
           <IconBtn icon={RotateCcw} onClick={undo} disabled={!undoStack.length} title="Undo (⌘Z)" />
           <IconBtn icon={RotateCw} onClick={redo} disabled={!redoStack.length} title="Redo (⌘Y)" />
           <div className="w-px h-5 bg-app-border mx-1" />
@@ -2846,7 +2901,7 @@ export function EditorPage() {
             <button onClick={() => setZoom((z) => Math.max(25, z - 10))} className="p-1.5 hover:bg-app-surface rounded-lg shadow-sm text-app-text-secondary hover:text-indigo-500 transition-colors">
               <ZoomOut size={14} />
             </button>
-            <span className="w-12 text-center text-app-text-secondary cursor-pointer hover:text-indigo-500 font-semibold" onClick={() => setZoom(100)}>
+            <span className="w-10 text-center text-app-text-secondary cursor-pointer hover:text-indigo-500 font-semibold text-[11px]" onClick={() => setZoom(100)}>
               {zoom}%
             </span>
             <button onClick={() => setZoom((z) => Math.min(200, z + 10))} className="p-1.5 hover:bg-app-surface rounded-lg shadow-sm text-app-text-secondary hover:text-indigo-500 transition-colors">
@@ -2856,12 +2911,12 @@ export function EditorPage() {
         </div>
 
         {/* RIGHT: Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => exportImage("png")}
             disabled={isExporting}
-            className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg shadow-sm bg-app-bg border border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500 transition-all disabled:opacity-50"
+            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg shadow-sm bg-app-bg border border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500 transition-all disabled:opacity-50"
             title="Export as PNG"
           >
             <LucideIcons.Image size={14} />
@@ -2871,7 +2926,7 @@ export function EditorPage() {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => exportImage("jpeg")}
             disabled={isExporting}
-            className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg shadow-sm bg-app-bg border border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500 transition-all disabled:opacity-50"
+            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg shadow-sm bg-app-bg border border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500 transition-all disabled:opacity-50"
             title="Export as JPG"
           >
             <LucideIcons.Camera size={14} />
@@ -2901,25 +2956,34 @@ export function EditorPage() {
           
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setShowChatbot((p) => !p)}
-            className={`hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showChatbot ? 'bg-indigo-500 border-indigo-600 text-white shadow-sm' : 'bg-app-bg border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500'}`}
+            onClick={() => setShowAIArchitectModal(true)}
+            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 shadow-sm shrink-0"
           >
-            <LucideIcons.Sparkles size={14} className={showChatbot ? 'animate-pulse' : ''} />
-            AI Tools
+            <LucideIcons.Wand2 size={13} className="text-indigo-500" />
+            <span className="hidden md:inline">AI Architect</span>
+          </button>
+
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowChatbot((p) => !p)}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${showChatbot ? 'bg-indigo-500 border-indigo-600 text-white shadow-sm' : 'bg-app-bg border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500'}`}
+          >
+            <LucideIcons.Sparkles size={13} className={showChatbot ? 'animate-pulse' : ''} />
+            <span className="hidden md:inline">AI Tools</span>
           </button>
 
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleExport}
             disabled={isExporting}
-            className="flex items-center gap-2 text-xs font-bold px-4 py-1.5 rounded-lg shadow-[0_4px_12px_-4px_rgba(79,70,229,0.5)]
-              bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg shadow-[0_4px_12px_-4px_rgba(79,70,229,0.5)]
+              bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white transition-all disabled:opacity-50 shrink-0"
           >
-            {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {isExporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
             <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export PDF"}</span>
           </button>
           
-          <div className="w-px h-5 bg-app-border mx-1 hidden sm:block" />
+          <div className="w-px h-5 bg-app-border mx-0.5 hidden sm:block" />
           
           {user && (
             <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-xs font-bold shrink-0 border border-amber-500/20 shadow-sm">
@@ -2928,7 +2992,7 @@ export function EditorPage() {
             </div>
           )}
 
-          <div className="relative">
+          <div className="relative shrink-0">
             <button 
               onClick={() => setShowProfileMenu((p) => !p)}
               className="flex w-7 h-7 rounded-full bg-app-bg border-2 border-app-border overflow-hidden shadow-sm items-center justify-center shrink-0 hover:border-brand-primary transition-all active:scale-95"
@@ -3878,6 +3942,17 @@ export function EditorPage() {
         title="Unlock PRO Resume & Cover Letter Templates"
         description="Upgrade to Pro access to unlock all executive templates and design tools."
         featureName="PRO Templates"
+      />
+
+      <AIArchitectModal
+        isOpen={showAIArchitectModal}
+        onClose={() => setShowAIArchitectModal(false)}
+        onSuccess={(newEls, title) => {
+          _snapshot();
+          setElements(newEls);
+          if (title) setResumeTitle(title);
+          setShowAIArchitectModal(false);
+        }}
       />
     </div>
   );

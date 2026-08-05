@@ -55,11 +55,29 @@ export function OnboardingPage() {
         elements
       );
       localStorage.setItem("current_resume_id", id);
+      localStorage.setItem(
+        `resumagic_canvas_cache_${id}`,
+        JSON.stringify({
+          elements,
+          pages: [{ id: "page-1", width: 612, height: 792 }],
+          resumeTitle: title || "AI Architect Resume",
+          timestamp: Date.now(),
+        })
+      );
       navigate("/editor");
     } catch (err) {
       console.error("Failed to create resume:", err);
       const localId = "local_" + Math.random().toString(36).substring(2, 9);
       localStorage.setItem("current_resume_id", localId);
+      localStorage.setItem(
+        `resumagic_canvas_cache_${localId}`,
+        JSON.stringify({
+          elements,
+          pages: [{ id: "page-1", width: 612, height: 792 }],
+          resumeTitle: title || "AI Architect Resume",
+          timestamp: Date.now(),
+        })
+      );
       navigate("/editor");
     }
   };

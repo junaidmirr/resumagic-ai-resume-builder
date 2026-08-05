@@ -83,11 +83,29 @@ export function DashboardPage() {
         elements
       );
       localStorage.setItem("current_resume_id", id);
+      localStorage.setItem(
+        `resumagic_canvas_cache_${id}`,
+        JSON.stringify({
+          elements,
+          pages: [{ id: "page-1", width: 612, height: 792 }],
+          resumeTitle: title || "AI Architect Resume",
+          timestamp: Date.now(),
+        })
+      );
       navigate("/editor");
     } catch (err) {
       console.error("Failed to create resume:", err);
       const localId = "local_" + Math.random().toString(36).substring(2, 9);
       localStorage.setItem("current_resume_id", localId);
+      localStorage.setItem(
+        `resumagic_canvas_cache_${localId}`,
+        JSON.stringify({
+          elements,
+          pages: [{ id: "page-1", width: 612, height: 792 }],
+          resumeTitle: title || "AI Architect Resume",
+          timestamp: Date.now(),
+        })
+      );
       navigate("/editor");
     }
   };
@@ -720,7 +738,7 @@ export function DashboardPage() {
                           </div>
                           <button
                             onClick={(e) => handleDelete(e, resume.id!)}
-                            className="p-2 text-app-text-muted hover:text-brand-danger hover:bg-brand-danger/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-2 text-app-text-muted hover:text-brand-danger hover:bg-brand-danger/10 rounded-lg transition-colors shrink-0"
                             title="Delete resume"
                           >
                             <Trash2 className="w-4 h-4" />

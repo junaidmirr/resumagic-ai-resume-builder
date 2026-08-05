@@ -112,6 +112,77 @@ export function EditorCanvas({
   // baseScale already fits the page; zoom% multiplies on top of that
   const scale = baseScale === null ? null : baseScale * (zoom / 100);
 
+  // ── Touch Gesture Engine (Double-Tap & Long-Press for Touch Devices) ──
+  const lastTapRef = useRef<{ id: string; time: number; x: number; y: number } | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPosRef = useRef<{ id: string; x: number; y: number } | null>(null);
+
+  const clearLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartPosRef.current = null;
+  };
+
+  const handleElementPointerDown = (e: ReactPointerEvent, el: EditorElement) => {
+    if (el.locked) return;
+
+    // Detect touch interaction
+    const isTouch = e.pointerType === "touch" || ("ontouchstart" in window && e.pointerType !== "mouse");
+    const isAlreadySelected = selectedIds.includes(el.id);
+
+    // Mouse pointer OR already selected element: immediate selection & drag
+    if (!isTouch || isAlreadySelected) {
+      clearLongPress();
+      startDrag(e, el);
+      return;
+    }
+
+    // TOUCH DEVICE & UNSELECTED ELEMENT:
+    // Single tap does NOT select element. Double tap OR long-press (~400ms) selects element!
+    e.stopPropagation();
+
+    const now = Date.now();
+    const touchX = e.clientX;
+    const touchY = e.clientY;
+
+    // 1. Check for Double-Tap (within 350ms & within 35px distance)
+    const lastTap = lastTapRef.current;
+    if (
+      lastTap &&
+      lastTap.id === el.id &&
+      now - lastTap.time < 350 &&
+      Math.abs(touchX - lastTap.x) < 35 &&
+      Math.abs(touchY - lastTap.y) < 35
+    ) {
+      clearLongPress();
+      lastTapRef.current = null;
+      if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+        try { window.navigator.vibrate(35); } catch {}
+      }
+      startDrag(e, el);
+      return;
+    }
+
+    // Record last tap for double tap tracking
+    lastTapRef.current = { id: el.id, time: now, x: touchX, y: touchY };
+
+    // 2. Start Long-Press Timer (~400ms)
+    clearLongPress();
+    touchStartPosRef.current = { id: el.id, x: touchX, y: touchY };
+
+    longPressTimerRef.current = setTimeout(() => {
+      if (touchStartPosRef.current && touchStartPosRef.current.id === el.id) {
+        if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+          try { window.navigator.vibrate(50); } catch {}
+        }
+        setSelectedIds([el.id]);
+        clearLongPress();
+      }
+    }, 400);
+  };
+
   // ── Pointer handlers ──────────────────────────────────────
   const startDrag = (e: ReactPointerEvent, el: EditorElement) => {
     e.stopPropagation();
@@ -201,6 +272,13 @@ export function EditorCanvas({
   };
 
   const handlePointerMove = (e: ReactPointerEvent) => {
+    if (touchStartPosRef.current) {
+      const dx = Math.abs(e.clientX - touchStartPosRef.current.x);
+      const dy = Math.abs(e.clientY - touchStartPosRef.current.y);
+      if (dx > 10 || dy > 10) {
+        clearLongPress();
+      }
+    }
     if (!action || origEls.length === 0 || scale === null) return;
     const dpx = (e.clientX - dragStart.x) / scale;
     const dpy = -(e.clientY - dragStart.y) / scale;
@@ -385,6 +463,7 @@ export function EditorCanvas({
   };
 
   const handlePointerUp = (e: ReactPointerEvent) => {
+    clearLongPress();
     if (action) {
       setElements(localElementsRef.current);
       try {
@@ -536,7 +615,7 @@ export function EditorCanvas({
                     }}
                   />
                 ) : null}
-                {pageElements.map((el) => {
+                {pageElements.map((el, idx) => {
               const isSel = selectedIds.includes(el.id);
               const baseStyle: React.CSSProperties = {
                 position: "absolute",
@@ -553,9 +632,9 @@ export function EditorCanvas({
 
                 return (
                   <div
-                    key={el.id}
+                    key={el.id ? `${el.id}_${idx}` : `text_${idx}`}
                     onPointerDown={(e) => {
-                      if (!isEditing) startDrag(e, el);
+                      if (!isEditing) handleElementPointerDown(e, el);
                     }}
                     onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                     onDoubleClick={() => setEditingTextId(el.id)}
@@ -650,8 +729,8 @@ export function EditorCanvas({
                 if (el.shape_type === "rectangle") {
                   return (
                     <div
-                      key={el.id}
-                      onPointerDown={(e) => startDrag(e, el)}
+                      key={el.id ? `${el.id}_${idx}` : `rect_${idx}`}
+                      onPointerDown={(e) => handleElementPointerDown(e, el)}
                       onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       className={`absolute cursor-move touch-none
                         ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
@@ -668,7 +747,7 @@ export function EditorCanvas({
                 }                if (el.shape_type === "path" || el.shape_type === "polygon") {
                   return (
                     <div
-                      key={el.id}
+                      key={el.id ? `${el.id}_${idx}` : `path_${idx}`}
                       className="absolute pointer-events-none touch-none"
                       style={{
                         left: 0,
@@ -687,7 +766,7 @@ export function EditorCanvas({
                           {el.shape_type === "path" && el.path_d && (
                             <path
                               className={`pointer-events-auto cursor-move touch-none ${isSel ? 'stroke-teal-500' : ''}`}
-                              onPointerDown={(e) => startDrag(e, el)}
+                              onPointerDown={(e) => handleElementPointerDown(e, el)}
                               onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                               d={el.path_d}
                               fill={el.fill_color && el.fill_color !== "none" && el.fill_color !== "transparent" ? el.fill_color : "none"}
@@ -706,7 +785,7 @@ export function EditorCanvas({
                           {el.shape_type === "polygon" && el.points && (
                             <polygon
                               className={`pointer-events-auto cursor-move touch-none ${isSel ? 'stroke-teal-500' : ''}`}
-                              onPointerDown={(e) => startDrag(e, el)}
+                              onPointerDown={(e) => handleElementPointerDown(e, el)}
                               onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                               points={Array.isArray(el.points) ? el.points.reduce((acc, val, i) => acc + (i % 2 === 0 ? val + "," : val + " "), "") : el.points}
                               fill={el.fill_color || "transparent"}
@@ -724,8 +803,8 @@ export function EditorCanvas({
                   const d = ((el as any).width || 100) * scale;
                   return (
                     <div
-                      key={el.id}
-                      onPointerDown={(e) => startDrag(e, el)}
+                      key={el.id ? `${el.id}_${idx}` : `circle_${idx}`}
+                      onPointerDown={(e) => handleElementPointerDown(e, el)}
                       onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       className={`absolute cursor-move rounded-full touch-none
                         ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
@@ -766,7 +845,7 @@ export function EditorCanvas({
 
                   return (
                     <div
-                      key={el.id}
+                      key={el.id ? `${el.id}_${idx}` : `line_${idx}`}
                       className="absolute touch-none"
                       onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                       style={{
@@ -802,42 +881,25 @@ export function EditorCanvas({
                         )}
                         {el.control_x !== undefined &&
                         el.control_y !== undefined ? (
-                          <>
-                            <path
-                              d={`M ${px1} ${sy1} Q ${
-                                ((el.control_x as number) - minX) * scale
-                              } ${
-                                bh * scale - ((el.control_y as number) - minY) * scale
-                              } ${px2} ${sy2}`}
-                              stroke="transparent"
-                              strokeWidth={Math.max(
-                                (el.border_width || 2) * scale,
-                                32,
-                              )}
-                              fill="none"
-                              className="cursor-move touch-none"
-                              onPointerDown={(e) => startDrag(e, el)}
-                            />
-                            <path
-                              d={`M ${px1} ${sy1} Q ${
-                                ((el.control_x as number) - minX) * scale
-                              } ${
-                                bh * scale - ((el.control_y as number) - minY) * scale
-                              } ${px2} ${sy2}`}
-                              stroke={
-                                isSel ? "#0d9488" : el.border_color || "#000"
-                              }
-                              strokeWidth={(el.border_width || 2) * scale}
-                              strokeLinecap="round"
-                              fill="none"
-                              markerEnd={
-                                el.shape_type === "arrow"
-                                  ? `url(#ah-${el.id})`
-                                  : undefined
-                              }
-                              className="pointer-events-none"
-                            />
-                          </>
+                          <path
+                            d={`M ${px1} ${sy1} Q ${
+                              ((el.control_x as number) - minX) * scale
+                            } ${
+                              bh * scale - ((el.control_y as number) - minY) * scale
+                            } ${px2} ${sy2}`}
+                            fill="none"
+                            stroke={
+                              isSel ? "#0d9488" : el.border_color || "#000"
+                            }
+                            strokeWidth={(el.border_width || 2) * scale}
+                            strokeLinecap="round"
+                            markerEnd={
+                              el.shape_type === "arrow"
+                                ? `url(#ah-${el.id})`
+                                : undefined
+                            }
+                            className="pointer-events-none"
+                          />
                         ) : (
                           <>
                             <line
@@ -846,12 +908,9 @@ export function EditorCanvas({
                               x2={px2}
                               y2={sy2}
                               stroke="transparent"
-                              strokeWidth={Math.max(
-                                (el.border_width || 2) * scale,
-                                32,
-                              )}
-                              className="cursor-move touch-none"
-                              onPointerDown={(e) => startDrag(e, el)}
+                              strokeWidth={Math.max(16, (el.border_width || 2) * scale * 2)}
+                              className="cursor-pointer pointer-events-auto"
+                              onPointerDown={(e) => handleElementPointerDown(e, el)}
                             />
                             <line
                               x1={px1}
@@ -968,7 +1027,7 @@ export function EditorCanvas({
                 return (
                   <div
                     key={el.id}
-                    onPointerDown={(e) => startDrag(e, el)}
+                    onPointerDown={(e) => handleElementPointerDown(e, el)}
                     onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
                     className={`absolute cursor-move touch-none
                       ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}

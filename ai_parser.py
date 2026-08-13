@@ -18,7 +18,7 @@ Key Fixes:
 Canvas spec: 612 x 792 pts, origin at BOTTOM-LEFT.
 Y increases UPWARD. Y=0 is the bottom of the page, Y=792 is the top.
 """
-import os, io, json, re, requests, base64, math
+import os, io, json, re, requests, base64, math, time
 from collections import Counter
 try:
     import fitz

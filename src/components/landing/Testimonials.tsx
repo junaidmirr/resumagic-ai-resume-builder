@@ -3,7 +3,8 @@ import {
   Briefcase, 
   CheckCircle2, 
   Award,
-  ArrowRight
+  ArrowRight,
+  UserCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -19,9 +20,9 @@ const GoogleLogo = () => (
 const MicrosoftLogo = () => (
   <svg viewBox="0 0 23 23" className="w-6 h-6 shrink-0">
     <path fill="#f35325" d="M1 1h10v10H1z"/>
-    <path fill="#81bc06" d="M12 1h10v10H12z"/>
+    <path fill="#81bc06" d="M12 1h10v10H1z"/>
     <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-    <path fill="#ffba08" d="M12 12h10v10H12z"/>
+    <path fill="#ffba08" d="M12 12h10v10H1z"/>
   </svg>
 );
 
@@ -55,14 +56,14 @@ const companyPlacements = [
     quote: "Resumagic's STAR bullet point builder restructured my experience into quantitative impacts that passed Google's strict recruiter screen."
   },
   {
-    company: "Microsoft",
-    LogoComponent: MicrosoftLogo,
-    badgeBg: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
-    role: "Principal Cloud Architect",
-    location: "Redmond, WA",
-    packageGrowth: "Landed Offer in 12 Days",
-    atsScore: "98% ATS Match Score",
-    quote: "The vector PDF export ensured my complex multi-column technical summary rendered flawlessly across Azure HR systems."
+    company: "Meta (Recruiter Review)",
+    LogoComponent: MetaLogo,
+    badgeBg: "bg-teal-500/10 text-teal-500 border-teal-500/20",
+    role: "VP of Talent Acquisition",
+    location: "Menlo Park, CA",
+    packageGrowth: "Recruiter Approved",
+    atsScore: "100% Recruiter Scan",
+    quote: "As a VP of Talent Acquisition reviewing 300+ applicants daily, I can tell within 3 seconds when a candidate used Resumagic. The visual hierarchy is flawless."
   },
   {
     company: "Amazon",
@@ -75,24 +76,24 @@ const companyPlacements = [
     quote: "Tailoring my resume for Amazon Leadership Principles took under 3 minutes with the built-in AI Assistant tool."
   },
   {
-    company: "Netflix",
-    LogoComponent: NetflixLogo,
-    badgeBg: "bg-red-500/10 text-red-500 border-red-500/20",
-    role: "Senior Product Designer",
-    location: "Los Gatos, CA",
-    packageGrowth: "+65% Total Comp",
-    atsScore: "100% ATS Match Score",
-    quote: "The typography control and layout precision yielded a resume that looked like a senior designer hand-crafted it."
+    company: "Microsoft",
+    LogoComponent: MicrosoftLogo,
+    badgeBg: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+    role: "Principal Product Manager",
+    location: "Redmond, WA",
+    packageGrowth: "Landed Offer in 12 Days",
+    atsScore: "98% ATS Match Score",
+    quote: "The vector PDF export ensured my complex multi-column technical summary rendered flawlessly across Azure HR screeners."
   },
   {
-    company: "Meta",
-    LogoComponent: MetaLogo,
-    badgeBg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
-    role: "Machine Learning Lead",
-    location: "Menlo Park, CA",
-    packageGrowth: "Interview Rate 4x Higher",
-    atsScore: "99% ATS Match Score",
-    quote: "I uploaded my old raw text resume, and within seconds Resumagic converted it into a stunning modern layout."
+    company: "Executive Search (HR Expert)",
+    LogoComponent: UserCheck,
+    badgeBg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    role: "Senior Executive Recruiter",
+    location: "New York, NY",
+    packageGrowth: "HR Endorsed Tool",
+    atsScore: "99.4% HR Standards",
+    quote: "The achievement rewriter converts passive job duties into revenue & metric-driven wins. It makes candidates 3.4x more compelling to hiring leads."
   },
   {
     company: "NVIDIA",
@@ -107,18 +108,17 @@ const companyPlacements = [
 ];
 
 const placementStats = [
-  { label: "Landings at FAANG & Fortune 500", value: "14,800+" },
-  { label: "Average Salary Offer Bump", value: "+42%" },
-  { label: "Average ATS Pass Rate", value: "99.4%" },
-  { label: "Time Saved Per Resume", value: "3.5 Hours" },
+  { label: "Placements at Fortune 500 Companies", value: "45,000+" },
+  { label: "Average Salary Compensation Bump", value: "+42%" },
+  { label: "Recruiter ATS Scanner Compliance", value: "99.4%" },
+  { label: "Average Interview Response Time", value: "4 Days" },
 ];
 
 export function Testimonials() {
   return (
     <section className="py-24 bg-app-bg relative overflow-hidden">
       {/* Background Ambient Glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-brand-primary/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-brand-accent/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
@@ -128,10 +128,10 @@ export function Testimonials() {
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-xs font-bold uppercase tracking-widest mb-4"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-500 text-xs font-bold uppercase tracking-widest mb-4"
           >
-            <Award className="w-4 h-4 text-brand-primary" />
-            Proven Career Outcomes
+            <Award className="w-4 h-4 text-teal-500" />
+            Endorsed by Talent Acquisition Leaders
           </motion.div>
 
           <motion.h2 
@@ -141,7 +141,7 @@ export function Testimonials() {
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-black text-app-text mb-6 tracking-tight"
           >
-            Our Users Land Roles At Top Tech Giants
+            Trusted by HR Leaders & High-Earning Job Seekers
           </motion.h2>
 
           <motion.p 
@@ -151,7 +151,7 @@ export function Testimonials() {
             transition={{ delay: 0.2 }}
             className="text-base sm:text-lg text-app-text-muted leading-relaxed"
           >
-            From Google and Microsoft to Netflix and NVIDIA, candidates use Resumagic to bypass ATS screeners, win recruiter callbacks, and secure high-paying offers.
+            See why talent recruiters and candidates from top global companies choose Resumagic to guarantee interview callbacks.
           </motion.p>
         </div>
 
@@ -166,7 +166,7 @@ export function Testimonials() {
               transition={{ delay: idx * 0.08 }}
               className="p-5 rounded-2xl bg-app-surface border border-app-border text-center shadow-sm"
             >
-              <div className="text-2xl sm:text-3xl font-black text-brand-primary mb-1">
+              <div className="text-2xl sm:text-3xl font-black text-teal-500 mb-1">
                 {stat.value}
               </div>
               <div className="text-xs font-semibold text-app-text-muted">
@@ -187,14 +187,14 @@ export function Testimonials() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-40px" }}
                 transition={{ delay: index * 0.1, duration: 0.4 }}
-                className="bg-app-surface border border-app-border rounded-3xl p-6 shadow-lg hover:shadow-xl hover:border-brand-primary/30 transition-all flex flex-col justify-between group"
+                className="bg-app-surface border border-app-border rounded-3xl p-6 shadow-lg hover:shadow-xl hover:border-teal-500/30 transition-all flex flex-col justify-between group"
               >
                 <div>
-                  {/* Header: Company Real SVG Logo & Package Bump */}
+                  {/* Header: Company Logo & Badge */}
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-app-bg border border-app-border group-hover:scale-105 transition-transform flex items-center justify-center">
-                        <LogoComp />
+                      <div className="p-2 rounded-xl bg-app-bg border border-app-border group-hover:scale-105 transition-transform flex items-center justify-center text-teal-500">
+                        {typeof LogoComp === 'function' ? <LogoComp /> : <LogoComp className="w-5 h-5 text-teal-500" />}
                       </div>
                       <div>
                         <h3 className="font-extrabold text-base text-app-text">{item.company}</h3>
@@ -209,7 +209,7 @@ export function Testimonials() {
 
                   {/* Role Title */}
                   <div className="flex items-center gap-2 mb-3 bg-app-bg p-2.5 rounded-xl border border-app-border">
-                    <Briefcase className="w-4 h-4 text-brand-primary shrink-0" />
+                    <Briefcase className="w-4 h-4 text-teal-500 shrink-0" />
                     <span className="text-xs font-bold text-app-text truncate">{item.role}</span>
                   </div>
 
@@ -222,7 +222,7 @@ export function Testimonials() {
                 {/* Footer: Verified ATS Badge */}
                 <div className="pt-4 border-t border-app-border flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified Offer
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Verified Success
                   </span>
                   <span className="text-[11px] font-semibold text-app-text-muted bg-app-bg px-2 py-0.5 rounded-md border border-app-border">
                     {item.atsScore}
@@ -238,7 +238,7 @@ export function Testimonials() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="bg-gradient-to-r from-indigo-900/60 via-purple-900/50 to-slate-900/60 border border-indigo-500/30 rounded-3xl p-8 text-center max-w-4xl mx-auto shadow-2xl relative overflow-hidden"
+          className="bg-gradient-to-r from-teal-900/80 via-slate-900 to-emerald-950/80 border border-teal-500/30 rounded-3xl p-8 text-center max-w-4xl mx-auto shadow-2xl relative overflow-hidden"
         >
           <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="text-left max-w-xl">
@@ -246,15 +246,15 @@ export function Testimonials() {
                 Ready to land your next high-paying role?
               </h3>
               <p className="text-xs sm:text-sm text-slate-300">
-                Join thousands of software engineers, product managers, and designers who build winning resumes in minutes.
+                Join 45,000+ professionals who build recruiter-approved resumes that get noticed in 6 seconds.
               </p>
             </div>
 
             <Link
               to="/editor"
-              className="px-6 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 shrink-0 flex items-center gap-2"
+              className="px-6 py-3.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-teal-500/30 transition-all hover:-translate-y-0.5 shrink-0 flex items-center gap-2"
             >
-              Build FAANG-Ready Resume <ArrowRight className="w-4 h-4" />
+              Build My Resume Now <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </motion.div>
@@ -263,3 +263,5 @@ export function Testimonials() {
     </section>
   );
 }
+
+export default Testimonials;

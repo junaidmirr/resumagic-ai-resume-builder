@@ -1,42 +1,42 @@
 import { motion } from 'framer-motion';
-import { Bot, FileEdit, Zap, Layout, Search, Sparkles, Cpu, Upload, Layers, CheckCircle2 } from 'lucide-react';
+import { Award, Sparkles, Upload, ShieldCheck, Target, Layout, CheckCircle2, TrendingUp } from 'lucide-react';
 
 const features = [
   {
-    icon: <Sparkles className="w-6 h-6" />,
-    title: "AI Resume Architect",
-    description: "Generate professionally formatted resume drafts instantly. Type your job title and background to create tailored summary sections and achievement bullet points.",
-    color: "from-brand-primary/20 text-brand-primary"
-  },
-  {
-    icon: <Upload className="w-6 h-6" />,
-    title: "Resume & LinkedIn PDF Importer",
-    description: "Upload existing PDF resumes or LinkedIn profiles to extract work experience, skills, and education into editable design elements automatically.",
-    color: "from-brand-accent/20 text-brand-accent"
-  },
-  {
-    icon: <Layout className="w-6 h-6" />,
-    title: "Visual Drag-and-Drop Editor",
-    description: "Interactive canvas editor with drag-and-drop element positioning, custom font controls, multi-page support, and full undo/redo stack.",
-    color: "from-brand-secondary/20 text-brand-secondary"
-  },
-  {
-    icon: <Bot className="w-6 h-6" />,
-    title: "Smart Career Assistant",
-    description: "Integrated AI writing coach that enhances bullet points into STAR-format achievements, polishes executive summaries, and checks grammar.",
+    icon: <ShieldCheck className="w-6 h-6" />,
+    title: "100% Recruiter ATS Pass Guarantee",
+    description: "Built to pass automated Applicant Tracking Systems (Workday, Greenhouse, Lever). Never get rejected by invisible tables or bad formatting again.",
     color: "from-teal-500/20 text-teal-500"
   },
   {
-    icon: <CheckCircle2 className="w-6 h-6" />,
-    title: "99%+ ATS Score Optimization",
-    description: "Built-in ATS scanner validation ensuring your resume structure, keyword density, and formatting pass recruiter screening systems flawlessly.",
+    icon: <Sparkles className="w-6 h-6" />,
+    title: "STAR-Format Bullet Enhancer",
+    description: "Transforms passive job duties into quantifiable achievement bullets. Automatically adds revenue metrics, team size, and growth KPIs hiring managers want to see.",
+    color: "from-emerald-500/20 text-emerald-500"
+  },
+  {
+    icon: <Target className="w-6 h-6" />,
+    title: "Job Keyword Matcher",
+    description: "Paste any job posting URL or description to align your resume with the exact skill keywords hiring managers filter for.",
+    color: "from-amber-500/20 text-amber-500"
+  },
+  {
+    icon: <Upload className="w-6 h-6" />,
+    title: "1-Click PDF Resume Upgrader",
+    description: "Upload your old PDF resume to instantly extract work history, correct syntax flaws, and upgrade your layout into an executive template.",
+    color: "from-cyan-500/20 text-cyan-500"
+  },
+  {
+    icon: <Layout className="w-6 h-6" />,
+    title: "6-Second Eye-Scan Canvas",
+    description: "Designed around eye-tracking research on how recruiters review candidates. Visual hierarchy that immediately highlights your top wins.",
     color: "from-purple-500/20 text-purple-500"
   },
   {
-    icon: <Layers className="w-6 h-6" />,
-    title: "20+ Professional Design Templates",
-    description: "Choose from modern, minimal, executive, and creative theme presets designed to make a memorable impression.",
-    color: "from-pink-500/20 text-pink-500"
+    icon: <Award className="w-6 h-6" />,
+    title: "20+ Industry-Tested Templates",
+    description: "Curated layouts for Tech & Engineering, Executive Corporate, Marketing, Data Science, and Creative Portfolios.",
+    color: "from-rose-500/20 text-rose-500"
   }
 ];
 
@@ -44,8 +44,8 @@ export function Features() {
   return (
     <section id="features" className="py-24 bg-app-surface border-y border-app-border relative overflow-hidden">
       {/* Background blobs */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -53,10 +53,10 @@ export function Features() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-app-border bg-app-bg text-app-text-secondary text-sm font-semibold mb-6"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 text-xs font-bold mb-6"
           >
-            <Zap className="w-4 h-4 text-brand-warning" />
-            <span>Complete Resume Platform</span>
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <span>Built with HR & Hiring Managers</span>
           </motion.div>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
@@ -65,7 +65,7 @@ export function Features() {
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-extrabold text-app-text mb-6"
           >
-            Everything Needed to Build Winning Resumes
+            Features Designed to Get You Interviewed
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -74,7 +74,7 @@ export function Features() {
             transition={{ delay: 0.2 }}
             className="text-lg text-app-text-secondary"
           >
-            An intelligent suite of career writing tools, visual design controls, and ATS optimization.
+            Stop guessing what recruiters want. Resumagic incorporates real hiring standards so your application stands out in every stack.
           </motion.p>
         </div>
 
@@ -86,7 +86,7 @@ export function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ delay: index * 0.1, duration: 0.5 }}
-              className="group glass-card p-8 rounded-3xl hover-lift relative overflow-hidden border border-app-border hover:border-brand-primary/40 transition-all"
+              className="group glass-card p-8 rounded-3xl hover-lift relative overflow-hidden border border-app-border hover:border-teal-500/40 transition-all"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
               

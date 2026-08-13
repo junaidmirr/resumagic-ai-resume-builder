@@ -35,7 +35,7 @@ const INSPIRATION_CHIPS = [
 ];
 
 export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModalProps) {
-  const { user, userPlan, deductCredits, refreshCredits } = useAuth();
+  const { user, credits, userPlan, deductCredits, refreshCredits } = useAuth();
   const { openModal } = useAuthModal();
 
   const [step, setStep] = useState<"prompt" | "review" | "building">("prompt");

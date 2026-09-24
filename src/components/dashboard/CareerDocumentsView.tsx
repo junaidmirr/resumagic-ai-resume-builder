@@ -296,6 +296,8 @@ export function CareerDocumentsView() {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+    void trackCareerDocGenerate(selectedType);
+    void trackFeature("careerDocDownload");
   };
 
   return (

@@ -62,7 +62,54 @@ function AdminLoadingFallback() {
 
 import { CaptchaProvider } from "./context/CaptchaContext";
 
-/** Fires a page-visit event whenever the URL pathname changes and monitors offline state */
+const ROUTE_SEO: Record<string, { title: string; desc: string }> = {
+  "/": {
+    title: "Resumagic — AI-Powered Resume Builder & ATS Optimizer",
+    desc: "Create job-winning, ATS-optimized resumes in seconds with AI. Professional designer templates, Google XYZ bullet points, vector PDF downloads, and career documents.",
+  },
+  "/pricing": {
+    title: "Transparent Pricing & AI Plans | Resumagic",
+    desc: "Explore Resumagic plans. Free tier available with 15 free AI credits, Starter, and Pro plans with unlimited resume exports.",
+  },
+  "/resources/blog": {
+    title: "ATS Engineering & Career Documentation | Resumagic",
+    desc: "In-depth research on Applicant Tracking System parsers, vector embeddings, Google XYZ formulas, and executive career strategy.",
+  },
+  "/blog": {
+    title: "ATS Engineering & Career Documentation | Resumagic",
+    desc: "In-depth research on Applicant Tracking System parsers, vector embeddings, Google XYZ formulas, and executive career strategy.",
+  },
+  "/resources/interview-guide": {
+    title: "Interview Preparation & STAR Method Guide | Resumagic",
+    desc: "Master system design, behavioral, and executive leadership interview questions with the STAR method and salary negotiation frameworks.",
+  },
+  "/interview-guide": {
+    title: "Interview Preparation & STAR Method Guide | Resumagic",
+    desc: "Master system design, behavioral, and executive leadership interview questions with the STAR method and salary negotiation frameworks.",
+  },
+  "/resources/examples": {
+    title: "ATS-Approved Resume Examples by Industry | Resumagic",
+    desc: "Browse high-converting resume examples for software engineers, product managers, executive directors, and cybersecurity architects.",
+  },
+  "/about": {
+    title: "About Us | Resumagic AI Resume Builder",
+    desc: "Learn about Resumagic's mission to empower job seekers with institutional-grade AI resume writing and ATS optimization technology.",
+  },
+  "/contact": {
+    title: "Contact & Support | Resumagic",
+    desc: "Get in touch with the Resumagic engineering and customer support team for assistance with your account or career documents.",
+  },
+  "/privacy": {
+    title: "Privacy Policy | Resumagic",
+    desc: "Learn how Resumagic safeguards your personal career data and privacy with enterprise encryption.",
+  },
+  "/terms": {
+    title: "Terms of Service | Resumagic",
+    desc: "Read the Terms of Service governing the use of the Resumagic AI platform and career tools.",
+  },
+};
+
+/** Fires a page-visit event whenever the URL pathname changes, updates SEO meta, and monitors offline state */
 function RouteAnalytics() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,6 +118,16 @@ function RouteAnalytics() {
     // Remove dynamic segments like /editor?id=xxx → just use pathname
     const slug = location.pathname.replace(/^\//, "") || "home";
     void trackPageVisit(slug);
+
+    // Dynamic SEO page title and meta description updates
+    const seo = ROUTE_SEO[location.pathname];
+    if (seo) {
+      document.title = seo.title;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute("content", seo.desc);
+      }
+    }
   }, [location.pathname]);
 
   useEffect(() => {

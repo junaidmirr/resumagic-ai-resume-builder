@@ -2340,6 +2340,8 @@ export function EditorPage() {
       document.body.appendChild(a);
       a.click();
       a.remove();
+      void trackPdfDownload(format);
+      void trackFeature("imageDownload");
     } catch (e: any) {
       console.error("[Export Image Error]", e);
       alert("Failed to export image: " + (e.message || String(e)));

@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAuthModal } from "../components/onboarding/AuthModalContext";
+import { trackTemplateUse, trackFeature } from "../lib/analytics";
 
 import starkBrutalistThumb from "../assets/templates/stark_brutalist.png";
 import cyberpunkEdgeThumb from "../assets/templates/cyberpunk_edge.png";
@@ -186,6 +187,8 @@ export function ResumeExamplesPage() {
       openModal({ title: "Log In to Use Resume Template" });
       return;
     }
+    void trackTemplateUse(preset);
+    void trackFeature("resumeTemplate");
     localStorage.setItem("selected_template_preset", preset);
     navigate("/dashboard?tab=templates");
   };

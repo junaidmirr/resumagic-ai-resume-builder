@@ -294,6 +294,33 @@ export function AnalyticsDashboard() {
 
   const chartDataArr = dailyChartData();
 
+  const totalDownloads = Math.max(
+    overview.totalPdfDownloads ?? 0,
+    features.pdfDownload ?? 0,
+    Object.values(daily).reduce((acc, d) => acc + (d.pdfDownloads ?? 0), 0),
+  );
+
+  const totalTemplates = Math.max(
+    overview.totalTemplateUses ?? 0,
+    features.resumeTemplate ?? 0,
+    Object.values(templates).reduce((acc, val) => acc + (val ?? 0), 0),
+  );
+
+  const totalCareerDocsCount = Math.max(
+    overview.totalCareerDocs ?? 0,
+    features.careerDoc ?? 0,
+    Object.values(careerDocs).reduce((acc, val) => acc + (val ?? 0), 0),
+  );
+
+  const totalAiCredits = Math.max(
+    overview.totalAiCreditsConsumed ?? 0,
+    features.aiCreditsUsed ?? 0,
+    Object.values(daily).reduce(
+      (acc, d) => acc + (d.aiCreditsConsumed ?? 0),
+      0,
+    ),
+  );
+
   return (
     <div className="space-y-8 pb-10">
       {/* Header */}
@@ -345,25 +372,25 @@ export function AnalyticsDashboard() {
         />
         <StatCard
           label="PDF Downloads"
-          value={overview.totalPdfDownloads ?? 0}
+          value={totalDownloads}
           icon={FileDown}
           color="text-violet-400"
         />
         <StatCard
           label="Templates Used"
-          value={overview.totalTemplateUses ?? 0}
+          value={totalTemplates}
           icon={BarChart2}
           color="text-rose-400"
         />
         <StatCard
           label="Career Docs Generated"
-          value={overview.totalCareerDocs ?? 0}
+          value={totalCareerDocsCount}
           icon={Sparkles}
           color="text-orange-400"
         />
         <StatCard
           label="AI Credits Consumed"
-          value={overview.totalAiCreditsConsumed ?? 0}
+          value={totalAiCredits}
           icon={Activity}
           color="text-pink-400"
         />

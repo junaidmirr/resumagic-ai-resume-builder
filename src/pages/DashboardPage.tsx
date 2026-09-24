@@ -33,13 +33,18 @@ import {
   Mail,
   CheckCircle2,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { useDialog } from "../context/DialogContext";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import defaultLogoLight from "../assets/default.png";
 import defaultLogoDark from "../assets/default-dark.png";
-import { trackTemplateUse, trackFeature } from "../lib/analytics";
+import {
+  trackTemplateUse,
+  trackFeature,
+  trackPdfDownload,
+} from "../lib/analytics";
 import emptyStateImg from "../assets/empty-state.png";
 import { NotificationCenter } from "../components/notifications/NotificationCenter";
 import { TemplatesView } from "../components/dashboard/TemplatesView";
@@ -330,6 +335,15 @@ export function DashboardPage() {
 
   const handleEdit = (id: string) => {
     localStorage.setItem("current_resume_id", id);
+    navigate("/editor");
+  };
+
+  const handleDownloadResume = (e: React.MouseEvent, resumeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void trackPdfDownload();
+    void trackFeature("pdfDownload");
+    localStorage.setItem("current_resume_id", resumeId);
     navigate("/editor");
   };
 
@@ -835,13 +849,24 @@ export function DashboardPage() {
                               {new Date(resume.updatedAt).toLocaleDateString()}
                             </div>
                           </div>
-                          <button
-                            onClick={(e) => handleDelete(e, resume.id!)}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors shrink-0"
-                            title="Delete resume"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) =>
+                                handleDownloadResume(e, resume.id!)
+                              }
+                              className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded transition-colors"
+                              title="Download / Export PDF"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => handleDelete(e, resume.id!)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                              title="Delete resume"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

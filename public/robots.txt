@@ -1,0 +1,39 @@
+# Resumagic Search Engine Crawl Directives
+# https://resumagic.worklabs.studio
+
+User-agent: *
+Allow: /
+Allow: /resources/
+Allow: /resources/blog
+Allow: /resources/interview-guide
+Allow: /resources/examples
+Allow: /blog
+Allow: /interview-guide
+Allow: /pricing
+Allow: /about
+Allow: /contact
+Allow: /privacy
+Allow: /terms
+Allow: /login
+
+# Disallow private application, user-session, and administration routes
+Disallow: /worklabs_adminforresumagic
+Disallow: /worklabs_adminforresumagic/*
+Disallow: /editor
+Disallow: /editor/*
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /profile
+Disallow: /profile/*
+Disallow: /wizard
+Disallow: /wizard/*
+Disallow: /api/
+Disallow: /api/*
+Disallow: /404
+Disallow: /403
+Disallow: /500
+Disallow: /503
+Disallow: /offline
+
+# XML Sitemap Location
+Sitemap: https://resumagic.worklabs.studio/sitemap.xml

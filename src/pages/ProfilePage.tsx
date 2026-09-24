@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   User,
@@ -17,11 +17,18 @@ import {
 import { Link } from "react-router-dom";
 
 export default function ProfilePage() {
-  const { user, credits, logout, verifyAccount } = useAuth();
+  const { user, credits, logout, verifyAccount, checkVerificationStatus } =
+    useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otp, setOtp] = useState("");
+
+  useEffect(() => {
+    if (user && !user.emailVerified) {
+      void checkVerificationStatus();
+    }
+  }, [user]);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;

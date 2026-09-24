@@ -32,6 +32,7 @@ import {
   Edit,
   Mail,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { useDialog } from "../context/DialogContext";
 import { useNavigate, Link, useLocation } from "react-router-dom";
@@ -49,7 +50,14 @@ import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
 import type { Template } from "../lib/templates";
 
 export function DashboardPage() {
-  const { user, logout, credits, userPlan, sendVerificationEmail } = useAuth();
+  const {
+    user,
+    logout,
+    credits,
+    userPlan,
+    sendVerificationEmail,
+    checkVerificationStatus,
+  } = useAuth();
   const navigate = useNavigate();
   const { confirm, alert } = useDialog();
   const [resumes, setResumes] = useState<ResumeDocument[]>([]);
@@ -64,7 +72,25 @@ export function DashboardPage() {
   const [showAIArchitectModal, setShowAIArchitectModal] = useState(false);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
   const location = useLocation();
+
+  // Auto-detect verification when user returns from Firebase verification link
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (
+      params.get("email_verified") === "true" &&
+      user &&
+      !user.emailVerified
+    ) {
+      setIsCheckingVerification(true);
+      checkVerificationStatus().finally(() => setIsCheckingVerification(false));
+      // Clean the query param from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("email_verified");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  }, [location.search, user]);
 
   const handleResendVerification = async () => {
     setIsSendingVerification(true);
@@ -78,6 +104,21 @@ export function DashboardPage() {
       );
     } finally {
       setIsSendingVerification(false);
+    }
+  };
+
+  const handleCheckVerification = async () => {
+    setIsCheckingVerification(true);
+    try {
+      const verified = await checkVerificationStatus();
+      if (!verified) {
+        alert(
+          "Not Yet Verified",
+          "We checked your email status, but it has not been confirmed yet. Please ensure you clicked the link in your inbox.",
+        );
+      }
+    } finally {
+      setIsCheckingVerification(false);
     }
   };
 
@@ -479,29 +520,42 @@ export function DashboardPage() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto">
         {user && !user.emailVerified && (
-          <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-3 flex items-center justify-between gap-4 text-xs shrink-0">
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-3 flex flex-wrap items-center justify-between gap-4 text-xs shrink-0">
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium">
               <Mail className="w-4 h-4 shrink-0" />
               <span>
-                Your email (<strong>{user.email}</strong>) is not verified yet.
-                Please check your inbox for the Firebase verification link.
+                Your email (<strong>{user.email}</strong>) is pending
+                verification. Check your inbox to unlock 15 free AI Credits.
               </span>
             </div>
-            {verificationSent ? (
-              <span className="flex items-center gap-1 text-emerald-500 font-bold">
-                <CheckCircle2 className="w-4 h-4" /> Link Sent!
-              </span>
-            ) : (
+            <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={handleResendVerification}
-                disabled={isSendingVerification}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors shrink-0 disabled:opacity-50"
+                onClick={handleCheckVerification}
+                disabled={isCheckingVerification}
+                className="px-3 py-1.5 rounded-lg bg-app-surface hover:bg-app-border border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
-                {isSendingVerification
-                  ? "Sending..."
-                  : "Resend Verification Email"}
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${isCheckingVerification ? "animate-spin" : ""}`}
+                />
+                {isCheckingVerification
+                  ? "Checking..."
+                  : "I've Verified (Check Now)"}
               </button>
-            )}
+
+              {verificationSent ? (
+                <span className="flex items-center gap-1 text-emerald-500 font-bold px-2 py-1 bg-emerald-500/10 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4" /> Link Sent!
+                </span>
+              ) : (
+                <button
+                  onClick={handleResendVerification}
+                  disabled={isSendingVerification}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isSendingVerification ? "Sending..." : "Resend Email"}
+                </button>
+              )}
+            </div>
           </div>
         )}
 

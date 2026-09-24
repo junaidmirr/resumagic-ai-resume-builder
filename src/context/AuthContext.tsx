@@ -24,6 +24,7 @@ interface AuthContextType {
   signup: (email: string, pass: string, name?: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
+  checkVerificationStatus: () => Promise<boolean>;
   claimSignupCredits: () => Promise<boolean>;
   verifyAccount: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -277,6 +278,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const checkVerificationStatus = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    try {
+      await auth.currentUser.reload();
+      const currentUser = auth.currentUser;
+      const isVerified = !!currentUser.emailVerified;
+      if (isVerified) {
+        setUser({ ...currentUser } as User);
+        try {
+          const userRef = doc(db, "users", currentUser.uid);
+          await setDoc(userRef, { emailVerified: true }, { merge: true });
+        } catch (e) {
+          console.warn(
+            "[Auth] Could not update emailVerified in firestore:",
+            e,
+          );
+        }
+      }
+      return isVerified;
+    } catch (err) {
+      console.error("[Auth] Check verification error:", err);
+      return false;
+    }
+  };
+
+  // Active Verification Watcher: Automatically detects when email is verified in another tab or device
+  useEffect(() => {
+    if (!user || user.emailVerified) return;
+
+    // Check immediately when user returns to tab / focuses window
+    const handleFocus = () => {
+      if (document.visibilityState === "visible") {
+        void checkVerificationStatus();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
+    // Periodic check every 4 seconds while unverified
+    const timer = setInterval(() => {
+      void checkVerificationStatus();
+    }, 4000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+      clearInterval(timer);
+    };
+  }, [user?.uid, user?.emailVerified]);
+
   const login = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -323,9 +375,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void trackSignup("email");
       void trackActiveUser(result.user.uid);
 
-      // Trigger official Firebase Email Verification
+      // Trigger official Firebase Email Verification with redirect back to app
       try {
-        await sendEmailVerification(result.user);
+        const actionCodeSettings = {
+          url: `${window.location.origin}/dashboard?email_verified=true`,
+          handleCodeInApp: false,
+        };
+        await sendEmailVerification(result.user, actionCodeSettings);
         console.log("[Auth] Firebase verification email sent to", email);
       } catch (e) {
         console.warn("[Auth] Firebase verification email warning:", e);
@@ -356,7 +412,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendVerificationEmail = async () => {
     try {
       if (auth.currentUser) {
-        await sendEmailVerification(auth.currentUser);
+        const actionCodeSettings = {
+          url: `${window.location.origin}/dashboard?email_verified=true`,
+          handleCodeInApp: false,
+        };
+        await sendEmailVerification(auth.currentUser, actionCodeSettings);
         console.log("[Auth] Firebase verification email resent.");
       } else {
         throw new Error("No authenticated user found.");
@@ -408,6 +468,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         resetPassword,
         sendVerificationEmail,
+        checkVerificationStatus,
         claimSignupCredits,
         verifyAccount,
         logout,

@@ -37,9 +37,14 @@ export default function ProfilePage() {
 
     setIsDeleting(true);
     try {
+      const token = await user?.getIdToken().catch(() => "");
       const response = await fetch("/api/user/delete", {
         method: "POST",
-        headers: { "X-User-ID": user?.uid || "" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "X-User-ID": user?.uid || "",
+        },
       });
       if (response.ok) {
         await logout();

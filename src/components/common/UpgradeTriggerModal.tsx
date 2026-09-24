@@ -1,6 +1,14 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Lock, Zap, Check, ArrowRight, ShieldCheck, X } from "lucide-react";
+import {
+  Sparkles,
+  Lock,
+  Zap,
+  Check,
+  ArrowRight,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface UpgradeTriggerModalProps {
@@ -97,7 +105,8 @@ export function UpgradeTriggerModal({
               className="flex-1 py-3.5 px-5 bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-secondary hover:to-brand-primary text-white font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-brand-primary/25 transition-all text-center flex items-center justify-center gap-2"
             >
               <Zap className="w-4 h-4 fill-current" />
-              Upgrade to Pro (₹199 Launch Offer) <ArrowRight className="w-4 h-4 ml-0.5" />
+              Upgrade to Pro (₹199 Launch Offer){" "}
+              <ArrowRight className="w-4 h-4 ml-0.5" />
             </Link>
 
             <button
@@ -110,7 +119,8 @@ export function UpgradeTriggerModal({
 
           <div className="mt-4 text-center">
             <span className="text-[11px] font-medium text-app-text-muted flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Cashfree 256-Bit Encrypted Payment
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Cashfree
+              256-Bit Encrypted Payment
             </span>
           </div>
         </motion.div>

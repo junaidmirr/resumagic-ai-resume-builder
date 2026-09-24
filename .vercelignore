@@ -1,0 +1,40 @@
+# Build artifacts and dependencies
+node_modules
+dist
+.venv
+venv
+backend/venv
+.git
+.github
+.vscode
+
+# Environment & Secret files
+.env
+.env.*
+serviceAccountKey.json
+backend/serviceAccountKey.json
+*.pem
+
+# Cache and byte code
+*.pyc
+__pycache__
+*.log
+
+# Scratch scripts, test outputs & scratch logs
+test_output.pdf
+test_*.pdf
+graphify-out
+tests
+fix_*.py
+test_*.py
+update_*.py
+rewrite_*.py
+dashboard_overhaul.py
+enforce_logos.py
+empty_templates.py
+fix-*.cjs
+update-*.js
+test-*.js
+properties.txt
+0a1f2802009abb5e9ee70a2a8d4a9b5d.txt
+.temp_*

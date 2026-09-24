@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Navbar } from "../components/landing/Navbar";
 import { Footer } from "../components/landing/Footer";
-import { Mail, Clock, MapPin, Copy, Check, ExternalLink, Sparkles, MessageSquare } from "lucide-react";
+import {
+  Mail,
+  Clock,
+  MapPin,
+  Copy,
+  Check,
+  ExternalLink,
+  Sparkles,
+  MessageSquare,
+} from "lucide-react";
 
 export function ContactPage() {
   const [copied, setCopied] = useState(false);
@@ -28,7 +37,9 @@ export function ContactPage() {
             We'd Love to Hear From You
           </h1>
           <p className="text-base sm:text-xl text-app-text-secondary max-w-2xl mx-auto leading-relaxed">
-            Have questions about Resumagic, technical inquiries, or need support? Reach out to us directly via email and our team will get back to you.
+            Have questions about Resumagic, technical inquiries, or need
+            support? Reach out to us directly via email and our team will get
+            back to you.
           </p>
         </div>
       </section>
@@ -36,12 +47,10 @@ export function ContactPage() {
       {/* Main Support Section */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex-1 w-full">
         <div className="bg-app-surface border border-app-border rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden text-center">
-          
           {/* Ambient Glow */}
           <div className="absolute top-0 right-1/2 translate-x-1/2 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 max-w-xl mx-auto flex flex-col items-center">
-            
             {/* Mail Icon Badge */}
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white shadow-xl shadow-brand-primary/25 mb-6">
               <Mail className="w-10 h-10" />
@@ -51,7 +60,8 @@ export function ContactPage() {
               Get in Touch
             </h2>
             <p className="text-sm sm:text-base text-app-text-secondary mb-8 leading-relaxed">
-              Send us an email at our dedicated support address. We read every message and will get back to you as soon as possible!
+              Send us an email at our dedicated support address. We read every
+              message and will get back to you as soon as possible!
             </p>
 
             {/* Email Box */}
@@ -72,7 +82,9 @@ export function ContactPage() {
                 {copied ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-500" />
-                    <span className="text-emerald-500">Copied to Clipboard</span>
+                    <span className="text-emerald-500">
+                      Copied to Clipboard
+                    </span>
                   </>
                 ) : (
                   <>
@@ -89,19 +101,21 @@ export function ContactPage() {
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-secondary hover:to-brand-primary text-white font-black text-sm rounded-2xl shadow-xl shadow-brand-primary/25 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
             >
               <MessageSquare className="w-4 h-4" />
-              Send Email Now <ExternalLink className="w-4 h-4 ml-1 opacity-80" />
+              Send Email Now{" "}
+              <ExternalLink className="w-4 h-4 ml-1 opacity-80" />
             </a>
 
             {/* Response Time Indicator */}
             <div className="mt-8 pt-6 border-t border-app-border w-full flex flex-wrap items-center justify-center gap-6 text-xs text-app-text-muted">
               <span className="flex items-center gap-1.5 font-medium">
-                <Clock className="w-4 h-4 text-brand-primary" /> Fast Response (&lt; 24 hours)
+                <Clock className="w-4 h-4 text-brand-primary" /> Fast Response
+                (&lt; 24 hours)
               </span>
               <span className="flex items-center gap-1.5 font-medium">
-                <Sparkles className="w-4 h-4 text-amber-500" /> Dedicated Technical Support
+                <Sparkles className="w-4 h-4 text-amber-500" /> Dedicated
+                Technical Support
               </span>
             </div>
-
           </div>
         </div>
       </main>

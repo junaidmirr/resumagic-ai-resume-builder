@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { EditorElement } from "../types/editor";
 import { parseResumeTextToWizardData } from "./pdfParser";
 import { generateWizardElements } from "./wizardGenerator";
+import { fetchWithCaptcha } from "./apiWithCaptcha";
 
 export interface DesignPlan {
   title: string;
@@ -23,34 +23,13 @@ export interface DesignPlan {
   special_elements?: string[];
 }
 
-const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-let genAI: GoogleGenerativeAI | null = null;
-if (apiKey) {
-  try {
-    genAI = new GoogleGenerativeAI(apiKey);
-  } catch (e) {
-    console.warn("[AI-Architect] Failed to init client GoogleGenerativeAI:", e);
-  }
-}
-
-// Official Google Gemini API Available Models List
-export const GEMINI_MODELS = [
-  "gemini-flash-latest",
-  "gemini-2.5-flash",
-  "gemini-1.5-flash-latest",
-  "gemini-pro-latest",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash"
-];
-
 function cleanJSONResponse(raw: string): any {
   let text = raw.trim();
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) {
     text = fenceMatch[1].trim();
   }
-  
+
   const startIdx = text.search(/[\{\[]/);
   if (startIdx !== -1) {
     const endChar = text[startIdx] === "{" ? "}" : "]";
@@ -63,58 +42,101 @@ function cleanJSONResponse(raw: string): any {
   return JSON.parse(text);
 }
 
-export function normalizeEditorElements(rawList: any[], targetPageId: string = "page-1"): EditorElement[] {
+export function normalizeEditorElements(
+  rawList: any[],
+  targetPageId: string = "page-1",
+): EditorElement[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
   // Step 1: Normalize element structure & calculate exact text heights
   const normalized: EditorElement[] = rawList.map((item, idx) => {
-    const id = item.id && String(item.id).trim().length > 0
-      ? String(item.id)
-      : `el_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
+    const id =
+      item.id && String(item.id).trim().length > 0
+        ? String(item.id)
+        : `el_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`;
 
-    let elementType: 'text' | 'shape' | 'image' = 'text';
-    const rawType = String(item.element_type || item.type || item.kind || '').toLowerCase();
-    if (rawType.includes('shape') || item.shape_type || item.shape) {
-      elementType = 'shape';
-    } else if (rawType.includes('image') || rawType.includes('icon') || item.image_path || item.icon_name) {
-      elementType = 'image';
+    let elementType: "text" | "shape" | "image" = "text";
+    const rawType = String(
+      item.element_type || item.type || item.kind || "",
+    ).toLowerCase();
+    if (rawType.includes("shape") || item.shape_type || item.shape) {
+      elementType = "shape";
+    } else if (
+      rawType.includes("image") ||
+      rawType.includes("icon") ||
+      item.image_path ||
+      item.icon_name
+    ) {
+      elementType = "image";
     } else {
-      elementType = 'text';
+      elementType = "text";
     }
 
     const page_id = item.page_id || targetPageId;
-    const x = typeof item.x === 'number' && !isNaN(item.x) ? item.x : 40;
-    const rawY = typeof item.y === 'number' && !isNaN(item.y) ? item.y : (50 + idx * 22);
+    const x = typeof item.x === "number" && !isNaN(item.x) ? item.x : 40;
+    const rawY =
+      typeof item.y === "number" && !isNaN(item.y) ? item.y : 50 + idx * 22;
 
-    const font_size = Number(item.font_size || item.fontSize || item.size || 11);
-    const font_name = String(item.font_name || item.fontFamily || item.font || "Helvetica");
-    const text_color = String(item.text_color || item.textColor || item.color || "#1E293B");
+    const font_size = Number(
+      item.font_size || item.fontSize || item.size || 11,
+    );
+    const font_name = String(
+      item.font_name || item.fontFamily || item.font || "Helvetica",
+    );
+    const text_color = String(
+      item.text_color || item.textColor || item.color || "#1E293B",
+    );
 
     let text = "";
-    if (elementType === 'text') {
-      let rawText = item.text ?? item.content ?? item.value ?? item.label ?? item.heading ?? item.title ?? item.description ?? "";
-      if (typeof rawText === 'object') {
-        try { rawText = JSON.stringify(rawText); } catch (e) { rawText = "Text Block"; }
+    if (elementType === "text") {
+      let rawText =
+        item.text ??
+        item.content ??
+        item.value ??
+        item.label ??
+        item.heading ??
+        item.title ??
+        item.description ??
+        "";
+      if (typeof rawText === "object") {
+        try {
+          rawText = JSON.stringify(rawText);
+        } catch (e) {
+          rawText = "Text Block";
+        }
       }
       text = String(rawText).trim() || "Text Block";
     }
 
-    const width = Number(item.width || (elementType === 'text' ? Math.max(140, Math.min(532, text.length * font_size * 0.55)) : 100));
+    const width = Number(
+      item.width ||
+        (elementType === "text"
+          ? Math.max(140, Math.min(532, text.length * font_size * 0.55))
+          : 100),
+    );
 
     // Dynamic line wrapping height calculation
     let calculatedHeight = Number(item.height || 20);
-    if (elementType === 'text') {
-      const approxCharsPerLine = Math.max(15, Math.floor(width / (font_size * 0.55)));
+    if (elementType === "text") {
+      const approxCharsPerLine = Math.max(
+        15,
+        Math.floor(width / (font_size * 0.55)),
+      );
       const numLines = Math.max(1, Math.ceil(text.length / approxCharsPerLine));
       calculatedHeight = Math.max(16, Math.ceil(numLines * font_size * 1.35));
     }
 
-    const z_index = typeof item.z_index === 'number' ? item.z_index : (elementType === 'shape' ? 1 : 2 + idx);
+    const z_index =
+      typeof item.z_index === "number"
+        ? item.z_index
+        : elementType === "shape"
+          ? 1
+          : 2 + idx;
 
-    if (elementType === 'text') {
+    if (elementType === "text") {
       return {
         id,
-        element_type: 'text',
+        element_type: "text",
         page_id,
         text,
         x,
@@ -127,21 +149,33 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
         bold: Boolean(item.bold || item.isBold),
         italic: Boolean(item.italic || item.isItalic),
         underline: Boolean(item.underline || item.isUnderline),
-        align: item.align || 'left',
+        align: item.align || "left",
         z_index,
       } as any;
-    } else if (elementType === 'shape') {
-      const shape_type = item.shape_type || item.shape || (item.x2 !== undefined ? 'line' : 'rectangle');
+    } else if (elementType === "shape") {
+      const shape_type =
+        item.shape_type ||
+        item.shape ||
+        (item.x2 !== undefined ? "line" : "rectangle");
       return {
         id,
-        element_type: 'shape',
+        element_type: "shape",
         page_id,
         shape_type,
         x,
         y: rawY,
-        width: Number(item.width || (shape_type === 'line' ? Math.abs((item.x2 || x) - x) : 532)),
-        height: Number(item.height || (shape_type === 'line' ? 2 : 20)),
-        fill_color: String(item.fill_color || item.fillColor || item.fill || item.color || "#475569"),
+        width: Number(
+          item.width ||
+            (shape_type === "line" ? Math.abs((item.x2 || x) - x) : 532),
+        ),
+        height: Number(item.height || (shape_type === "line" ? 2 : 20)),
+        fill_color: String(
+          item.fill_color ||
+            item.fillColor ||
+            item.fill ||
+            item.color ||
+            "#475569",
+        ),
         border_color: item.border_color || item.borderColor || item.stroke,
         border_width: Number(item.border_width || item.strokeWidth || 0),
         border_radius: Number(item.border_radius || item.borderRadius || 0),
@@ -152,23 +186,26 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
     } else {
       return {
         id,
-        element_type: 'image',
+        element_type: "image",
         page_id,
         x,
         y: rawY,
         width: Number(item.width || 24),
         height: Number(item.height || 24),
-        image_path: String(item.image_path || item.src || ''),
+        image_path: String(item.image_path || item.src || ""),
         is_icon: Boolean(item.is_icon || item.isIcon),
-        icon_name: String(item.icon_name || item.iconName || item.icon || 'Star'),
+        icon_name: String(
+          item.icon_name || item.iconName || item.icon || "Star",
+        ),
         z_index,
       } as any;
     }
   });
 
   // Step 2: Detect 2-Column vs Single-Column Layout Structure
-  const isTwoColumn = normalized.some((e) => e.x >= 200 && e.x < 400 && e.y < 650) &&
-                      normalized.some((e) => e.x < 180 && e.y < 650);
+  const isTwoColumn =
+    normalized.some((e) => e.x >= 200 && e.x < 400 && e.y < 650) &&
+    normalized.some((e) => e.x < 180 && e.y < 650);
 
   // Step 3: Categorize Header vs Left vs Main Stream
   const headerElements: EditorElement[] = [];
@@ -178,9 +215,13 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
   normalized.forEach((el, index) => {
     (el as any)._originalIndex = index;
 
-    const isHeaderItem = index < 3 || 
-                         (el as any).font_size >= 18 || 
-                         (el.y > 690 && (el.element_type === 'image' || el.element_type === 'shape' || el.y > 700));
+    const isHeaderItem =
+      index < 3 ||
+      (el as any).font_size >= 18 ||
+      (el.y > 690 &&
+        (el.element_type === "image" ||
+          el.element_type === "shape" ||
+          el.y > 700));
 
     if (isHeaderItem) {
       headerElements.push(el);
@@ -192,26 +233,41 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
   });
 
   // Helper: Stacks elements top-down ensuring zero overlap (CSS bottom = topY - height)
-  function solveTopDownStack(elements: EditorElement[], startTopY: number, defaultWidth: number) {
+  function solveTopDownStack(
+    elements: EditorElement[],
+    startTopY: number,
+    defaultWidth: number,
+  ) {
     if (elements.length === 0) return startTopY;
 
-    elements.sort((a, b) => (a as any)._originalIndex - (b as any)._originalIndex);
+    elements.sort(
+      (a, b) => (a as any)._originalIndex - (b as any)._originalIndex,
+    );
 
     let curTopY = startTopY;
     elements.forEach((el) => {
-      if (el.element_type === 'text') {
+      if (el.element_type === "text") {
         if (!el.width || el.width < 100) el.width = defaultWidth;
-        const approxCharsPerLine = Math.max(15, Math.floor(el.width / (el.font_size * 0.55)));
-        const numLines = Math.max(1, Math.ceil(el.text.length / approxCharsPerLine));
+        const approxCharsPerLine = Math.max(
+          15,
+          Math.floor(el.width / (el.font_size * 0.55)),
+        );
+        const numLines = Math.max(
+          1,
+          Math.ceil(el.text.length / approxCharsPerLine),
+        );
         el.height = Math.max(16, Math.ceil(numLines * el.font_size * 1.35));
       }
 
       // Set bottom coordinate so top edge sits at curTopY
       el.y = curTopY - (el.height || 18);
 
-      const isBoldHeading = el.element_type === 'text' && (el as any).bold && (el as any).font_size >= 12;
-      const isSubHeading = el.element_type === 'text' && (el as any).bold;
-      const padding = isBoldHeading ? 14 : (isSubHeading ? 8 : 6);
+      const isBoldHeading =
+        el.element_type === "text" &&
+        (el as any).bold &&
+        (el as any).font_size >= 12;
+      const isSubHeading = el.element_type === "text" && (el as any).bold;
+      const padding = isBoldHeading ? 14 : isSubHeading ? 8 : 6;
 
       // Next element's top edge starts below this element's bottom edge
       curTopY = el.y - padding;
@@ -241,178 +297,122 @@ export function normalizeEditorElements(rawList: any[], targetPageId: string = "
 }
 
 export async function generateArchitectPlanDirect(
-  userPrompt: string, 
-  refinement: string = "", 
-  previousPlan?: DesignPlan
+  userPrompt: string,
+  refinement: string = "",
+  previousPlan?: DesignPlan,
 ): Promise<DesignPlan> {
-  if (!genAI || !apiKey) {
-    return createFallbackPlan(userPrompt, refinement);
-  }
-
-  const sysPrompt = `You are a Lead AI Architect specializing in high-converting, ATS-friendly resume engineering.
-CONTEXT: A 612x792 PDF canvas (Origin=BOTTOM-LEFT).
-
-YOUR TASK:
-Analyze the user's prompt (and optional refinement instruction / previous plan) and create a structured DESIGN PLAN.
-
-Return ONLY raw JSON with this exact schema:
-{
-  "title": "Short Descriptive Title of Design",
-  "layout_type": "two_column_left_sidebar | two_column_right_sidebar | single_column | executive_header",
-  "theme_summary": "1-2 sentence description of design aesthetics and typography",
-  "color_palette": {
-    "bg": "#HEX",
-    "primary": "#HEX",
-    "secondary": "#HEX",
-    "text": "#HEX",
-    "accent": "#HEX"
-  },
-  "sections": [
-    {
-      "id": "sec_1",
-      "title": "Section Name",
-      "component_type": "header | sidebar | text_block | skill_loader | chart | qr_code | timeline",
-      "description": "Details of what will be included"
-    }
-  ],
-  "special_elements": [
-    "Skill progress bars with percentage loaders",
-    "QR Code linking to portfolio",
-    "Visual bar chart for key impact metrics"
-  ]
-}
-
-Output ONLY valid raw JSON without markdown or conversational text.`;
-
-  let prompt = `User Request: ${userPrompt}\n`;
-  if (previousPlan) prompt += `Previous Plan:\n${JSON.stringify(previousPlan, null, 2)}\n`;
-  if (refinement) prompt += `Refinement Instruction: ${refinement}\n`;
-
-  if (genAI) {
-    for (const modelName of GEMINI_MODELS) {
-      try {
-        console.log(`[AI-Architect Direct] Trying model ${modelName}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(`${sysPrompt}\n\n${prompt}`);
-        const text = result.response.text();
-        const plan = cleanJSONResponse(text);
-        if (plan && plan.title && plan.color_palette) {
-          console.log(`[AI-Architect Direct] ✅ Plan received from Gemini API (${modelName}): ${plan.title}`);
-          return plan;
-        }
-      } catch (err: any) {
-        if (!err?.message?.includes("404")) {
-          console.warn(`[AI-Architect Direct] Model ${modelName} call issue:`, err);
-        }
-      }
-    }
-  }
-
-  // Fallback to Backend Proxy Route if client API unavailable
+  // 1. Primary: Query Backend Proxy Route (Uses Swirls AI as primary engine with Gemini fallback)
   try {
-    const res = await fetch("/api/ai-architect", {
+    const res = await fetchWithCaptcha("/api/ai-architect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "plan", prompt: `${userPrompt}. Refinement: ${refinement}` }),
+      body: JSON.stringify({
+        action: "plan",
+        prompt: `${userPrompt}. Refinement: ${refinement}`,
+      }),
     });
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}));
+      if (data.status === "rejected") {
+        throw new Error(
+          data.error ||
+            data.reason ||
+            "Request violates career and resume safety policy.",
+        );
+      }
+    }
     if (res.ok) {
       const data = await res.json();
-      if (data.plan && data.plan.title) return data.plan;
+      const plan = data.plan?.plan || data.plan;
+      if (plan && plan.title) {
+        console.log(
+          `[AI-Architect] ✅ Plan received from Primary AI engine: ${plan.title}`,
+        );
+        return plan;
+      }
     }
-  } catch (e) {
-    console.warn("[AI-Architect] Backend plan call fallback error:", e);
+  } catch (e: any) {
+    if (
+      e?.message?.includes("safety policy") ||
+      e?.message?.includes("violates") ||
+      e?.message?.includes("Security verification") ||
+      e?.message?.includes("cancelled")
+    ) {
+      throw e;
+    }
+    console.warn(
+      "[AI-Architect] Backend plan call issue, proceeding to client fallback...",
+      e,
+    );
   }
 
+  // 2. Client-Side Deterministic Design Engine Fallback
   return createFallbackPlan(userPrompt, refinement);
 }
 
 export async function buildArchitectResumeDirect(
-  plan: DesignPlan, 
-  userPrompt: string = ""
+  plan: DesignPlan,
+  userPrompt: string = "",
 ): Promise<EditorElement[]> {
-  console.log(`[AI-Architect Direct] 🚀 Building graphics elements with Gemini API for plan: '${plan.title}'...`);
+  console.log(
+    `[AI-Architect] 🚀 Generating graphics elements for plan: '${plan.title}'...`,
+  );
 
-  if (!genAI || !apiKey) {
-    return generateFallbackElements(plan);
-  }
-
-  const execPrompt = `You are a Master Graphics Engineer.
-Task: Generate ALL EditorElement objects to build a complete, production-ready, 1-page resume based on this DESIGN PLAN.
-
-DESIGN PLAN:
-${JSON.stringify(plan, null, 2)}
-
-USER INITIAL PROMPT: ${userPrompt}
-
-CANVAS SPECIFICATIONS:
-- Size: 612x792 points. Origin (0,0) is at the BOTTOM-LEFT.
-- TOP of page is Y=792. BOTTOM of page is Y=0.
-- Header goes at Y=720-770.
-- As you place elements DOWN the page, Y MUST DECREASE.
-
-ENGINE CAPABILITIES TO USE:
-1. TEXT ('element_type': 'text'):
-   - text, x, y, width, height, font_size, font_name ('Helvetica', 'Helvetica-Bold', 'NotoSans-Regular', 'NotoSans-Bold'), text_color (#HEX), align ('left', 'center', 'right'), bold, italic, line_height, letter_spacing, z_index.
-2. SHAPES ('element_type': 'shape'):
-   - shape_type: 'rectangle', 'circle', 'line', 'arrow', 'polygon', 'path'
-   - fill_color, border_color, border_width, border_radius (for rounded rects), x2, y2 (for lines/arrows), path_d (for SVG paths), points (for polygons).
-3. SKILL PROGRESS LOADERS:
-   - Build skill progress bars using TWO overlapping rectangles:
-     a) Background loader bar: height=6, fill_color='#E2E8F0', border_radius=3.
-     b) Filled progress bar: height=6, width=(percentage * total_width), fill_color=accent_color, border_radius=3.
-4. CHARTS / METRIC GRAPHS:
-   - Draw bar charts or metric graphs using rectangles and line axes to visually display key metrics.
-5. QR CODES:
-   - Render a QR code block using a square image/shape element.
-6. ICONS:
-   - Use is_icon=true with icon_name: Phone, Mail, Globe, MapPin, Linkedin, Github, ExternalLink, Briefcase, GraduationCap, Trophy, Star, CheckCircle, Award, Target, Zap, Rocket, User, Calendar.
-
-Return ONLY a raw JSON array of the final EditorElement objects.`;
-
-  if (genAI) {
-    for (const modelName of GEMINI_MODELS) {
-      try {
-        console.log(`[AI-Architect Direct] Building graphics with model ${modelName}...`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(execPrompt);
-        const text = result.response.text();
-        const elements = cleanJSONResponse(text);
-        if (Array.isArray(elements) && elements.length > 0) {
-          const normalized = normalizeEditorElements(elements);
-          console.log(`[AI-Architect Direct] ✅ Successfully generated ${normalized.length} normalized elements via Gemini API (${modelName})!`);
-          return normalized;
-        }
-      } catch (err: any) {
-        if (!err?.message?.includes("404")) {
-          console.warn(`[AI-Architect Direct] Build error with model ${modelName}:`, err);
-        }
-      }
-    }
-  }
-
-  // Fallback to Backend Proxy Route
+  // 1. Primary: Query Backend Proxy Route (Uses Swirls AI as primary engine with Gemini fallback)
   try {
-    const res = await fetch("/api/ai-architect", {
+    const res = await fetchWithCaptcha("/api/ai-architect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "build", prompt: `Create resume for ${userPrompt}. Plan: ${plan.title}` }),
+      body: JSON.stringify({
+        action: "build",
+        prompt: `Create resume for ${userPrompt}. Plan: ${plan.title}`,
+        plan,
+      }),
     });
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}));
+      if (data.status === "rejected") {
+        throw new Error(
+          data.error ||
+            data.reason ||
+            "Request violates career and resume safety policy.",
+        );
+      }
+    }
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.elements) && data.elements.length > 0) {
+        console.log(
+          `[AI-Architect] ✅ Successfully built ${data.elements.length} elements via Primary AI Engine!`,
+        );
         return normalizeEditorElements(data.elements);
       }
     }
-  } catch (e) {
-    console.warn("[AI-Architect] Backend build call fallback error:", e);
+  } catch (e: any) {
+    if (
+      e?.message?.includes("safety policy") ||
+      e?.message?.includes("violates") ||
+      e?.message?.includes("Security verification") ||
+      e?.message?.includes("cancelled")
+    ) {
+      throw e;
+    }
+    console.warn(
+      "[AI-Architect] Backend build call error, attempting client fallback...",
+      e,
+    );
   }
 
+  // 2. Client-Side High-Precision Element Engine Fallback
   return generateFallbackElements(plan);
 }
 
-export function createFallbackPlan(userPrompt: string, refinement: string = ""): DesignPlan {
+export function createFallbackPlan(
+  userPrompt: string,
+  refinement: string = "",
+): DesignPlan {
   const p = (userPrompt + " " + refinement).toLowerCase();
-  
+
   let primary = "#0F172A";
   let secondary = "#38BDF8";
   let accent = "#6366F1";
@@ -429,7 +429,11 @@ export function createFallbackPlan(userPrompt: string, refinement: string = ""):
     primary = "#064E3B";
     secondary = "#059669";
     accent = "#10B981";
-  } else if (p.includes("executive") || p.includes("crimson") || p.includes("red")) {
+  } else if (
+    p.includes("executive") ||
+    p.includes("crimson") ||
+    p.includes("red")
+  ) {
     primary = "#7F1D1D";
     secondary = "#991B1B";
     accent = "#DC2626";
@@ -441,17 +445,47 @@ export function createFallbackPlan(userPrompt: string, refinement: string = ""):
     theme_summary: `Bespoke mathematical design created for "${userPrompt.slice(0, 40)}..." featuring balanced proportions, skill progress loaders, and executive typography.`,
     color_palette: { bg, primary, secondary, text, accent },
     sections: [
-      { id: "sec_1", title: "Header & Personal Branding", component_type: "header", description: "Bold target role, contact badges with modern icons and styled banner" },
-      { id: "sec_2", title: "Sidebar Skills & Progress Loaders", component_type: "skill_loader", description: "Dual-layer skill progress loaders showing technical proficiency percentages" },
-      { id: "sec_3", title: "Professional Work Experience", component_type: "timeline", description: "Structured timeline entries with company role, dates, and impact bullets" },
-      { id: "sec_4", title: "Education & Credentials", component_type: "text_block", description: "Degree specialization, university honors, and certifications" },
-      { id: "sec_5", title: "Portfolio QR Code", component_type: "qr_code", description: "Scannable QR code block linking to live GitHub / Portfolio" }
+      {
+        id: "sec_1",
+        title: "Header & Personal Branding",
+        component_type: "header",
+        description:
+          "Bold target role, contact badges with modern icons and styled banner",
+      },
+      {
+        id: "sec_2",
+        title: "Sidebar Skills & Progress Loaders",
+        component_type: "skill_loader",
+        description:
+          "Dual-layer skill progress loaders showing technical proficiency percentages",
+      },
+      {
+        id: "sec_3",
+        title: "Professional Work Experience",
+        component_type: "timeline",
+        description:
+          "Structured timeline entries with company role, dates, and impact bullets",
+      },
+      {
+        id: "sec_4",
+        title: "Education & Credentials",
+        component_type: "text_block",
+        description:
+          "Degree specialization, university honors, and certifications",
+      },
+      {
+        id: "sec_5",
+        title: "Portfolio QR Code",
+        component_type: "qr_code",
+        description:
+          "Scannable QR code block linking to live GitHub / Portfolio",
+      },
     ],
     special_elements: [
       "Skill progress loaders with percentage bars",
       "Scannable Portfolio QR Code block",
-      "Executive timeline section dividers"
-    ]
+      "Executive timeline section dividers",
+    ],
   };
 }
 
@@ -589,10 +623,10 @@ export function generateFallbackElements(plan: DesignPlan): EditorElement[] {
 
   const skills = [
     { name: "React / Next.js", pct: 0.95 },
-    { name: "Python / FastAPI", pct: 0.90 },
+    { name: "Python / FastAPI", pct: 0.9 },
     { name: "AWS / Cloud", pct: 0.85 },
     { name: "PostgreSQL", pct: 0.88 },
-    { name: "Docker / K8s", pct: 0.80 }
+    { name: "Docker / K8s", pct: 0.8 },
   ];
 
   let sy = 615;
@@ -881,20 +915,97 @@ export function generateFallbackElements(plan: DesignPlan): EditorElement[] {
 
 export async function buildResumeFromImportedText(
   extractedText: string,
-  userPrompt: string = ""
+  userPrompt: string = "",
 ): Promise<{ elements: EditorElement[]; title: string }> {
   // 1. Initial local extraction as baseline
   let wizardData = parseResumeTextToWizardData(extractedText);
 
-  // 2. Ask Gemini AI to distill structured JSON data from extracted text
-  if (genAI && apiKey && extractedText.trim().length > 10) {
+  // 2. Primary: Distill structured candidate information via Backend Primary AI
+  let distilled = false;
+  try {
+    const res = await fetchWithCaptcha("/api/ai-architect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "distill",
+        prompt: extractedText.slice(0, 10000),
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const rawJson = data.data;
+      if (
+        rawJson &&
+        (rawJson.contact || rawJson.experiences || rawJson.skills)
+      ) {
+        console.log(
+          "[AI-Import Engine] ✅ Successfully distilled candidate data via Primary AI Engine!",
+        );
+        wizardData = {
+          ...wizardData,
+          contact: {
+            ...wizardData.contact,
+            firstName:
+              rawJson.contact?.firstName || wizardData.contact.firstName,
+            lastName: rawJson.contact?.lastName || wizardData.contact.lastName,
+            email: rawJson.contact?.email || wizardData.contact.email,
+            phone: rawJson.contact?.phone || wizardData.contact.phone,
+            linkedin: rawJson.contact?.linkedin || wizardData.contact.linkedin,
+            country:
+              rawJson.contact?.location ||
+              rawJson.contact?.country ||
+              wizardData.contact.country,
+          },
+          summary: rawJson.summary || wizardData.summary,
+          skills:
+            Array.isArray(rawJson.skills) && rawJson.skills.length > 0
+              ? rawJson.skills
+              : wizardData.skills,
+          experiences:
+            Array.isArray(rawJson.experiences) && rawJson.experiences.length > 0
+              ? rawJson.experiences.map((exp: any, i: number) => ({
+                  id: `exp_${i}`,
+                  jobTitle: exp.jobTitle || exp.title || "Position",
+                  company: exp.company || "",
+                  location: exp.location || "",
+                  startDate: exp.dates || exp.startDate || "",
+                  endDate: "",
+                  current: false,
+                  description: exp.description || exp.desc || "",
+                }))
+              : wizardData.experiences,
+          educations:
+            Array.isArray(rawJson.educations) && rawJson.educations.length > 0
+              ? rawJson.educations.map((edu: any, i: number) => ({
+                  id: `edu_${i}`,
+                  degree: edu.degree || "Degree",
+                  school: edu.school || "",
+                  location: edu.location || "",
+                  startDate: edu.dates || edu.startDate || "",
+                  endDate: "",
+                  current: false,
+                }))
+              : wizardData.educations,
+        };
+        distilled = true;
+      }
+    }
+  } catch (backendErr) {
+    console.warn(
+      "[AI-Import Engine] Backend distillation failed, attempting Gemini direct fallback...",
+      backendErr,
+    );
+  }
+
+  // 3. Secondary Fallback: Direct Client Google Gemini
+  if (!distilled && genAI && apiKey && extractedText.trim().length > 10) {
     const distillationPrompt = `You are a Lead AI Career Data Analyst.
 TASK: Extract ALL structured candidate information from this raw uploaded resume document text.
 
 RAW EXTRACTED TEXT:
 ${extractedText.slice(0, 6000)}
 
-${userPrompt ? `USER PROMPT ENHANCEMENT: ${userPrompt}` : ''}
+${userPrompt ? `USER PROMPT ENHANCEMENT: ${userPrompt}` : ""}
 
 Return ONLY a raw JSON object with this exact schema:
 {
@@ -929,63 +1040,88 @@ Return ONLY a raw JSON object with this exact schema:
 
     for (const modelName of GEMINI_MODELS) {
       try {
-        console.log(`[AI-Import Engine] Distilling with Gemini model ${modelName}...`);
+        console.log(
+          `[AI-Import Engine] Distilling with fallback Gemini model ${modelName}...`,
+        );
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent(distillationPrompt);
         const rawJson = cleanJSONResponse(result.response.text());
-        if (rawJson && (rawJson.contact || rawJson.experiences || rawJson.skills)) {
-          console.log(`[AI-Import Engine] ✅ Gemini successfully distilled candidate JSON data via ${modelName}!`);
+        if (
+          rawJson &&
+          (rawJson.contact || rawJson.experiences || rawJson.skills)
+        ) {
+          console.log(
+            `[AI-Import Engine] ✅ Gemini successfully distilled candidate JSON data via ${modelName}!`,
+          );
           wizardData = {
             ...wizardData,
             contact: {
               ...wizardData.contact,
-              firstName: rawJson.contact?.firstName || wizardData.contact.firstName,
-              lastName: rawJson.contact?.lastName || wizardData.contact.lastName,
+              firstName:
+                rawJson.contact?.firstName || wizardData.contact.firstName,
+              lastName:
+                rawJson.contact?.lastName || wizardData.contact.lastName,
               email: rawJson.contact?.email || wizardData.contact.email,
               phone: rawJson.contact?.phone || wizardData.contact.phone,
-              linkedin: rawJson.contact?.linkedin || wizardData.contact.linkedin,
+              linkedin:
+                rawJson.contact?.linkedin || wizardData.contact.linkedin,
               country: rawJson.contact?.location || wizardData.contact.country,
             },
             summary: rawJson.summary || wizardData.summary,
-            skills: Array.isArray(rawJson.skills) && rawJson.skills.length > 0 ? rawJson.skills : wizardData.skills,
-            experiences: Array.isArray(rawJson.experiences) && rawJson.experiences.length > 0
-              ? rawJson.experiences.map((exp: any, i: number) => ({
-                  id: `exp_${i}`,
-                  jobTitle: exp.jobTitle || exp.title || "Position",
-                  company: exp.company || "",
-                  location: exp.location || "",
-                  startDate: exp.dates || exp.startDate || "",
-                  endDate: "",
-                  current: false,
-                  description: exp.description || exp.desc || "",
-                }))
-              : wizardData.experiences,
-            educations: Array.isArray(rawJson.educations) && rawJson.educations.length > 0
-              ? rawJson.educations.map((edu: any, i: number) => ({
-                  id: `edu_${i}`,
-                  degree: edu.degree || "Degree",
-                  school: edu.school || "",
-                  location: edu.location || "",
-                  startDate: edu.dates || edu.startDate || "",
-                  endDate: "",
-                  description: edu.description || "",
-                }))
-              : wizardData.educations,
+            skills:
+              Array.isArray(rawJson.skills) && rawJson.skills.length > 0
+                ? rawJson.skills
+                : wizardData.skills,
+            experiences:
+              Array.isArray(rawJson.experiences) &&
+              rawJson.experiences.length > 0
+                ? rawJson.experiences.map((exp: any, i: number) => ({
+                    id: `exp_${i}`,
+                    jobTitle: exp.jobTitle || exp.title || "Position",
+                    company: exp.company || "",
+                    location: exp.location || "",
+                    startDate: exp.dates || exp.startDate || "",
+                    endDate: "",
+                    current: false,
+                    description: exp.description || exp.desc || "",
+                  }))
+                : wizardData.experiences,
+            educations:
+              Array.isArray(rawJson.educations) && rawJson.educations.length > 0
+                ? rawJson.educations.map((edu: any, i: number) => ({
+                    id: `edu_${i}`,
+                    degree: edu.degree || "Degree",
+                    school: edu.school || "",
+                    location: edu.location || "",
+                    startDate: edu.dates || edu.startDate || "",
+                    endDate: "",
+                    description: edu.description || "",
+                  }))
+                : wizardData.educations,
           };
           break;
         }
       } catch (err: any) {
         if (!err?.message?.includes("404")) {
-          console.warn(`[AI-Import Engine] Model ${modelName} distillation notice:`, err);
+          console.warn(
+            `[AI-Import Engine] Model ${modelName} distillation notice:`,
+            err,
+          );
         }
       }
     }
   }
 
   // 3. Build bespoke canvas elements from distilled candidate wizardData
-  const candidateName = (wizardData.contact.firstName + " " + wizardData.contact.lastName).trim();
-  const resumeTitle = candidateName ? `${candidateName}'s Resume` : "Imported Resume";
-  
+  const candidateName = (
+    wizardData.contact.firstName +
+    " " +
+    wizardData.contact.lastName
+  ).trim();
+  const resumeTitle = candidateName
+    ? `${candidateName}'s Resume`
+    : "Imported Resume";
+
   const elements = generateWizardElements(wizardData, "level2");
   const normalized = normalizeEditorElements(elements, "page-1");
   return { elements: normalized, title: resumeTitle };

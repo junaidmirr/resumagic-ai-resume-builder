@@ -1,14 +1,14 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  query, 
-  where, 
-  serverTimestamp 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  getDoc,
+  query,
+  where,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { EditorElement } from "../types/editor";
@@ -56,7 +56,10 @@ const getCloudResumesCache = (userId: string): Resume[] => {
 
 const saveCloudResumesCache = (userId: string, resumes: Resume[]) => {
   try {
-    localStorage.setItem(`cloud_resumes_cache_${userId}`, JSON.stringify(resumes));
+    localStorage.setItem(
+      `cloud_resumes_cache_${userId}`,
+      JSON.stringify(resumes),
+    );
   } catch (e) {
     console.warn("[ResumeService] Cache save warning:", e);
   }
@@ -64,7 +67,7 @@ const saveCloudResumesCache = (userId: string, resumes: Resume[]) => {
 
 function cleanUndefined(obj: any): any {
   if (Array.isArray(obj)) {
-    return obj.map(item => cleanUndefined(item));
+    return obj.map((item) => cleanUndefined(item));
   } else if (obj !== null && typeof obj === "object") {
     const res: any = {};
     for (const key of Object.keys(obj)) {
@@ -78,7 +81,12 @@ function cleanUndefined(obj: any): any {
 }
 
 export const resumeService = {
-  async createResume(userId: string | undefined | null, title: string = "Untitled Resume", elements: EditorElement[] = [], thumbnail?: string) {
+  async createResume(
+    userId: string | undefined | null,
+    title: string = "Untitled Resume",
+    elements: EditorElement[] = [],
+    thumbnail?: string,
+  ) {
     const sanitizedElements = cleanUndefined(elements);
     if (!userId || userId === "guest") {
       const id = "local_" + Math.random().toString(36).substr(2, 9);
@@ -124,7 +132,13 @@ export const resumeService = {
     return docRef.id;
   },
 
-  async updateResume(id: string, elements: EditorElement[], title?: string, thumbnail?: string, userId?: string) {
+  async updateResume(
+    id: string,
+    elements: EditorElement[],
+    title?: string,
+    thumbnail?: string,
+    userId?: string,
+  ) {
     const sanitizedElements = cleanUndefined(elements);
     if (id.startsWith("local_")) {
       const resumes = getLocalResumes();
@@ -191,11 +205,16 @@ export const resumeService = {
     return null;
   },
 
-  async getUserResumes(userId: string | undefined | null, forceRefresh: boolean = false): Promise<Resume[]> {
+  async getUserResumes(
+    userId: string | undefined | null,
+    forceRefresh: boolean = false,
+  ): Promise<Resume[]> {
     const localResumes = getLocalResumes();
-    
+
     if (!userId || userId === "guest") {
-      return localResumes.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+      return localResumes.sort(
+        (a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0),
+      );
     }
 
     // Check cached cloud resumes first for instant UI response
@@ -205,26 +224,34 @@ export const resumeService = {
       setTimeout(() => {
         const q = query(
           collection(db, COLLECTION_NAME),
-          where("userId", "==", userId)
+          where("userId", "==", userId),
         );
-        getDocs(q).then((querySnapshot) => {
-          const freshCloud = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resume));
-          saveCloudResumesCache(userId, freshCloud);
-        }).catch(console.error);
+        getDocs(q)
+          .then((querySnapshot) => {
+            const freshCloud = querySnapshot.docs.map(
+              (doc) => ({ id: doc.id, ...doc.data() }) as Resume,
+            );
+            saveCloudResumesCache(userId, freshCloud);
+          })
+          .catch(console.error);
       }, 100);
 
       const allResumes = [...cachedCloud, ...localResumes];
-      return allResumes.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+      return allResumes.sort(
+        (a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0),
+      );
     }
 
     const q = query(
       collection(db, COLLECTION_NAME),
-      where("userId", "==", userId)
+      where("userId", "==", userId),
     );
     const querySnapshot = await getDocs(q);
-    const cloudResumes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resume));
+    const cloudResumes = querySnapshot.docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() }) as Resume,
+    );
     saveCloudResumesCache(userId, cloudResumes);
-    
+
     const allResumes = [...cloudResumes, ...localResumes];
     return allResumes.sort((a, b) => {
       const dateA = a.updatedAt?.seconds || 0;
@@ -242,10 +269,13 @@ export const resumeService = {
 
     if (userId) {
       const cached = getCloudResumesCache(userId);
-      saveCloudResumesCache(userId, cached.filter((r) => r.id !== id));
+      saveCloudResumesCache(
+        userId,
+        cached.filter((r) => r.id !== id),
+      );
     }
 
     const docRef = doc(db, COLLECTION_NAME, id);
     await deleteDoc(docRef);
-  }
+  },
 };

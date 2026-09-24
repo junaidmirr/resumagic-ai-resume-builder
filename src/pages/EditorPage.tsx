@@ -20,10 +20,14 @@ import { RESUME_BLOCKS } from "../utils/blocks";
 import { templates as RESUME_TEMPLATES } from "../lib/templates";
 import { TemplateThumbnailPreview } from "../components/dashboard/TemplateThumbnailPreview";
 import { extractTextFromPDF } from "../lib/pdfParser";
-import { buildResumeFromImportedText, normalizeEditorElements } from "../lib/aiArchitect";
+import {
+  buildResumeFromImportedText,
+  normalizeEditorElements,
+} from "../lib/aiArchitect";
 import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
 import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
 import { PagePropertiesPanel } from "../components/editor/PagePropertiesPanel";
+import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
 import {
   Trash2,
   RotateCcw,
@@ -156,7 +160,16 @@ const FONT_SIZES = [
 ];
 const STROKE_WIDTHS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
 
-type PanelId = "elements" | "layers" | "properties" | "sections" | "pages" | "templates" | "ai" | "menu" | "assets";
+type PanelId =
+  | "elements"
+  | "layers"
+  | "properties"
+  | "sections"
+  | "pages"
+  | "templates"
+  | "ai"
+  | "menu"
+  | "assets";
 
 // ─── Color Picker ─────────────────────────────────────────────────────────────
 function ColorPicker({
@@ -322,7 +335,9 @@ function NumberInput({
   step?: number;
   unit?: string;
 }) {
-  const [local, setLocal] = useState(String(step < 1 ? value : Math.round(value)));
+  const [local, setLocal] = useState(
+    String(step < 1 ? value : Math.round(value)),
+  );
   useEffect(() => {
     setLocal(String(step < 1 ? value : Math.round(value)));
   }, [value, step]);
@@ -389,7 +404,6 @@ function NumberInput({
         >
           +
         </button>
-
       </div>
     </div>
   );
@@ -517,11 +531,12 @@ function ActionBtn({
   );
 }
 
-
 // ─── Main Editor Page ─────────────────────────────────────────────────────────
 export function EditorPage() {
-  const { user, refreshCredits, credits, deductCredits, userPlan, logout } = useAuth();
-  const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
+  const { user, refreshCredits, credits, deductCredits, userPlan, logout } =
+    useAuth();
+  const isProTier =
+    userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showAIArchitectModal, setShowAIArchitectModal] = useState(false);
@@ -543,7 +558,8 @@ export function EditorPage() {
     setShowProfileMenu(false);
     const shouldSave = await confirm({
       title: "Save Resume before Settings?",
-      description: "Do you want to save your current resume changes to the cloud before navigating to Settings?",
+      description:
+        "Do you want to save your current resume changes to the cloud before navigating to Settings?",
       confirmText: "Save & Go to Settings",
       cancelText: "Discard & Go to Settings",
     });
@@ -554,7 +570,9 @@ export function EditorPage() {
     navigate("/dashboard?tab=settings");
   };
   const [elements, setElements] = useState<EditorElement[]>([]);
-  const [pages, setPages] = useState<Page[]>([{ id: "page-1", width: 612, height: 792 }]);
+  const [pages, setPages] = useState<Page[]>([
+    { id: "page-1", width: 612, height: 792 },
+  ]);
   const [activePageId, setActivePageId] = useState<string>("page-1");
   const [resumeId] = useState<string | null>(
     localStorage.getItem("current_resume_id"),
@@ -576,9 +594,15 @@ export function EditorPage() {
 
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
-  const [activeLeftPanel, setActiveLeftPanel] = useState<string | null>("elements");
+  const [activeLeftPanel, setActiveLeftPanel] = useState<string | null>(
+    "elements",
+  );
   const [showChatbot, setShowChatbot] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; elementId: string | null } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    elementId: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const hideMenu = () => setContextMenu(null);
@@ -596,7 +620,7 @@ export function EditorPage() {
         setSelectedIds([]);
       }
     },
-    [selectedIds]
+    [selectedIds],
   );
   const [mobilePanel, setMobilePanel] = useState<PanelId | null>(null);
   const [zoom, setZoom] = useState(100);
@@ -633,7 +657,7 @@ export function EditorPage() {
   }, []);
 
   // ── Emergency Local Canvas Auto-Save & Refresh Recovery ─────────
-  const cacheKey = `resumagic_canvas_cache_${resumeId || 'draft'}`;
+  const cacheKey = `resumagic_canvas_cache_${resumeId || "draft"}`;
 
   // 1. Auto-save canvas to local emergency cache on every element/page change
   useEffect(() => {
@@ -646,10 +670,13 @@ export function EditorPage() {
             pages,
             resumeTitle,
             timestamp: Date.now(),
-          })
+          }),
         );
       } catch (err) {
-        console.warn("[Canvas Local Cache Warning] Could not save emergency cache:", err);
+        console.warn(
+          "[Canvas Local Cache Warning] Could not save emergency cache:",
+          err,
+        );
       }
     }
   }, [elements, pages, resumeTitle, cacheKey]);
@@ -666,7 +693,7 @@ export function EditorPage() {
               pages,
               resumeTitle,
               timestamp: Date.now(),
-            })
+            }),
           );
         } catch (e) {
           console.warn("[BeforeUnload Cache]", e);
@@ -701,7 +728,11 @@ export function EditorPage() {
       if (rawCache) {
         try {
           const cached = JSON.parse(rawCache);
-          if (cached && Array.isArray(cached.elements) && cached.elements.length > 0) {
+          if (
+            cached &&
+            Array.isArray(cached.elements) &&
+            cached.elements.length > 0
+          ) {
             setElements(cached.elements);
             if (Array.isArray(cached.pages) && cached.pages.length > 0) {
               setPages(cached.pages);
@@ -715,7 +746,7 @@ export function EditorPage() {
               ...cached.elements.map((e: any) => {
                 const parts = e.id?.split("_") || [];
                 return parseInt(parts[parts.length - 1]) || 0;
-              })
+              }),
             );
             counterRef.current = maxNum;
             restoredFromCache = true;
@@ -748,7 +779,7 @@ export function EditorPage() {
               ...res.elements.map((e: any) => {
                 const parts = e.id?.split("_") || [];
                 return parseInt(parts[parts.length - 1]) || 0;
-              })
+              }),
             );
             counterRef.current = maxNum;
           }
@@ -780,7 +811,8 @@ export function EditorPage() {
   const handleExit = async () => {
     const shouldSave = await confirm({
       title: "Save Resume?",
-      description: "Do you want to save your progress to the cloud before exiting?",
+      description:
+        "Do you want to save your progress to the cloud before exiting?",
       confirmText: "Save",
       cancelText: "Discard",
     });
@@ -800,11 +832,11 @@ export function EditorPage() {
           const pageNode = document.getElementById(`page-page-1`);
           if (pageNode) {
             try {
-              thumbnail = await toJpeg(pageNode, { 
-                quality: 0.2, 
-                canvasWidth: 306, 
+              thumbnail = await toJpeg(pageNode, {
+                quality: 0.2,
+                canvasWidth: 306,
                 canvasHeight: 396,
-                fontEmbedCSS: '',
+                fontEmbedCSS: "",
                 skipFonts: true,
               });
             } catch (e) {
@@ -812,9 +844,19 @@ export function EditorPage() {
             }
           }
           if (resumeId) {
-             await resumeService.updateResume(resumeId, elements, docName || "Untitled", thumbnail, user?.uid);
+            await resumeService.updateResume(
+              resumeId,
+              elements,
+              docName || "Untitled",
+              thumbnail,
+              user?.uid,
+            );
           } else {
-             await resumeService.createResume(user?.uid || "guest", docName || "Untitled", elements);
+            await resumeService.createResume(
+              user?.uid || "guest",
+              docName || "Untitled",
+              elements,
+            );
           }
           try {
             localStorage.removeItem(cacheKey);
@@ -823,7 +865,10 @@ export function EditorPage() {
           navigate("/dashboard");
         } catch (err) {
           console.error("Cloud Save Failed:", err);
-          await alert({ title: "Error", description: "Failed to save resume." });
+          await alert({
+            title: "Error",
+            description: "Failed to save resume.",
+          });
         } finally {
           setIsSyncing(false);
         }
@@ -919,7 +964,8 @@ export function EditorPage() {
 
   // ── Add Elements ──────────────────────────────────────────
   const getCenterCoordinates = (w: number, h: number) => {
-    const activePage = pages.find((p) => p.id === activePageId) || pages[0] || { width: 612, height: 792 };
+    const activePage = pages.find((p) => p.id === activePageId) ||
+      pages[0] || { width: 612, height: 792 };
     const pw = activePage.width || 612;
     const ph = activePage.height || 792;
     const x = Math.max(20, Math.round((pw - w) / 2));
@@ -1011,7 +1057,8 @@ export function EditorPage() {
   const addLine = () => {
     _snapshot();
     const id = getNextId("line");
-    const activePage = pages.find((p) => p.id === activePageId) || pages[0] || { width: 612, height: 792 };
+    const activePage = pages.find((p) => p.id === activePageId) ||
+      pages[0] || { width: 612, height: 792 };
     const pw = activePage.width || 612;
     const ph = activePage.height || 792;
     const lineLen = Math.min(400, pw - 80);
@@ -1040,12 +1087,13 @@ export function EditorPage() {
   const addQRCode = async () => {
     const url = await prompt({
       title: "Add QR Code",
-      description: "Enter the URL for the QR Code (e.g. your LinkedIn or Portfolio):",
+      description:
+        "Enter the URL for the QR Code (e.g. your LinkedIn or Portfolio):",
       defaultValue: "https://github.com/",
       confirmText: "Add QR Code",
     });
     if (!url) return;
-    
+
     _snapshot();
     const id = getNextId("image");
     const w = 100;
@@ -1071,12 +1119,16 @@ export function EditorPage() {
   const addChart = async () => {
     const dataStr = await prompt({
       title: "Add Metric Chart",
-      description: "Enter chart data values separated by commas (e.g. 50,75,100):",
+      description:
+        "Enter chart data values separated by commas (e.g. 50,75,100):",
       defaultValue: "30,70,45,90",
       confirmText: "Create Chart",
     });
     if (!dataStr) return;
-    const values = dataStr.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v));
+    const values = dataStr
+      .split(",")
+      .map((v) => parseInt(v.trim()))
+      .filter((v) => !isNaN(v));
     if (values.length === 0) return;
 
     const canvas = document.createElement("canvas");
@@ -1090,20 +1142,29 @@ export function EditorPage() {
     ctx.fillRect(0, 0, 300, 200);
     const maxVal = Math.max(...values, 1);
     const barWidth = 300 / values.length - 10;
-    
+
     values.forEach((val, i) => {
       const height = (val / maxVal) * 160;
       ctx.fillStyle = "#0d9488"; // teal-600
-      ctx.fillRect(i * (barWidth + 10) + 5, 200 - height - 10, barWidth, height);
-      
+      ctx.fillRect(
+        i * (barWidth + 10) + 5,
+        200 - height - 10,
+        barWidth,
+        height,
+      );
+
       ctx.fillStyle = "#334155";
       ctx.font = "12px Helvetica, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(val.toString(), i * (barWidth + 10) + 5 + barWidth / 2, 200 - height - 15);
+      ctx.fillText(
+        val.toString(),
+        i * (barWidth + 10) + 5 + barWidth / 2,
+        200 - height - 15,
+      );
     });
 
     const dataUrl = canvas.toDataURL("image/png");
-    
+
     _snapshot();
     const id = getNextId("image");
     const w = 300;
@@ -1142,7 +1203,8 @@ export function EditorPage() {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, 400, 100);
-    ctx.font = "italic 48px 'Brush Script MT', 'Cedarville Cursive', cursive, serif";
+    ctx.font =
+      "italic 48px 'Brush Script MT', 'Cedarville Cursive', cursive, serif";
     ctx.fillStyle = "#0f172a";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -1181,43 +1243,61 @@ export function EditorPage() {
     if (blockId === "skill_bars") {
       const skillInput = await prompt({
         title: "Add Skill Progress Bar",
-        description: "Enter the skill name and percentage (e.g. 'Python 90' or 'React 85'):",
+        description:
+          "Enter the skill name and percentage (e.g. 'Python 90' or 'React 85'):",
         defaultValue: "Python 90",
         confirmText: "Add Progress Bar",
       });
       if (!skillInput) return;
-      
+
       const match = skillInput.trim().match(/^(.*?)\s+(\d+)$/);
       if (match) {
-        dynamicData = { name: match[1].trim(), percentage: parseInt(match[2], 10) };
+        dynamicData = {
+          name: match[1].trim(),
+          percentage: parseInt(match[2], 10),
+        };
       } else {
         dynamicData = { name: skillInput, percentage: 80 }; // fallback
       }
     } else if (blockId === "radar_chart") {
       const skillsInput = await prompt({
         title: "Add Skill Radar Chart",
-        description: "Enter up to 6 skills and percentages separated by commas (e.g. 'Python 90, React 80, SQL 70'):",
+        description:
+          "Enter up to 6 skills and percentages separated by commas (e.g. 'Python 90, React 80, SQL 70'):",
         defaultValue: "Python 90, React 80, SQL 70",
         confirmText: "Add Radar Chart",
       });
       if (!skillsInput) return;
-      
-      const parsedSkills = skillsInput.split(",").map(s => {
-        const match = s.trim().match(/^(.*?)\s+(\d+)$/);
-        return match ? { name: match[1].trim(), percentage: parseInt(match[2], 10) } : { name: s.trim(), percentage: 80 };
-      }).slice(0, 6);
-      
+
+      const parsedSkills = skillsInput
+        .split(",")
+        .map((s) => {
+          const match = s.trim().match(/^(.*?)\s+(\d+)$/);
+          return match
+            ? { name: match[1].trim(), percentage: parseInt(match[2], 10) }
+            : { name: s.trim(), percentage: 80 };
+        })
+        .slice(0, 6);
+
       if (parsedSkills.length === 0) return;
       dynamicData = parsedSkills;
     }
 
     _snapshot();
     const groupId = `group_${Date.now()}`;
-    
-    const rawEls = blockDef.elements(groupId, activePageId, elements.length, dynamicData);
+
+    const rawEls = blockDef.elements(
+      groupId,
+      activePageId,
+      elements.length,
+      dynamicData,
+    );
 
     // Calculate bounding box of block elements
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
     rawEls.forEach((el) => {
       const w = (el as any).width || 100;
       const h = (el as any).height || 20;
@@ -1230,7 +1310,8 @@ export function EditorPage() {
     const blockWidth = maxX - minX;
     const blockHeight = maxY - minY;
 
-    const activePage = pages.find((p) => p.id === activePageId) || pages[0] || { width: 612, height: 792 };
+    const activePage = pages.find((p) => p.id === activePageId) ||
+      pages[0] || { width: 612, height: 792 };
     const pw = activePage.width || 612;
     const ph = activePage.height || 792;
 
@@ -1263,7 +1344,14 @@ export function EditorPage() {
       return;
     }
 
-    if (!(await confirm({ title: "Apply Template", description: "Applying a template will replace all current elements on this page. Continue?", danger: true }))) {
+    if (
+      !(await confirm({
+        title: "Apply Template",
+        description:
+          "Applying a template will replace all current elements on this page. Continue?",
+        danger: true,
+      }))
+    ) {
       return;
     }
 
@@ -1276,7 +1364,10 @@ export function EditorPage() {
       } as EditorElement;
     });
 
-    setElements((p) => [...p.filter(e => e.page_id !== activePageId), ...newEls]);
+    setElements((p) => [
+      ...p.filter((e) => e.page_id !== activePageId),
+      ...newEls,
+    ]);
     setSelectedIds([]);
   };
 
@@ -1326,9 +1417,12 @@ export function EditorPage() {
   };
 
   const handleCropComplete = async (dataUrl: string) => {
-    const sel = selectedIds.length === 1 ? elementsRef.current.find(e => e.id === selectedIds[0]) : null;
+    const sel =
+      selectedIds.length === 1
+        ? elementsRef.current.find((e) => e.id === selectedIds[0])
+        : null;
     _snapshot();
-    if (sel && sel.element_type === 'image') {
+    if (sel && sel.element_type === "image") {
       const img = new Image();
       img.onload = () => {
         let w = img.width;
@@ -1338,12 +1432,18 @@ export function EditorPage() {
           h = (MAX_W / w) * h;
           w = MAX_W;
         }
-        setElements(prev => prev.map(e => e.id === sel.id ? {
-          ...e,
-          image_path: dataUrl,
-          width: w,
-          height: h
-        } : e));
+        setElements((prev) =>
+          prev.map((e) =>
+            e.id === sel.id
+              ? {
+                  ...e,
+                  image_path: dataUrl,
+                  width: w,
+                  height: h,
+                }
+              : e,
+          ),
+        );
       };
       img.src = dataUrl;
     }
@@ -1372,7 +1472,10 @@ export function EditorPage() {
 
     ids.forEach((id) => {
       const orig = elementsRef.current.find((e) => e.id === id);
-      const prefix = (orig.id && orig.id.includes("_")) ? orig.id.split("_")[0] : (orig.element_type || "el");
+      const prefix =
+        orig.id && orig.id.includes("_")
+          ? orig.id.split("_")[0]
+          : orig.element_type || "el";
       const nid = getNextId(prefix);
       const dupe: any = {
         ...JSON.parse(JSON.stringify(orig)),
@@ -1516,7 +1619,7 @@ export function EditorPage() {
 
       setProcessingIds((p) => [...p, id]);
       try {
-        const resp = await fetch("/api/remove-bg", {
+        const resp = await fetchWithCaptcha("/api/remove-bg", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1566,7 +1669,7 @@ export function EditorPage() {
       } else {
         const formData = new FormData();
         formData.append("file", file);
-        const resp = await fetch("/api/parse-resume", {
+        const resp = await fetchWithCaptcha("/api/parse-resume", {
           method: "POST",
           body: formData,
         });
@@ -1585,7 +1688,8 @@ export function EditorPage() {
         setElements((prev) => [...prev, ...prepped]);
         await alert({
           title: "Import Successful",
-          description: "AI has distilled your resume details and created bespoke canvas elements!",
+          description:
+            "AI has distilled your resume details and created bespoke canvas elements!",
         });
       }
     } catch (err: any) {
@@ -1603,7 +1707,7 @@ export function EditorPage() {
   const handleLinkedInImport = async () => {
     if (!linkedinUrl) return;
     try {
-      const resp = await fetch("/api/import-linkedin-url", {
+      const resp = await fetchWithCaptcha("/api/import-linkedin-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ linkedin_url: linkedinUrl }),
@@ -1616,21 +1720,27 @@ export function EditorPage() {
         const startY = 700;
         const newEls: any[] = [];
         let curY = startY;
-        
+
         // Add name
         if (data.wizard_data.personal_info?.name) {
           newEls.push({
             id: getNextId("text"),
             element_type: "text",
             text: data.wizard_data.personal_info.name,
-            x: 50, y: curY, width: 300, height: 40,
-            font_size: 24, font_family: "Helvetica-Bold", text_color: "#000",
-            page_id: activePageId, z_index: elementsRef.current.length + newEls.length
+            x: 50,
+            y: curY,
+            width: 300,
+            height: 40,
+            font_size: 24,
+            font_family: "Helvetica-Bold",
+            text_color: "#000",
+            page_id: activePageId,
+            z_index: elementsRef.current.length + newEls.length,
           });
           curY -= 40;
         }
-        
-        setElements(prev => [...prev, ...newEls]);
+
+        setElements((prev) => [...prev, ...newEls]);
         alert("LinkedIn profile imported!");
         setLinkedinUrl("");
       }
@@ -1640,7 +1750,12 @@ export function EditorPage() {
     }
   };
 
-  const estimateTextHeight = (text: string, width: number = 400, fontSize: number = 12, lineHeight: number = 1.4) => {
+  const estimateTextHeight = (
+    text: string,
+    width: number = 400,
+    fontSize: number = 12,
+    lineHeight: number = 1.4,
+  ) => {
     const charsPerLine = Math.max(1, Math.floor(width / (fontSize * 0.55)));
     const lines = text.split("\n").reduce((acc, line) => {
       return acc + Math.max(1, Math.ceil(line.length / charsPerLine));
@@ -1648,78 +1763,300 @@ export function EditorPage() {
     return Math.max(20, Math.ceil(lines * fontSize * lineHeight));
   };
 
-  const applyTextChangeWithLayoutShift = (elementId: string, newText: string) => {
+  const findTargetElementForFix = (
+    fix: any,
+    currentElements: EditorElement[],
+  ): EditorElement | null => {
+    if (!currentElements || currentElements.length === 0) return null;
+
+    // 1. Direct ID match
+    if (fix.target_element_id) {
+      const match = currentElements.find((e) => e.id === fix.target_element_id);
+      if (match) return match;
+    }
+
+    const field = (fix.target_field || "").toLowerCase();
+    const title = (fix.title || "").toLowerCase();
+    const desc = (fix.description || "").toLowerCase();
+
+    // 2. Field-specific heuristics
+    if (
+      field === "skills" ||
+      title.includes("skill") ||
+      desc.includes("skill") ||
+      title.includes("keyword")
+    ) {
+      const skillsEl = currentElements.find(
+        (e) =>
+          e.element_type === "text" &&
+          (e.text.includes("•") || e.text.includes(",")) &&
+          (e.text.toLowerCase().includes("react") ||
+            e.text.toLowerCase().includes("python") ||
+            e.text.toLowerCase().includes("management") ||
+            e.text.toLowerCase().includes("sql") ||
+            e.text.toLowerCase().includes("git") ||
+            e.text.toLowerCase().includes("tools") ||
+            e.text.toLowerCase().includes("competenc")),
+      );
+      if (skillsEl) return skillsEl;
+
+      const heading = currentElements.find(
+        (e) =>
+          e.element_type === "text" && e.text.toUpperCase().includes("SKILL"),
+      );
+      if (heading) {
+        const below = currentElements
+          .filter((e) => e.element_type === "text" && e.y < heading.y)
+          .sort((a, b) => b.y - a.y)[0];
+        if (below) return below;
+      }
+    }
+
+    if (
+      field === "summary" ||
+      title.includes("summary") ||
+      desc.includes("summary") ||
+      title.includes("profile")
+    ) {
+      const summaryEl = currentElements.find(
+        (e) =>
+          e.element_type === "text" &&
+          e.text.length > 50 &&
+          !e.text.trim().startsWith("•") &&
+          !e.text.trim().startsWith("-"),
+      );
+      if (summaryEl) return summaryEl;
+
+      const heading = currentElements.find(
+        (e) =>
+          e.element_type === "text" &&
+          (e.text.toUpperCase().includes("SUMMARY") ||
+            e.text.toUpperCase().includes("PROFILE")),
+      );
+      if (heading) {
+        const below = currentElements
+          .filter((e) => e.element_type === "text" && e.y < heading.y)
+          .sort((a, b) => b.y - a.y)[0];
+        if (below) return below;
+      }
+    }
+
+    if (
+      field === "experience" ||
+      title.includes("experience") ||
+      title.includes("bullet") ||
+      title.includes("metric") ||
+      title.includes("quantif") ||
+      title.includes("impact")
+    ) {
+      const expEl = currentElements.find(
+        (e) =>
+          e.element_type === "text" &&
+          (e.text.includes("•") ||
+            e.text.trim().startsWith("-") ||
+            e.text.toLowerCase().includes("spearheaded") ||
+            e.text.toLowerCase().includes("developed") ||
+            e.text.toLowerCase().includes("managed") ||
+            e.text.toLowerCase().includes("engineered") ||
+            e.text.toLowerCase().includes("architected")),
+      );
+      if (expEl) return expEl;
+
+      const heading = currentElements.find(
+        (e) =>
+          e.element_type === "text" &&
+          e.text.toUpperCase().includes("EXPERIENCE"),
+      );
+      if (heading) {
+        const below = currentElements
+          .filter((e) => e.element_type === "text" && e.y < heading.y)
+          .sort((a, b) => b.y - a.y)[0];
+        if (below) return below;
+      }
+    }
+
+    if (
+      field === "headline" ||
+      title.includes("headline") ||
+      title.includes("role") ||
+      title.includes("title")
+    ) {
+      const headlineEl = currentElements.find(
+        (e) =>
+          e.element_type === "text" &&
+          e.y > 650 &&
+          (e.font_size || 12) >= 12 &&
+          (e.font_size || 12) <= 18,
+      );
+      if (headlineEl) return headlineEl;
+    }
+
+    // 3. Fallback: match by any suggested text phrases
+    if (fix.original_value) {
+      const match = currentElements.find(
+        (e) => e.element_type === "text" && e.text.includes(fix.original_value),
+      );
+      if (match) return match;
+    }
+
+    return null;
+  };
+
+  const applyTextChangeWithLayoutShift = (
+    elementId: string,
+    newText: string,
+    actionType: string = "replace_text",
+  ) => {
     _snapshot();
+
     setElements((prev) => {
       const targetEl = prev.find((e) => e.id === elementId);
       if (!targetEl || targetEl.element_type !== "text") return prev;
+
+      // Merge text cleanly based on actionType
+      let finalText = newText;
+      if (actionType === "append_text") {
+        if (targetEl.text.includes("•") || newText.includes("•")) {
+          finalText = `${targetEl.text.trim()}\n${newText.trim()}`;
+        } else if (targetEl.text.includes(",")) {
+          const curItems = targetEl.text
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const newItems = newText
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const merged = Array.from(new Set([...curItems, ...newItems]));
+          finalText = merged.join(", ");
+        } else {
+          finalText = `${targetEl.text} • ${newText}`;
+        }
+      }
 
       const oldHeight = targetEl.height || 20;
       const targetWidth = targetEl.width || 400;
       const fontSize = targetEl.font_size || 12;
       const lineHeight = targetEl.line_height || 1.4;
 
-      const newHeight = estimateTextHeight(newText, targetWidth, fontSize, lineHeight);
+      const newHeight = estimateTextHeight(
+        finalText,
+        targetWidth,
+        fontSize,
+        lineHeight,
+      );
       const heightDelta = newHeight - oldHeight; // Positive = expanded, Negative = shortened
 
       const pageId = targetEl.page_id || "page-1";
-      const targetY = targetEl.y; // In bottom-left origin, Y decreases going down
+
+      // Canvas Origin: Bottom-Left.
+      // Top of element = targetEl.y + targetEl.height.
+      // Keeping TOP edge invariant in reading flow:
+      const newTargetY = targetEl.y - heightDelta;
+      const originalTargetBottomY = targetEl.y;
+
+      const targetMinX = targetEl.x;
+      const targetMaxX = targetEl.x + targetEl.width;
+      const isTargetFullWidth = targetWidth >= 380;
 
       return prev.map((el) => {
         if (el.id === elementId) {
-          return { ...el, text: newText, height: newHeight } as EditorElement;
+          return {
+            ...el,
+            text: finalText,
+            height: newHeight,
+            y: newTargetY,
+          } as EditorElement;
         }
-        // Shift elements on the same page located BELOW the target element (el.y < targetY)
-        if ((el.page_id || "page-1") === pageId && el.y < targetY) {
-          const newY = Math.max(0, el.y - heightDelta);
-          if (el.element_type === "shape" && (el.shape_type === "line" || el.shape_type === "arrow")) {
-            const y2Delta = (el.y2 ?? el.y) - el.y;
-            return { ...el, y: newY, y2: newY + y2Delta } as EditorElement;
+
+        // Shift elements on the same page located strictly below the target in reading flow
+        if ((el.page_id || "page-1") === pageId) {
+          // Skip full-page background container shapes / sidebar backdrops
+          if (
+            el.element_type === "shape" &&
+            el.height > 400 &&
+            el.width > 150
+          ) {
+            return el;
           }
-          return { ...el, y: newY } as EditorElement;
+
+          // Check if element is below target (in bottom-left origin: el.y < originalTargetBottomY)
+          const isBelow = el.y < originalTargetBottomY;
+
+          // Check horizontal column alignment
+          const elMinX = el.x;
+          const elMaxX = el.x + (el.width || 100);
+          const hasHorizontalOverlap =
+            Math.max(targetMinX, elMinX) < Math.min(targetMaxX, elMaxX) - 5;
+          const isFullWidthElement =
+            (el.width || 0) >= 380 || isTargetFullWidth;
+
+          if (isBelow && (hasHorizontalOverlap || isFullWidthElement)) {
+            const newY = Math.max(10, el.y - heightDelta);
+            if (
+              el.element_type === "shape" &&
+              (el.shape_type === "line" || el.shape_type === "arrow")
+            ) {
+              const y2Delta = (el.y2 ?? el.y) - el.y;
+              return { ...el, y: newY, y2: newY + y2Delta } as EditorElement;
+            }
+            return { ...el, y: newY } as EditorElement;
+          }
         }
         return el;
       });
     });
+
+    // Select the modified element so user immediately sees the highlight on canvas
+    setSelectedIds([elementId]);
   };
 
   const applySurgicalFix = async (fix: any) => {
     _snapshot();
-    if (fix.target_element_id) {
-      applyTextChangeWithLayoutShift(fix.target_element_id, fix.suggested_value || fix.description);
+    const currentElements = elementsRef.current;
+
+    // 1. Locate target element precisely
+    const targetEl = findTargetElementForFix(fix, currentElements);
+
+    if (targetEl) {
+      applyTextChangeWithLayoutShift(
+        targetEl.id,
+        fix.suggested_value || fix.description,
+        fix.action_type || "replace_text",
+      );
+      setSelectedIds([targetEl.id]);
       return;
-    } 
-    
-    // For structural fixes (like removing shapes, formatting), route to the AI Architect
-    try {
-      const resp = await fetch("/api/ai-chat-edit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user?.uid || "",
-          "X-Skip-Credit-Check": "true"
-        },
-        body: JSON.stringify({
-          elements: elementsRef.current,
-          prompt: `Apply this fix to the canvas: ${fix.title}. ${fix.description} ${fix.suggested_value || ""}`,
-        }),
-      });
+    }
 
-      if (!resp.ok) {
-        if (resp.status === 402) throw new Error("Insufficient credits. Please recharge.");
-        throw new Error("Backend failed to process request");
-      }
+    // 2. If no target element exists at all, insert a new element at the optimal reading position
+    const textVal = fix.suggested_value || fix.description;
+    if (textVal) {
+      const textEls = currentElements.filter(
+        (e) =>
+          e.element_type === "text" && (e.page_id || "page-1") === activePageId,
+      );
+      const lowestEl = textEls.reduce(
+        (min, e) => (e.y < min.y ? e : min),
+        textEls[0] || { x: 50, y: 300, width: 450 },
+      );
 
-      refreshCredits();
-      const result = await resp.json();
-      
-      if (result.elements) {
-        setElements(result.elements);
-      } else {
-        alert({ title: "Fix Not Applied", description: "The AI Architect couldn't automatically resolve this fix." });
-      }
-    } catch (err: any) {
-      alert({ title: "Error", description: err.message || "Failed to connect to AI Architect." });
+      const newEl: EditorElement = {
+        id: getNextId("text") + "_fix",
+        element_type: "text",
+        page_id: activePageId,
+        x: lowestEl.x || 50,
+        y: Math.max(40, lowestEl.y - 45),
+        width: lowestEl.width || 450,
+        height: 40,
+        font_size: 10.5,
+        font_name: "Helvetica",
+        text_color: "#1e293b",
+        text: textVal,
+        z_index: currentElements.length + 10,
+      };
+
+      setElements((prev) => [...prev, newEl]);
+      setSelectedIds([newEl.id]);
     }
   };
 
@@ -1731,7 +2068,11 @@ export function EditorPage() {
       if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
         try {
           const parsed = JSON.parse(trimmed);
-          const rawEls = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.elements) ? parsed.elements : null);
+          const rawEls = Array.isArray(parsed)
+            ? parsed
+            : parsed && Array.isArray(parsed.elements)
+              ? parsed.elements
+              : null;
           if (rawEls && rawEls.length > 0) {
             const normalized = normalizeEditorElements(rawEls, activePageId);
             setElements(normalized);
@@ -1763,49 +2104,60 @@ export function EditorPage() {
 
   const handleAITextAction = async (action: string, elementId: string) => {
     if (!user) {
-      openModal({ title: "Login Required", subtitle: "Please log in to use AI Text Assistant.", showBlankOption: false });
+      openModal({
+        title: "Login Required",
+        subtitle: "Please log in to use AI Text Assistant.",
+        showBlankOption: false,
+      });
       return;
     }
-    const el = elementsRef.current.find(e => e.id === elementId);
+    const el = elementsRef.current.find((e) => e.id === elementId);
     if (!el || el.element_type !== "text") return;
 
     if (credits < 10) {
       alert("Insufficient credits (10 required). Please recharge.");
       return;
     }
-    
+
     // Instantly start loader & lock UI
-    setProcessingIds(p => [...p, elementId]);
+    setProcessingIds((p) => [...p, elementId]);
     setLoadingAIAction(action);
     try {
-      const resp = await fetch("/api/ai-assistant", {
+      const resp = await fetchWithCaptcha("/api/ai-assistant", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "X-User-ID": user.uid,
-          "X-Skip-Credit-Check": "true"
+          "X-Skip-Credit-Check": "true",
         },
         body: JSON.stringify({ action, text: el.text }),
       });
+      let data: any = null;
+      const contentType = resp.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await resp.json();
+      }
+
+      if (data && data.status === "rejected") {
+        alert({
+          title: "Request Denied",
+          description:
+            data.reason ||
+            data.error ||
+            "I can only assist with resume building, career, and job application topics.",
+        });
+        return;
+      }
+
       if (!resp.ok) {
-        let errorMsg = `AI Edit failed (${resp.status})`;
-        const contentType = resp.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errData = await resp.json();
-          errorMsg = errData.error || errorMsg;
-        } else {
-          errorMsg += " - Please restart your local Python backend to load the latest changes.";
+        let errorMsg = data?.error || `AI Edit failed (${resp.status})`;
+        if (!data) {
+          errorMsg +=
+            " - Please restart your local Python backend to load the latest changes.";
         }
         throw new Error(errorMsg);
       }
-      
-      const data = await resp.json();
 
-      if (data.status === "rejected") {
-        await alert({ title: "Request Denied", description: data.reason || "I can only assist with resume building, career, and job application topics." });
-        return;
-      }
-      
       if (data.result) {
         applyTextChangeWithLayoutShift(elementId, data.result);
         // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
@@ -1818,7 +2170,7 @@ export function EditorPage() {
       console.error(err);
       alert(err.message);
     } finally {
-      setProcessingIds(p => p.filter(id => id !== elementId));
+      setProcessingIds((p) => p.filter((id) => id !== elementId));
       setLoadingAIAction(null);
     }
   };
@@ -1889,7 +2241,11 @@ export function EditorPage() {
     setShowIconModal(false);
   };
 
-  const handleInsertAsset = async (url: string, w: number = 200, h: number = 200) => {
+  const handleInsertAsset = async (
+    url: string,
+    w: number = 200,
+    h: number = 200,
+  ) => {
     _snapshot();
     const id = getNextId("image");
     const { x, y } = getCenterCoordinates(w, h);
@@ -1908,7 +2264,10 @@ export function EditorPage() {
           });
         }
       } catch (err) {
-        console.warn("[Asset Data URL Conversion Notice] Falling back to URL:", err);
+        console.warn(
+          "[Asset Data URL Conversion Notice] Falling back to URL:",
+          err,
+        );
       }
     }
 
@@ -1933,7 +2292,11 @@ export function EditorPage() {
   // ── Export / Import ───────────────────────────────────────
   const exportImage = async (format: "png" | "jpeg") => {
     if (!user) {
-      openModal({ title: "Login Required", subtitle: "Please log in to export your resume.", showBlankOption: false });
+      openModal({
+        title: "Login Required",
+        subtitle: "Please log in to export your resume.",
+        showBlankOption: false,
+      });
       return;
     }
     const pageEl =
@@ -1943,16 +2306,32 @@ export function EditorPage() {
       document.querySelector(".resume-page");
 
     if (!pageEl) {
-      alert("Could not locate active canvas page element. Please refresh and try again.");
+      alert(
+        "Could not locate active canvas page element. Please refresh and try again.",
+      );
       return;
     }
 
     try {
       setIsExporting(true);
-      const url = format === "png" 
-        ? await toPng(pageEl as HTMLElement, { pixelRatio: 3, cacheBust: true, fontEmbedCSS: '', skipFonts: true, backgroundColor: "#ffffff" })
-        : await toJpeg(pageEl as HTMLElement, { pixelRatio: 3, quality: 0.95, cacheBust: true, fontEmbedCSS: '', skipFonts: true, backgroundColor: "#ffffff" });
-        
+      const url =
+        format === "png"
+          ? await toPng(pageEl as HTMLElement, {
+              pixelRatio: 3,
+              cacheBust: true,
+              fontEmbedCSS: "",
+              skipFonts: true,
+              backgroundColor: "#ffffff",
+            })
+          : await toJpeg(pageEl as HTMLElement, {
+              pixelRatio: 3,
+              quality: 0.95,
+              cacheBust: true,
+              fontEmbedCSS: "",
+              skipFonts: true,
+              backgroundColor: "#ffffff",
+            });
+
       const a = document.createElement("a");
       a.href = url;
       a.download = `${resumeTitle || "resume"}.${format}`;
@@ -1968,28 +2347,31 @@ export function EditorPage() {
   };
   const handleExport = async () => {
     if (!user) {
-      openModal({ title: "Login Required", subtitle: "Please log in to export your resume.", showBlankOption: false });
+      openModal({
+        title: "Login Required",
+        subtitle: "Please log in to export your resume.",
+        showBlankOption: false,
+      });
       return;
     }
     setIsExporting(true);
 
     let serverSuccess = false;
     try {
-      // 1. Primary Attempt: Python ReportLab Engine with 3.5s Fast Timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-      const res = await fetch("/api/render", {
+      // 1. Primary Attempt: Python ReportLab Engine with Rate Limiting & Turnstile Captcha
+      const res = await fetchWithCaptcha("/api/render", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-User-ID": user?.uid || "",
         },
         body: JSON.stringify({ elements, pages }),
-        signal: controller.signal,
-      }).catch(() => null);
+      });
 
-      clearTimeout(timeoutId);
+      if (res && res.status === 429) {
+        setIsExporting(false);
+        return;
+      }
 
       if (res && res.ok) {
         const contentType = res.headers.get("content-type") || "";
@@ -2010,8 +2392,24 @@ export function EditorPage() {
         setIsExporting(false);
         return;
       }
-    } catch (e) {
-      console.warn("[PDF Export] Backend engine notice. Executing high-precision client engine:", e);
+    } catch (e: any) {
+      if (
+        e?.message?.includes("Security verification") ||
+        e?.message?.includes("cancelled")
+      ) {
+        alert({
+          title: "Verification Required",
+          description:
+            e.message ||
+            "Please complete security verification to download your PDF.",
+        });
+        setIsExporting(false);
+        return;
+      }
+      console.warn(
+        "[PDF Export] Backend engine notice. Executing high-precision client engine:",
+        e,
+      );
     }
 
     // 2. High-Precision Client Canvas Engine Fallback
@@ -2023,38 +2421,52 @@ export function EditorPage() {
           document.querySelector(`[data-page-id="${activePageId}"]`) ||
           document.querySelector("[id*='page-']");
 
-        const activePage = pages.find((p) => p.id === activePageId) || pages[0] || {
-          width: 612,
-          height: 792,
-          bg_color: "#ffffff",
-        };
+        const activePage = pages.find((p) => p.id === activePageId) ||
+          pages[0] || {
+            width: 612,
+            height: 792,
+            bg_color: "#ffffff",
+          };
 
         if (pageEl) {
           const imgUrl = await toPng(pageEl as HTMLElement, {
             pixelRatio: 3,
             cacheBust: true,
-            fontEmbedCSS: '',
+            fontEmbedCSS: "",
             skipFonts: true,
             backgroundColor: activePage.bg_color || "#ffffff",
           });
 
           // Direct PDF Document Generation & Download
           const pdf = new jsPDF({
-            orientation: activePage.width > activePage.height ? "landscape" : "portrait",
+            orientation:
+              activePage.width > activePage.height ? "landscape" : "portrait",
             unit: "pt",
             format: [activePage.width, activePage.height],
           });
 
-          pdf.addImage(imgUrl, "PNG", 0, 0, activePage.width, activePage.height);
+          pdf.addImage(
+            imgUrl,
+            "PNG",
+            0,
+            0,
+            activePage.width,
+            activePage.height,
+          );
           pdf.save(`${resumeTitle || "resume"}.pdf`);
           refreshCredits();
           serverSuccess = true;
         } else {
-          alert("Could not locate active canvas page element. Please refresh and try again.");
+          alert(
+            "Could not locate active canvas page element. Please refresh and try again.",
+          );
         }
       } catch (fallbackErr: any) {
         console.error("[PDF Export Fallback Error]", fallbackErr);
-        alert("Export encountered an issue: " + (fallbackErr.message || String(fallbackErr)));
+        alert(
+          "Export encountered an issue: " +
+            (fallbackErr.message || String(fallbackErr)),
+        );
       } finally {
         setIsExporting(false);
       }
@@ -2115,7 +2527,8 @@ export function EditorPage() {
       id: "draw",
       icon: LucideIcons.PenTool,
       label: "Draw",
-      hoverCls: "hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600",
+      hoverCls:
+        "hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600",
       action: () => setShowDrawingModal(true),
     },
     {
@@ -2145,28 +2558,32 @@ export function EditorPage() {
       id: "line",
       icon: Minus,
       label: "Line",
-      hoverCls: "hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300",
+      hoverCls:
+        "hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300",
       action: addLine,
     },
     {
       id: "qr",
       icon: LucideIcons.QrCode,
       label: "QR Code",
-      hoverCls: "hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-600",
+      hoverCls:
+        "hover:bg-teal-50 dark:hover:bg-teal-900/30 hover:text-teal-600",
       action: addQRCode,
     },
     {
       id: "chart",
       icon: LucideIcons.BarChart3,
       label: "Chart",
-      hoverCls: "hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600",
+      hoverCls:
+        "hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600",
       action: addChart,
     },
     {
       id: "signature",
       icon: LucideIcons.PenTool,
       label: "Signature",
-      hoverCls: "hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600",
+      hoverCls:
+        "hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600",
       action: addSignature,
     },
   ];
@@ -2322,7 +2739,7 @@ export function EditorPage() {
                 </button>
               ))}
             </div>
-            
+
             <div className="flex gap-1 mt-2 bg-app-surface border border-app-border p-1 rounded-lg">
               {[
                 { key: "left", icon: LucideIcons.AlignLeft },
@@ -2333,11 +2750,17 @@ export function EditorPage() {
                 <button
                   key={key}
                   type="button"
-                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  onClick={() => { _snapshot(); updateProp("align", key); }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={() => {
+                    _snapshot();
+                    updateProp("align", key);
+                  }}
                   className={`flex-1 py-1.5 flex justify-center items-center rounded-md transition-colors ${
-                    (sel.align || 'left') === key 
-                      ? "bg-white dark:bg-slate-700 shadow-sm text-teal-600 dark:text-teal-400" 
+                    (sel.align || "left") === key
+                      ? "bg-white dark:bg-slate-700 shadow-sm text-teal-600 dark:text-teal-400"
                       : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   }`}
                 >
@@ -2372,79 +2795,157 @@ export function EditorPage() {
         {sel.element_type === "text" && (
           <Section title="AI Assistant">
             <div className="flex flex-col gap-2">
-              <button 
+              <button
                 onClick={() => handleAITextAction("professional_tone", sel.id)}
                 disabled={loadingAIAction !== null}
                 className="flex items-center gap-2 text-xs text-left px-3 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg transition-colors font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loadingAIAction === "professional_tone" ? <LucideIcons.Loader2 size={14} className="animate-spin" /> : <LucideIcons.Sparkles size={14} />}
+                {loadingAIAction === "professional_tone" ? (
+                  <LucideIcons.Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <LucideIcons.Sparkles size={14} />
+                )}
                 Make Professional
               </button>
               <div className="grid grid-cols-2 gap-2">
-                <button 
+                <button
                   onClick={() => handleAITextAction("improve_grammar", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-1.5 text-[11px] px-2 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "improve_grammar" ? <LucideIcons.Loader2 size={12} className="animate-spin text-teal-500" /> : <LucideIcons.CheckCircle size={12} className="text-teal-500" />}
+                  {loadingAIAction === "improve_grammar" ? (
+                    <LucideIcons.Loader2
+                      size={12}
+                      className="animate-spin text-teal-500"
+                    />
+                  ) : (
+                    <LucideIcons.CheckCircle
+                      size={12}
+                      className="text-teal-500"
+                    />
+                  )}
                   Fix Grammar
                 </button>
-                <button 
+                <button
                   onClick={() => handleAITextAction("rewrite", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-1.5 text-[11px] px-2 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "rewrite" ? <LucideIcons.Loader2 size={12} className="animate-spin text-blue-500" /> : <LucideIcons.RefreshCw size={12} className="text-blue-500" />}
+                  {loadingAIAction === "rewrite" ? (
+                    <LucideIcons.Loader2
+                      size={12}
+                      className="animate-spin text-blue-500"
+                    />
+                  ) : (
+                    <LucideIcons.RefreshCw
+                      size={12}
+                      className="text-blue-500"
+                    />
+                  )}
                   Rewrite
                 </button>
-                <button 
+                <button
                   onClick={() => handleAITextAction("expand", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-1.5 text-[11px] px-2 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "expand" ? <LucideIcons.Loader2 size={12} className="animate-spin text-purple-500" /> : <LucideIcons.Maximize2 size={12} className="text-purple-500" />}
+                  {loadingAIAction === "expand" ? (
+                    <LucideIcons.Loader2
+                      size={12}
+                      className="animate-spin text-purple-500"
+                    />
+                  ) : (
+                    <LucideIcons.Maximize2
+                      size={12}
+                      className="text-purple-500"
+                    />
+                  )}
                   Expand
                 </button>
-                <button 
+                <button
                   onClick={() => handleAITextAction("shorten", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-1.5 text-[11px] px-2 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "shorten" ? <LucideIcons.Loader2 size={12} className="animate-spin text-orange-500" /> : <LucideIcons.Minimize2 size={12} className="text-orange-500" />}
+                  {loadingAIAction === "shorten" ? (
+                    <LucideIcons.Loader2
+                      size={12}
+                      className="animate-spin text-orange-500"
+                    />
+                  ) : (
+                    <LucideIcons.Minimize2
+                      size={12}
+                      className="text-orange-500"
+                    />
+                  )}
                   Shorten
                 </button>
-                <button 
+                <button
                   onClick={() => handleAITextAction("summarize", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-1.5 text-[11px] px-2 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "summarize" ? <LucideIcons.Loader2 size={12} className="animate-spin text-indigo-500" /> : <LucideIcons.AlignLeft size={12} className="text-indigo-500" />}
+                  {loadingAIAction === "summarize" ? (
+                    <LucideIcons.Loader2
+                      size={12}
+                      className="animate-spin text-indigo-500"
+                    />
+                  ) : (
+                    <LucideIcons.AlignLeft
+                      size={12}
+                      className="text-indigo-500"
+                    />
+                  )}
                   Summarize
                 </button>
-                <button 
+                <button
                   onClick={() => handleAITextAction("translate", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-1.5 text-[11px] px-2 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "translate" ? <LucideIcons.Loader2 size={12} className="animate-spin text-pink-500" /> : <LucideIcons.Languages size={12} className="text-pink-500" />}
+                  {loadingAIAction === "translate" ? (
+                    <LucideIcons.Loader2
+                      size={12}
+                      className="animate-spin text-pink-500"
+                    />
+                  ) : (
+                    <LucideIcons.Languages
+                      size={12}
+                      className="text-pink-500"
+                    />
+                  )}
                   Translate
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                <button 
+                <button
                   onClick={() => handleAITextAction("bullet_points", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-2 text-xs text-left px-3 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "bullet_points" ? <LucideIcons.Loader2 size={14} className="animate-spin text-slate-500" /> : <LucideIcons.List size={14} className="text-slate-500" />}
+                  {loadingAIAction === "bullet_points" ? (
+                    <LucideIcons.Loader2
+                      size={14}
+                      className="animate-spin text-slate-500"
+                    />
+                  ) : (
+                    <LucideIcons.List size={14} className="text-slate-500" />
+                  )}
                   To Bullets
                 </button>
-                <button 
+                <button
                   onClick={() => handleAITextAction("keywords", sel.id)}
                   disabled={loadingAIAction !== null}
                   className="flex items-center gap-2 text-xs text-left px-3 py-2 bg-app-surface hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors font-medium border border-app-border disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loadingAIAction === "keywords" ? <LucideIcons.Loader2 size={14} className="animate-spin text-yellow-500" /> : <LucideIcons.Key size={14} className="text-yellow-500" />}
+                  {loadingAIAction === "keywords" ? (
+                    <LucideIcons.Loader2
+                      size={14}
+                      className="animate-spin text-yellow-500"
+                    />
+                  ) : (
+                    <LucideIcons.Key size={14} className="text-yellow-500" />
+                  )}
                   Keywords
                 </button>
               </div>
@@ -2552,11 +3053,15 @@ export function EditorPage() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 select-none">
                     Image Adjustments
                   </p>
-                  
+
                   {/* Opacity */}
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-medium text-app-text-muted">Opacity</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{Math.round((sel.opacity ?? 1) * 100)}%</span>
+                    <span className="text-[11px] font-medium text-app-text-muted">
+                      Opacity
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {Math.round((sel.opacity ?? 1) * 100)}%
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -2564,15 +3069,21 @@ export function EditorPage() {
                     max="1"
                     step="0.05"
                     value={sel.opacity ?? 1}
-                    onChange={(e) => updateProp("opacity", parseFloat(e.target.value))}
+                    onChange={(e) =>
+                      updateProp("opacity", parseFloat(e.target.value))
+                    }
                     onMouseDown={_snapshot}
                     className="w-full accent-teal-500 mb-4 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                   />
 
                   {/* Rotation */}
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-medium text-app-text-muted">Rotation</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{sel.rotation || 0}°</span>
+                    <span className="text-[11px] font-medium text-app-text-muted">
+                      Rotation
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {sel.rotation || 0}°
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -2580,15 +3091,21 @@ export function EditorPage() {
                     max="360"
                     step="1"
                     value={sel.rotation || 0}
-                    onChange={(e) => updateProp("rotation", parseInt(e.target.value, 10))}
+                    onChange={(e) =>
+                      updateProp("rotation", parseInt(e.target.value, 10))
+                    }
                     onMouseDown={_snapshot}
                     className="w-full accent-teal-500 mb-4 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                   />
 
                   {/* Border Radius */}
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-medium text-app-text-muted">Border Radius</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{sel.border_radius || 0}px</span>
+                    <span className="text-[11px] font-medium text-app-text-muted">
+                      Border Radius
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {sel.border_radius || 0}px
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -2596,14 +3113,18 @@ export function EditorPage() {
                     max="100"
                     step="1"
                     value={sel.border_radius || 0}
-                    onChange={(e) => updateProp("border_radius", parseInt(e.target.value, 10))}
+                    onChange={(e) =>
+                      updateProp("border_radius", parseInt(e.target.value, 10))
+                    }
                     onMouseDown={_snapshot}
                     className="w-full accent-teal-500 mb-4 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                   />
 
                   {/* Drop Shadow */}
                   <label className="flex items-center justify-between cursor-pointer mb-2 group">
-                    <span className="text-[11px] font-medium text-app-text-muted group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">Drop Shadow</span>
+                    <span className="text-[11px] font-medium text-app-text-muted group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+                      Drop Shadow
+                    </span>
                     <input
                       type="checkbox"
                       checked={!!sel.shadow}
@@ -2816,21 +3337,36 @@ export function EditorPage() {
                   <LIcon size={11} className="shrink-0 opacity-60" />
                   <span className="capitalize truncate flex-1">{label}</span>
                   <span className="font-mono text-[10px] opacity-40">
-                    #{(el.id && el.id.includes("_")) ? el.id.split("_")[1] : (el.id ? el.id.slice(-4) : "1")}
+                    #
+                    {el.id && el.id.includes("_")
+                      ? el.id.split("_")[1]
+                      : el.id
+                        ? el.id.slice(-4)
+                        : "1"}
                   </span>
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     _snapshot();
-                    setElements(prev => prev.map(e => e.id === el.id ? { ...e, locked: !e.locked } : e));
+                    setElements((prev) =>
+                      prev.map((e) =>
+                        e.id === el.id ? { ...e, locked: !e.locked } : e,
+                      ),
+                    );
                   }}
                   className={`p-1 rounded ml-1 transition-colors ${
-                    el.locked ? "text-red-500 hover:text-red-600 bg-red-50 dark:bg-red-900/20" : "text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    el.locked
+                      ? "text-red-500 hover:text-red-600 bg-red-50 dark:bg-red-900/20"
+                      : "text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                   title={el.locked ? "Unlock layer" : "Lock layer"}
                 >
-                  {el.locked ? <LucideIcons.Lock size={12} /> : <LucideIcons.Unlock size={12} />}
+                  {el.locked ? (
+                    <LucideIcons.Lock size={12} />
+                  ) : (
+                    <LucideIcons.Unlock size={12} />
+                  )}
                 </button>
               </div>
             );
@@ -2857,9 +3393,9 @@ export function EditorPage() {
           >
             <LucideIcons.LayoutGrid size={18} />
           </button>
-          
+
           <div className="w-px h-5 bg-app-border mx-0.5" />
-          
+
           <div className="flex items-center gap-1.5 min-w-0">
             <div className="w-7 h-7 bg-gradient-to-br from-brand-primary to-indigo-600 rounded-lg flex items-center justify-center shadow-md border border-white/20 shrink-0">
               <LucideIcons.FileText className="w-4 h-4 text-white" />
@@ -2872,18 +3408,23 @@ export function EditorPage() {
               placeholder="Untitled Document"
             />
           </div>
-          
+
           <div className="hidden xl:flex items-center gap-2 ml-1 px-2.5 py-1 bg-app-bg rounded-full border border-app-border text-[10px] font-bold text-app-text-muted shrink-0">
             {isSyncing ? (
               <>
                 <RefreshCw size={12} className="animate-spin text-indigo-500" />
-                <span className="uppercase tracking-widest text-indigo-600/70 dark:text-indigo-400/70">Syncing...</span>
+                <span className="uppercase tracking-widest text-indigo-600/70 dark:text-indigo-400/70">
+                  Syncing...
+                </span>
               </>
             ) : (
               <>
                 <Cloud size={12} className="text-app-text-muted" />
                 <span className="uppercase tracking-widest">
-                  Saved {lastSaved ? `at ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                  Saved{" "}
+                  {lastSaved
+                    ? `at ${lastSaved.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : ""}
                 </span>
               </>
             )}
@@ -2892,19 +3433,38 @@ export function EditorPage() {
 
         {/* CENTER: Tool Toggles (Undo/Redo & Zoom) */}
         <div className="hidden md:flex items-center justify-center gap-1 shrink-0 bg-app-bg/80 backdrop-blur-md p-1 rounded-xl border border-app-border shadow-sm">
-          <IconBtn icon={RotateCcw} onClick={undo} disabled={!undoStack.length} title="Undo (⌘Z)" />
-          <IconBtn icon={RotateCw} onClick={redo} disabled={!redoStack.length} title="Redo (⌘Y)" />
+          <IconBtn
+            icon={RotateCcw}
+            onClick={undo}
+            disabled={!undoStack.length}
+            title="Undo (⌘Z)"
+          />
+          <IconBtn
+            icon={RotateCw}
+            onClick={redo}
+            disabled={!redoStack.length}
+            title="Redo (⌘Y)"
+          />
           <div className="w-px h-5 bg-app-border mx-1" />
-          
+
           {/* Zoom Controls */}
           <div className="flex items-center gap-1 text-xs font-mono px-1">
-            <button onClick={() => setZoom((z) => Math.max(25, z - 10))} className="p-1.5 hover:bg-app-surface rounded-lg shadow-sm text-app-text-secondary hover:text-indigo-500 transition-colors">
+            <button
+              onClick={() => setZoom((z) => Math.max(25, z - 10))}
+              className="p-1.5 hover:bg-app-surface rounded-lg shadow-sm text-app-text-secondary hover:text-indigo-500 transition-colors"
+            >
               <ZoomOut size={14} />
             </button>
-            <span className="w-10 text-center text-app-text-secondary cursor-pointer hover:text-indigo-500 font-semibold text-[11px]" onClick={() => setZoom(100)}>
+            <span
+              className="w-10 text-center text-app-text-secondary cursor-pointer hover:text-indigo-500 font-semibold text-[11px]"
+              onClick={() => setZoom(100)}
+            >
               {zoom}%
             </span>
-            <button onClick={() => setZoom((z) => Math.min(200, z + 10))} className="p-1.5 hover:bg-app-surface rounded-lg shadow-sm text-app-text-secondary hover:text-indigo-500 transition-colors">
+            <button
+              onClick={() => setZoom((z) => Math.min(200, z + 10))}
+              className="p-1.5 hover:bg-app-surface rounded-lg shadow-sm text-app-text-secondary hover:text-indigo-500 transition-colors"
+            >
               <ZoomIn size={14} />
             </button>
           </div>
@@ -2934,7 +3494,7 @@ export function EditorPage() {
 
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="hidden md:flex p-2 rounded-lg text-app-text-muted hover:text-app-text hover:bg-app-bg transition-colors"
             title="Toggle Dark Mode"
           >
@@ -2949,11 +3509,15 @@ export function EditorPage() {
                 ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
                 : "text-app-text-muted hover:text-app-text hover:bg-app-bg"
             }`}
-            title={rightOpen ? "Collapse Properties Panel" : "Expand Properties Panel"}
+            title={
+              rightOpen
+                ? "Collapse Properties Panel"
+                : "Expand Properties Panel"
+            }
           >
             <LucideIcons.Sliders size={16} />
           </button>
-          
+
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowAIArchitectModal(true)}
@@ -2966,9 +3530,12 @@ export function EditorPage() {
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setShowChatbot((p) => !p)}
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${showChatbot ? 'bg-indigo-500 border-indigo-600 text-white shadow-sm' : 'bg-app-bg border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500'}`}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border ${showChatbot ? "bg-indigo-500 border-indigo-600 text-white shadow-sm" : "bg-app-bg border-app-border text-app-text-secondary hover:border-indigo-500 hover:text-indigo-500"}`}
           >
-            <LucideIcons.Sparkles size={13} className={showChatbot ? 'animate-pulse' : ''} />
+            <LucideIcons.Sparkles
+              size={13}
+              className={showChatbot ? "animate-pulse" : ""}
+            />
             <span className="hidden md:inline">AI Tools</span>
           </button>
 
@@ -2979,27 +3546,40 @@ export function EditorPage() {
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg shadow-[0_4px_12px_-4px_rgba(79,70,229,0.5)]
               bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white transition-all disabled:opacity-50 shrink-0"
           >
-            {isExporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-            <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export PDF"}</span>
+            {isExporting ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Download size={13} />
+            )}
+            <span className="hidden sm:inline">
+              {isExporting ? "Exporting..." : "Export PDF"}
+            </span>
           </button>
-          
+
           <div className="w-px h-5 bg-app-border mx-0.5 hidden sm:block" />
-          
+
           {user && (
             <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full text-xs font-bold shrink-0 border border-amber-500/20 shadow-sm">
-              <LucideIcons.Zap size={13} className="fill-amber-500 text-amber-500 shrink-0" />
+              <LucideIcons.Zap
+                size={13}
+                className="fill-amber-500 text-amber-500 shrink-0"
+              />
               <span>{credits}</span>
             </div>
           )}
 
           <div className="relative shrink-0">
-            <button 
+            <button
               onClick={() => setShowProfileMenu((p) => !p)}
               className="flex w-7 h-7 rounded-full bg-app-bg border-2 border-app-border overflow-hidden shadow-sm items-center justify-center shrink-0 hover:border-brand-primary transition-all active:scale-95"
               title="User Account Menu"
             >
               {user?.photoURL ? (
-                <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                <img
+                  src={user.photoURL}
+                  alt="User"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <LucideIcons.User size={14} className="text-app-text-muted" />
               )}
@@ -3011,16 +3591,24 @@ export function EditorPage() {
                 <div className="flex items-center gap-3 pb-2.5 border-b border-app-border">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0 overflow-hidden">
                     {user?.photoURL ? (
-                      <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                      <img
+                        src={user.photoURL}
+                        alt="User"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       user?.email?.charAt(0).toUpperCase() || "U"
                     )}
                   </div>
                   <div className="flex flex-col overflow-hidden min-w-0">
                     <span className="text-xs font-bold text-app-text truncate">
-                      {user?.displayName || user?.email?.split("@")[0] || "User Account"}
+                      {user?.displayName ||
+                        user?.email?.split("@")[0] ||
+                        "User Account"}
                     </span>
-                    <span className="text-[11px] text-app-text-muted truncate">{user?.email}</span>
+                    <span className="text-[11px] text-app-text-muted truncate">
+                      {user?.email}
+                    </span>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[9px] px-1.5 py-0.2 bg-brand-primary/10 text-brand-primary font-black uppercase rounded border border-brand-primary/20">
                         {userPlan || "FREE"}
@@ -3037,7 +3625,10 @@ export function EditorPage() {
                     onClick={handleGoToSettings}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-app-text hover:bg-brand-primary/10 hover:text-brand-primary rounded-xl transition-all text-left"
                   >
-                    <LucideIcons.Settings size={14} className="text-brand-primary" />
+                    <LucideIcons.Settings
+                      size={14}
+                      className="text-brand-primary"
+                    />
                     Go to Settings
                   </button>
 
@@ -3058,7 +3649,9 @@ export function EditorPage() {
 
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setMobilePanel((p) => (p === "menu" ? null : "menu"))}
+            onClick={() =>
+              setMobilePanel((p) => (p === "menu" ? null : "menu"))
+            }
             className="md:hidden p-2 rounded-lg hover:bg-app-bg text-app-text-secondary transition-colors"
           >
             <LucideIcons.Menu size={18} />
@@ -3067,7 +3660,7 @@ export function EditorPage() {
       </header>
 
       {/* ── WORKSPACE ROW ── */}
-<div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── LEFT SIDEBAR (DOCK + FLYOUT) ── */}
         <div className="flex h-full shrink-0 z-20 shadow-[4px_0_24px_-10px_rgba(0,0,0,0.05)]">
           {/* Dock */}
@@ -3075,24 +3668,39 @@ export function EditorPage() {
             <div className="flex flex-col items-center py-4 gap-2">
               {[
                 { id: "elements", icon: LucideIcons.Blocks, label: "Elements" },
-                { id: "sections", icon: LucideIcons.LayoutList, label: "Sections" },
+                {
+                  id: "sections",
+                  icon: LucideIcons.LayoutList,
+                  label: "Sections",
+                },
                 { id: "layers", icon: LucideIcons.Layers, label: "Layers" },
                 { id: "pages", icon: LucideIcons.File, label: "Pages" },
-                { id: "templates", icon: LucideIcons.LayoutTemplate, label: "Templates" },
+                {
+                  id: "templates",
+                  icon: LucideIcons.LayoutTemplate,
+                  label: "Templates",
+                },
                 { id: "ai", icon: LucideIcons.Sparkles, label: "AI Tools" },
                 { id: "assets", icon: LucideIcons.Image, label: "Assets" },
               ].map(({ id, icon: Icon, label }) => (
                 <button
                   key={id}
-                  onClick={() => setActiveLeftPanel((p) => (p === id ? null : id))}
+                  onClick={() =>
+                    setActiveLeftPanel((p) => (p === id ? null : id))
+                  }
                   className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all ${
                     activeLeftPanel === id
                       ? "bg-app-accent/10 text-app-accent shadow-sm border border-app-accent/20"
                       : "text-app-text/40 hover:text-app-text hover:bg-app-surface border border-transparent"
                   }`}
                 >
-                  <Icon size={20} strokeWidth={activeLeftPanel === id ? 2.5 : 2} />
-                  <span className="text-[8px] font-bold mt-1 uppercase tracking-wider">{label}</span>
+                  <Icon
+                    size={20}
+                    strokeWidth={activeLeftPanel === id ? 2.5 : 2}
+                  />
+                  <span className="text-[8px] font-bold mt-1 uppercase tracking-wider">
+                    {label}
+                  </span>
                 </button>
               ))}
             </div>
@@ -3103,23 +3711,27 @@ export function EditorPage() {
             <div className="w-72 bg-app-surface/95 backdrop-blur-xl border-r border-app-border flex flex-col h-full relative z-20 shadow-lg">
               {activeLeftPanel === "elements" && (
                 <div className="p-4 flex flex-col h-full overflow-y-auto custom-scrollbar">
-                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-app-text/50 mb-4 px-1">Add Elements</h3>
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-app-text/50 mb-4 px-1">
+                    Add Elements
+                  </h3>
                   <div className="grid grid-cols-2 gap-2">
-                    {tools.map(({ id, icon: Icon, label, hoverCls, action }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={action}
-                        title={label}
-                        className={`flex flex-col items-center justify-center gap-2 py-4 rounded-xl bg-app-bg border border-app-border text-app-text/60 shadow-sm transition-all select-none hover:border-app-accent hover:text-app-accent hover:bg-app-surface ${hoverCls}`}
-                      >
-                        <Icon size={22} strokeWidth={1.8} />
-                        <span className="text-[10px] font-bold tracking-wide uppercase">
-                          {label}
-                        </span>
-                      </button>
-                    ))}
+                    {tools.map(
+                      ({ id, icon: Icon, label, hoverCls, action }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={action}
+                          title={label}
+                          className={`flex flex-col items-center justify-center gap-2 py-4 rounded-xl bg-app-bg border border-app-border text-app-text/60 shadow-sm transition-all select-none hover:border-app-accent hover:text-app-accent hover:bg-app-surface ${hoverCls}`}
+                        >
+                          <Icon size={22} strokeWidth={1.8} />
+                          <span className="text-[10px] font-bold tracking-wide uppercase">
+                            {label}
+                          </span>
+                        </button>
+                      ),
+                    )}
                   </div>
                 </div>
               )}
@@ -3127,12 +3739,18 @@ export function EditorPage() {
               {activeLeftPanel === "sections" && (
                 <div className="flex flex-col h-full overflow-hidden bg-transparent">
                   <div className="p-4 border-b border-app-border shrink-0">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-app-text/50">Block Builder</h3>
-                    <p className="text-[10px] text-app-text/40 mt-1">Click to drop a grouped section</p>
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-app-text/50">
+                      Block Builder
+                    </h3>
+                    <p className="text-[10px] text-app-text/40 mt-1">
+                      Click to drop a grouped section
+                    </p>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar">
                     {RESUME_BLOCKS.map((block) => {
-                      const Icon = (LucideIcons as any)[block.icon] || LucideIcons.LayoutTemplate;
+                      const Icon =
+                        (LucideIcons as any)[block.icon] ||
+                        LucideIcons.LayoutTemplate;
                       return (
                         <button
                           key={block.id}
@@ -3141,11 +3759,25 @@ export function EditorPage() {
                         >
                           <div className="flex items-center gap-2 mb-2 text-app-text/60 group-hover:text-app-accent">
                             <Icon size={16} />
-                            <span className="font-bold text-xs uppercase tracking-wide">{block.name}</span>
+                            <span className="font-bold text-xs uppercase tracking-wide">
+                              {block.name}
+                            </span>
                           </div>
                           <div className="flex items-center justify-center bg-app-surface rounded overflow-hidden border border-app-border/50 pt-2">
-                            <ErrorBoundary fallback={<div className="text-[10px] text-app-text-muted p-2">Preview unavailable</div>}>
-                              <MiniPreview elements={block.elements('preview-group', activePageId, 0)} />
+                            <ErrorBoundary
+                              fallback={
+                                <div className="text-[10px] text-app-text-muted p-2">
+                                  Preview unavailable
+                                </div>
+                              }
+                            >
+                              <MiniPreview
+                                elements={block.elements(
+                                  "preview-group",
+                                  activePageId,
+                                  0,
+                                )}
+                              />
                             </ErrorBoundary>
                           </div>
                         </button>
@@ -3158,19 +3790,23 @@ export function EditorPage() {
               {activeLeftPanel === "layers" && (
                 <div className="flex flex-col h-full overflow-hidden">
                   <div className="p-4 border-b border-app-border shrink-0">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-app-text/50">Layers</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-app-text/50">
+                      Layers
+                    </h3>
                   </div>
-                  <div className="flex-1 min-h-0">
-                    {renderLayers()}
-                  </div>
+                  <div className="flex-1 min-h-0">{renderLayers()}</div>
                 </div>
               )}
 
               {activeLeftPanel === "templates" && (
                 <div className="flex flex-col h-full overflow-hidden">
                   <div className="p-4 border-b border-app-border shrink-0">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-app-text/50">Templates</h3>
-                    <p className="text-[10px] text-app-text/40 mt-1">Start from a pre-designed layout</p>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-app-text/50">
+                      Templates
+                    </h3>
+                    <p className="text-[10px] text-app-text/40 mt-1">
+                      Start from a pre-designed layout
+                    </p>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                     {RESUME_TEMPLATES.map((tpl) => {
@@ -3180,7 +3816,9 @@ export function EditorPage() {
                           key={tpl.id}
                           onClick={() => applyTemplate(tpl.id)}
                           className={`w-full p-3 rounded-xl bg-app-bg border shadow-sm transition-all cursor-pointer group flex flex-col gap-2 relative ${
-                            isLocked ? "border-amber-500/40 hover:border-amber-500" : "border-app-border hover:border-app-accent hover:shadow-md"
+                            isLocked
+                              ? "border-amber-500/40 hover:border-amber-500"
+                              : "border-app-border hover:border-app-accent hover:shadow-md"
                           }`}
                         >
                           <div className="w-full h-44 bg-app-surface border border-app-border rounded-lg p-2 overflow-hidden flex items-center justify-center relative">
@@ -3190,12 +3828,16 @@ export function EditorPage() {
                                 <div className="p-2 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 shadow-md">
                                   <LucideIcons.Lock className="w-5 h-5" />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">PRO Template</span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
+                                  PRO Template
+                                </span>
                               </div>
                             )}
                           </div>
                           <div className="flex items-center justify-between gap-1">
-                            <h4 className="text-xs font-bold text-app-text uppercase tracking-wide truncate">{tpl.name}</h4>
+                            <h4 className="text-xs font-bold text-app-text uppercase tracking-wide truncate">
+                              {tpl.name}
+                            </h4>
                             {isLocked ? (
                               <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
                                 PRO
@@ -3216,11 +3858,16 @@ export function EditorPage() {
               {activeLeftPanel === "pages" && (
                 <div className="flex flex-col h-full overflow-hidden">
                   <div className="p-4 border-b border-app-border flex items-center justify-between shrink-0">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-app-text/50">Pages</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-app-text/50">
+                      Pages
+                    </h3>
                     <button
                       onClick={() => {
                         const newPageId = `page-${Date.now()}`;
-                        setPages([...pages, { id: newPageId, width: 612, height: 792 }]);
+                        setPages([
+                          ...pages,
+                          { id: newPageId, width: 612, height: 792 },
+                        ]);
                         setActivePageId(newPageId);
                       }}
                       className="p-1.5 bg-app-accent/10 text-app-accent hover:bg-app-accent/20 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold px-2.5"
@@ -3237,8 +3884,8 @@ export function EditorPage() {
                           key={p.id}
                           onClick={() => setActivePageId(p.id)}
                           className={`group relative aspect-[0.77] w-full rounded-xl border-2 transition-all cursor-pointer overflow-hidden shadow-xs flex flex-col justify-between p-2
-                            ${activePageId === p.id ? 'border-brand-primary shadow-md ring-1 ring-brand-primary/30' : 'border-app-border hover:border-app-text/20'}`}
-                          style={{ backgroundColor: p.bg_color || '#ffffff' }}
+                            ${activePageId === p.id ? "border-brand-primary shadow-md ring-1 ring-brand-primary/30" : "border-app-border hover:border-app-text/20"}`}
+                          style={{ backgroundColor: p.bg_color || "#ffffff" }}
                         >
                           <div className="flex items-center justify-between">
                             <span className="px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded font-bold">
@@ -3249,12 +3896,30 @@ export function EditorPage() {
                               <button
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  if (await confirm({ title: "Delete Page", description: "Are you sure you want to delete this page?", danger: true })) {
-                                    setPages(pages.filter(pg => pg.id !== p.id));
+                                  if (
+                                    await confirm({
+                                      title: "Delete Page",
+                                      description:
+                                        "Are you sure you want to delete this page?",
+                                      danger: true,
+                                    })
+                                  ) {
+                                    setPages(
+                                      pages.filter((pg) => pg.id !== p.id),
+                                    );
                                     if (activePageId === p.id) {
-                                      setActivePageId(pages[0].id === p.id ? pages[1].id : pages[0].id);
+                                      setActivePageId(
+                                        pages[0].id === p.id
+                                          ? pages[1].id
+                                          : pages[0].id,
+                                      );
                                     }
-                                    setElements(prev => prev.filter(el => (el.page_id || 'page-1') !== p.id));
+                                    setElements((prev) =>
+                                      prev.filter(
+                                        (el) =>
+                                          (el.page_id || "page-1") !== p.id,
+                                      ),
+                                    );
                                   }
                                 }}
                                 className="p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3283,7 +3948,7 @@ export function EditorPage() {
               )}
 
               {activeLeftPanel === "ai" && (
-                <AIAssistantSidebar 
+                <AIAssistantSidebar
                   elements={elements}
                   linkedinUrl={linkedinUrl}
                   setLinkedinUrl={setLinkedinUrl}
@@ -3305,9 +3970,22 @@ export function EditorPage() {
 
         {/* CENTER: CANVAS */}
         <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-app-bg relative shadow-[inset_0_0_20px_rgba(0,0,0,0.02)]">
-          <div className="absolute inset-0 pointer-events-none opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.05]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)",
+              backgroundSize: "24px 24px",
+            }}
+          ></div>
           <div className="flex-1 min-h-0 overflow-hidden relative">
-            <ErrorBoundary fallback={<div className="p-8 text-center text-rose-500 font-bold">Canvas Error. Please undo or refresh.</div>}>
+            <ErrorBoundary
+              fallback={
+                <div className="p-8 text-center text-rose-500 font-bold">
+                  Canvas Error. Please undo or refresh.
+                </div>
+              }
+            >
               <EditorCanvas
                 elements={elements}
                 setElements={setElements}
@@ -3316,8 +3994,12 @@ export function EditorPage() {
                 setActivePageId={setActivePageId}
                 selectedIds={selectedIds}
                 setSelectedIds={setSelectedIds}
-                pageWidth={pages.find((p) => p.id === activePageId)?.width || 612}
-                pageHeight={pages.find((p) => p.id === activePageId)?.height || 792}
+                pageWidth={
+                  pages.find((p) => p.id === activePageId)?.width || 612
+                }
+                pageHeight={
+                  pages.find((p) => p.id === activePageId)?.height || 792
+                }
                 onSnapshot={_snapshot}
                 zoom={zoom}
                 snapEnabled={snapEnabled}
@@ -3428,21 +4110,44 @@ export function EditorPage() {
             className="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-app-surface border border-r-0 border-app-border rounded-l-xl p-2.5 shadow-lg text-app-text-secondary hover:text-brand-primary hover:bg-brand-primary/10 transition-all group cursor-pointer"
             title="Expand Properties Panel"
           >
-            <LucideIcons.ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            <LucideIcons.ChevronLeft
+              size={16}
+              className="group-hover:-translate-x-0.5 transition-transform"
+            />
           </button>
         )}
       </div>
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
-      <div className="md:hidden flex items-center bg-app-surface/90 backdrop-blur-xl border-t border-app-border px-2 py-1.5 shrink-0 z-30 select-none overflow-x-auto gap-1.5 shadow-lg" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+      <div
+        className="md:hidden flex items-center bg-app-surface/90 backdrop-blur-xl border-t border-app-border px-2 py-1.5 shrink-0 z-30 select-none overflow-x-auto gap-1.5 shadow-lg"
+        style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}
+      >
         {[
           { id: "elements" as PanelId, icon: Blocks, label: "Add" },
-          { id: "sections" as PanelId, icon: LucideIcons.LayoutList, label: "Blocks" },
-          { id: "properties" as PanelId, icon: Settings2, label: "Edit", badge: !!sel },
+          {
+            id: "sections" as PanelId,
+            icon: LucideIcons.LayoutList,
+            label: "Blocks",
+          },
+          {
+            id: "properties" as PanelId,
+            icon: Settings2,
+            label: "Edit",
+            badge: !!sel,
+          },
           { id: "layers" as PanelId, icon: Layers, label: "Layers" },
-          { id: "templates" as PanelId, icon: LucideIcons.LayoutTemplate, label: "Templates" },
+          {
+            id: "templates" as PanelId,
+            icon: LucideIcons.LayoutTemplate,
+            label: "Templates",
+          },
           { id: "pages" as PanelId, icon: LucideIcons.File, label: "Pages" },
-          { id: "ai" as PanelId, icon: LucideIcons.Sparkles, label: "AI Tools" },
+          {
+            id: "ai" as PanelId,
+            icon: LucideIcons.Sparkles,
+            label: "AI Tools",
+          },
           { id: "assets" as PanelId, icon: LucideIcons.Image, label: "Assets" },
         ].map(({ id, icon: Icon, label, badge }) => (
           <button
@@ -3454,8 +4159,8 @@ export function EditorPage() {
               mobilePanel === id
                 ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-sm"
                 : badge
-                ? "text-brand-primary font-bold bg-brand-primary/10"
-                : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                  ? "text-brand-primary font-bold bg-brand-primary/10"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             }`}
           >
             <div className="relative">
@@ -3464,7 +4169,9 @@ export function EditorPage() {
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-primary animate-ping" />
               )}
             </div>
-            <span className="text-[10px] font-semibold tracking-tight">{label}</span>
+            <span className="text-[10px] font-semibold tracking-tight">
+              {label}
+            </span>
           </button>
         ))}
         {sel && (
@@ -3475,7 +4182,9 @@ export function EditorPage() {
             className="flex flex-col items-center justify-center gap-1 min-w-[68px] px-2 py-1.5 rounded-xl text-red-500 shrink-0 hover:bg-red-50 dark:hover:bg-red-900/30"
           >
             <Trash2 size={19} />
-            <span className="text-[10px] font-semibold tracking-tight">Delete</span>
+            <span className="text-[10px] font-semibold tracking-tight">
+              Delete
+            </span>
           </button>
         )}
       </div>
@@ -3496,19 +4205,30 @@ export function EditorPage() {
 
             <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50 shrink-0 select-none">
               <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200 tracking-wide">
-                {mobilePanel === "elements" ? "Add Element"
-                  : mobilePanel === "layers" ? "Layers"
-                  : mobilePanel === "sections" ? "Blocks"
-                  : mobilePanel === "templates" ? "Templates"
-                  : mobilePanel === "pages" ? "Pages"
-                  : mobilePanel === "ai" ? "AI Tools"
-                  : mobilePanel === "menu" ? "Menu"
-                  : mobilePanel === "assets" ? "Assets"
-                  : "Properties"}
+                {mobilePanel === "elements"
+                  ? "Add Element"
+                  : mobilePanel === "layers"
+                    ? "Layers"
+                    : mobilePanel === "sections"
+                      ? "Blocks"
+                      : mobilePanel === "templates"
+                        ? "Templates"
+                        : mobilePanel === "pages"
+                          ? "Pages"
+                          : mobilePanel === "ai"
+                            ? "AI Tools"
+                            : mobilePanel === "menu"
+                              ? "Menu"
+                              : mobilePanel === "assets"
+                                ? "Assets"
+                                : "Properties"}
               </span>
               <div className="flex items-center gap-2">
                 {mobilePanel === "pages" && (
-                  <button onClick={handleAddPage} className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 transition-colors">
+                  <button
+                    onClick={handleAddPage}
+                    className="p-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 transition-colors"
+                  >
                     <LucideIcons.Plus size={16} />
                   </button>
                 )}
@@ -3577,7 +4297,12 @@ export function EditorPage() {
                       >
                         <span className="capitalize">{label}</span>
                         <span className="text-xs text-slate-400 font-mono ml-auto">
-                          #{(el.id && el.id.includes("_")) ? el.id.split("_")[1] : (el.id ? el.id.slice(-4) : "1")}
+                          #
+                          {el.id && el.id.includes("_")
+                            ? el.id.split("_")[1]
+                            : el.id
+                              ? el.id.slice(-4)
+                              : "1"}
                         </span>
                       </button>
                     );
@@ -3590,20 +4315,39 @@ export function EditorPage() {
               {mobilePanel === "sections" && (
                 <div className="p-3 grid grid-cols-1 gap-3">
                   {RESUME_BLOCKS.map((block) => {
-                    const Icon = (LucideIcons as any)[block.icon] || LucideIcons.LayoutTemplate;
+                    const Icon =
+                      (LucideIcons as any)[block.icon] ||
+                      LucideIcons.LayoutTemplate;
                     return (
                       <button
                         key={block.id}
-                        onClick={() => { addBlock(block.id); setMobilePanel(null); }}
+                        onClick={() => {
+                          addBlock(block.id);
+                          setMobilePanel(null);
+                        }}
                         className="flex flex-col text-left p-3 rounded-xl bg-app-surface border border-app-border shadow-sm hover:bg-white dark:hover:bg-zinc-800 transition-all"
                       >
                         <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-200">
                           <Icon size={16} />
-                          <span className="font-bold text-xs uppercase tracking-wide">{block.name}</span>
+                          <span className="font-bold text-xs uppercase tracking-wide">
+                            {block.name}
+                          </span>
                         </div>
                         <div className="flex justify-center bg-white dark:bg-slate-700/50 rounded overflow-hidden pt-2 border border-slate-200 dark:border-slate-600">
-                          <ErrorBoundary fallback={<div className="text-[10px] text-app-text-muted p-2">Preview unavailable</div>}>
-                            <MiniPreview elements={block.elements('preview-group', activePageId, 0)} />
+                          <ErrorBoundary
+                            fallback={
+                              <div className="text-[10px] text-app-text-muted p-2">
+                                Preview unavailable
+                              </div>
+                            }
+                          >
+                            <MiniPreview
+                              elements={block.elements(
+                                "preview-group",
+                                activePageId,
+                                0,
+                              )}
+                            />
                           </ErrorBoundary>
                         </div>
                       </button>
@@ -3618,16 +4362,31 @@ export function EditorPage() {
                     <button
                       key={tpl.id}
                       onClick={async () => {
-                        if (await confirm({ title: "Apply Template", description: "This will replace your current design. Continue?", danger: true })) {
+                        if (
+                          await confirm({
+                            title: "Apply Template",
+                            description:
+                              "This will replace your current design. Continue?",
+                            danger: true,
+                          })
+                        ) {
                           applyTemplate(tpl.id);
                           setMobilePanel(null);
                         }
                       }}
                       className="flex flex-col text-left p-3 rounded-xl bg-app-surface border border-app-border shadow-sm transition-all"
                     >
-                      <span className="font-bold text-xs uppercase tracking-wide text-slate-700 dark:text-slate-200 mb-1">{tpl.name}</span>
+                      <span className="font-bold text-xs uppercase tracking-wide text-slate-700 dark:text-slate-200 mb-1">
+                        {tpl.name}
+                      </span>
                       <div className="flex justify-center bg-white dark:bg-slate-700/50 rounded overflow-hidden w-full relative pt-2 border border-slate-200 dark:border-slate-600 mt-2">
-                        <ErrorBoundary fallback={<div className="text-[10px] text-app-text-muted p-2">Preview unavailable</div>}>
+                        <ErrorBoundary
+                          fallback={
+                            <div className="text-[10px] text-app-text-muted p-2">
+                              Preview unavailable
+                            </div>
+                          }
+                        >
                           <MiniPreview elements={tpl.elements(activePageId)} />
                         </ErrorBoundary>
                       </div>
@@ -3641,18 +4400,39 @@ export function EditorPage() {
                   {pages.map((p, i) => (
                     <div
                       key={p.id}
-                      onClick={() => { setActivePageId(p.id); setMobilePanel(null); }}
-                      className={`group relative aspect-[0.77] w-full rounded-xl border-2 transition-all cursor-pointer overflow-hidden bg-white shadow-sm ${activePageId === p.id ? 'border-teal-500 shadow-md' : 'border-app-border'}`}
+                      onClick={() => {
+                        setActivePageId(p.id);
+                        setMobilePanel(null);
+                      }}
+                      className={`group relative aspect-[0.77] w-full rounded-xl border-2 transition-all cursor-pointer overflow-hidden bg-white shadow-sm ${activePageId === p.id ? "border-teal-500 shadow-md" : "border-app-border"}`}
                     >
-                      <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded font-bold">{i + 1}</div>
+                      <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/50 text-white text-[10px] rounded font-bold">
+                        {i + 1}
+                      </div>
                       {pages.length > 1 && (
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
-                            if (await confirm({ title: "Delete Page", description: "Are you sure you want to delete this page?", danger: true })) {
-                              setPages(pages.filter(pg => pg.id !== p.id));
-                              if (activePageId === p.id) setActivePageId(pages[0].id === p.id ? pages[1].id : pages[0].id);
-                              setElements(prev => prev.filter(el => (el.page_id || 'page-1') !== p.id));
+                            if (
+                              await confirm({
+                                title: "Delete Page",
+                                description:
+                                  "Are you sure you want to delete this page?",
+                                danger: true,
+                              })
+                            ) {
+                              setPages(pages.filter((pg) => pg.id !== p.id));
+                              if (activePageId === p.id)
+                                setActivePageId(
+                                  pages[0].id === p.id
+                                    ? pages[1].id
+                                    : pages[0].id,
+                                );
+                              setElements((prev) =>
+                                prev.filter(
+                                  (el) => (el.page_id || "page-1") !== p.id,
+                                ),
+                              );
                             }
                           }}
                           className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-100 transition-opacity"
@@ -3681,29 +4461,65 @@ export function EditorPage() {
 
               {mobilePanel === "menu" && (
                 <div className="p-4 grid grid-cols-2 gap-3">
-                  <button onClick={() => { undo(); setMobilePanel(null); }} disabled={!undoStack.length} className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 disabled:opacity-50 transition-colors">
+                  <button
+                    onClick={() => {
+                      undo();
+                      setMobilePanel(null);
+                    }}
+                    disabled={!undoStack.length}
+                    className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 disabled:opacity-50 transition-colors"
+                  >
                     <RotateCcw size={20} />
                     <span className="text-[10px] font-bold">Undo</span>
                   </button>
-                  <button onClick={() => { redo(); setMobilePanel(null); }} disabled={!redoStack.length} className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 disabled:opacity-50 transition-colors">
+                  <button
+                    onClick={() => {
+                      redo();
+                      setMobilePanel(null);
+                    }}
+                    disabled={!redoStack.length}
+                    className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 disabled:opacity-50 transition-colors"
+                  >
                     <RotateCw size={20} />
                     <span className="text-[10px] font-bold">Redo</span>
                   </button>
-                  <button onClick={() => setZoom(z => Math.min(200, z + 25))} className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors">
+                  <button
+                    onClick={() => setZoom((z) => Math.min(200, z + 25))}
+                    className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors"
+                  >
                     <ZoomIn size={20} />
-                    <span className="text-[10px] font-bold">Zoom In ({zoom}%)</span>
+                    <span className="text-[10px] font-bold">
+                      Zoom In ({zoom}%)
+                    </span>
                   </button>
-                  <button onClick={() => setZoom(z => Math.max(25, z - 25))} className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors">
+                  <button
+                    onClick={() => setZoom((z) => Math.max(25, z - 25))}
+                    className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors"
+                  >
                     <ZoomOut size={20} />
                     <span className="text-[10px] font-bold">Zoom Out</span>
                   </button>
-                  <button onClick={() => { exportImage("png"); setMobilePanel(null); }} className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors">
+                  <button
+                    onClick={() => {
+                      exportImage("png");
+                      setMobilePanel(null);
+                    }}
+                    className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors"
+                  >
                     <LucideIcons.Image size={20} />
                     <span className="text-[10px] font-bold">Export PNG</span>
                   </button>
-                  <button onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setMobilePanel(null); }} className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors">
+                  <button
+                    onClick={() => {
+                      setTheme(theme === "dark" ? "light" : "dark");
+                      setMobilePanel(null);
+                    }}
+                    className="flex flex-col items-center gap-2 py-4 rounded-xl bg-app-surface text-slate-600 transition-colors"
+                  >
                     <LucideIcons.Moon size={20} />
-                    <span className="text-[10px] font-bold">Toggle Dark Mode</span>
+                    <span className="text-[10px] font-bold">
+                      Toggle Dark Mode
+                    </span>
                   </button>
                 </div>
               )}
@@ -3882,18 +4698,29 @@ export function EditorPage() {
               <button
                 className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-left text-slate-700 dark:text-slate-200"
                 onClick={() => {
-                  const isLocked = elements.find(el => el.id === contextMenu.elementId)?.locked;
+                  const isLocked = elements.find(
+                    (el) => el.id === contextMenu.elementId,
+                  )?.locked;
                   _snapshot();
-                  setElements(prev => prev.map(el => el.id === contextMenu.elementId ? { ...el, locked: !isLocked } : el));
+                  setElements((prev) =>
+                    prev.map((el) =>
+                      el.id === contextMenu.elementId
+                        ? { ...el, locked: !isLocked }
+                        : el,
+                    ),
+                  );
                   setContextMenu(null);
                 }}
               >
-                {elements.find(el => el.id === contextMenu.elementId)?.locked ? (
+                {elements.find((el) => el.id === contextMenu.elementId)
+                  ?.locked ? (
                   <LucideIcons.Unlock size={14} className="text-slate-400" />
                 ) : (
                   <LucideIcons.Lock size={14} className="text-slate-400" />
                 )}
-                {elements.find(el => el.id === contextMenu.elementId)?.locked ? "Unlock Element" : "Lock Element"}
+                {elements.find((el) => el.id === contextMenu.elementId)?.locked
+                  ? "Unlock Element"
+                  : "Lock Element"}
               </button>
               <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
               <button

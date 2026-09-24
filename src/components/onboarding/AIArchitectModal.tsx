@@ -1,24 +1,28 @@
 import { useState, useEffect } from "react";
-import { 
-  Sparkles, 
-  X, 
-  Wand2, 
-  ArrowRight, 
-  CheckCircle2, 
-  RotateCcw, 
-  Loader2, 
+import {
+  Sparkles,
+  X,
+  Wand2,
+  ArrowRight,
+  CheckCircle2,
+  RotateCcw,
+  Loader2,
   Clock,
-  Layers, 
-  Palette, 
-  QrCode, 
-  BarChart3, 
-  Sliders, 
-  Layout, 
-  FileText 
+  Layers,
+  Palette,
+  QrCode,
+  BarChart3,
+  Sliders,
+  Layout,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAuthModal } from "./AuthModalContext";
-import { generateArchitectPlanDirect, buildArchitectResumeDirect, type DesignPlan } from "../../lib/aiArchitect";
+import {
+  generateArchitectPlanDirect,
+  buildArchitectResumeDirect,
+  type DesignPlan,
+} from "../../lib/aiArchitect";
 import type { EditorElement } from "../../types/editor";
 
 interface AIArchitectModalProps {
@@ -31,10 +35,14 @@ const INSPIRATION_CHIPS = [
   "Tech Lead resume with Dark Sidebar & Skill Progress Loaders",
   "Executive Resume with Portfolio QR Code & Clean Dividers",
   "Creative Developer with Vibrant Accents & Impact Metric Graphs",
-  "Minimalist ATS Developer Resume with Two-Column Skills"
+  "Minimalist ATS Developer Resume with Two-Column Skills",
 ];
 
-export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModalProps) {
+export function AIArchitectModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: AIArchitectModalProps) {
   const { user, credits, userPlan, deductCredits, refreshCredits } = useAuth();
   const { openModal } = useAuthModal();
 
@@ -61,21 +69,29 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
 
   if (!isOpen) return null;
 
-  const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
+  const isProTier =
+    userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
 
   if (!isProTier) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
         <div className="bg-app-surface border border-brand-primary/30 rounded-3xl p-8 max-w-md w-full text-center relative shadow-2xl">
-          <button onClick={onClose} className="absolute top-4 right-4 text-app-text-muted hover:text-app-text">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-app-text-muted hover:text-app-text"
+          >
             <X className="w-5 h-5" />
           </button>
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-primary to-brand-accent flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-brand-primary/25">
             <Wand2 className="w-7 h-7" />
           </div>
-          <h3 className="text-xl font-black text-app-text mb-2">AI Architect 2.0 (Pro Feature)</h3>
+          <h3 className="text-xl font-black text-app-text mb-2">
+            AI Architect 2.0 (Pro Feature)
+          </h3>
           <p className="text-xs text-app-text-secondary leading-relaxed mb-6">
-            Single-prompt bespoke resume generation is exclusive to Pro & Lifetime plans. Upgrade to generate multi-section resumes with skill progress bars and custom themes.
+            Single-prompt bespoke resume generation is exclusive to Pro &
+            Lifetime plans. Upgrade to generate multi-section resumes with skill
+            progress bars and custom themes.
           </p>
           <a
             href="/pricing"
@@ -89,17 +105,25 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
     );
   }
 
-  const handleGeneratePlan = async (userPrompt: string = prompt, refinement: string = "") => {
+  const handleGeneratePlan = async (
+    userPrompt: string = prompt,
+    refinement: string = "",
+  ) => {
     if (!userPrompt.trim()) return;
     setLoading(true);
 
     try {
-      const planResult = await generateArchitectPlanDirect(userPrompt, refinement, plan || undefined);
+      const planResult = await generateArchitectPlanDirect(
+        userPrompt,
+        refinement,
+        plan || undefined,
+      );
       setPlan(planResult);
       setStep("review");
       setRefinementInput("");
     } catch (err: any) {
       console.error("[AI-Architect] Plan error:", err);
+      alert(err.message || "Failed to generate design plan. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -135,6 +159,9 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
       onClose();
     } catch (err: any) {
       console.error("[AI-Architect] Build error:", err);
+      alert(
+        err.message || "Failed to build resume elements. Please try again.",
+      );
       setStep("review");
     } finally {
       setLoading(false);
@@ -157,7 +184,9 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
                   Direct AI Generation
                 </span>
               </h3>
-              <p className="text-xs text-app-text-muted">Mathematical layout, progress loaders, charts & bespoke styling</p>
+              <p className="text-xs text-app-text-muted">
+                Mathematical layout, progress loaders, charts & bespoke styling
+              </p>
             </div>
           </div>
           <button
@@ -170,7 +199,6 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
           {/* STEP 1: PROMPT INPUT */}
           {step === "prompt" && (
             <div className="space-y-4">
@@ -188,7 +216,9 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
 
               {/* Inspiration Chips */}
               <div>
-                <span className="text-[11px] font-semibold text-app-text-muted block mb-2">Or click an idea to start:</span>
+                <span className="text-[11px] font-semibold text-app-text-muted block mb-2">
+                  Or click an idea to start:
+                </span>
                 <div className="flex flex-wrap gap-2">
                   {INSPIRATION_CHIPS.map((chip, idx) => (
                     <button
@@ -209,14 +239,18 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2">
               <div className="p-4 bg-app-surface border border-app-border rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-base text-app-text">{plan.title}</h4>
+                  <h4 className="font-bold text-base text-app-text">
+                    {plan.title}
+                  </h4>
                   <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-500/10 text-indigo-500 rounded-md border border-indigo-500/20 capitalize">
                     <Layout className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />
                     {plan.layout_type.replace(/_/g, " ")}
                   </span>
                 </div>
-                <p className="text-xs text-app-text-secondary leading-relaxed">{plan.theme_summary}</p>
-                
+                <p className="text-xs text-app-text-secondary leading-relaxed">
+                  {plan.theme_summary}
+                </p>
+
                 {/* Palette Badges */}
                 <div className="flex items-center gap-3 pt-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-app-text-muted flex items-center gap-1">
@@ -224,8 +258,15 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
                   </span>
                   <div className="flex items-center gap-1.5">
                     {Object.entries(plan.color_palette).map(([key, hex]) => (
-                      <div key={key} className="flex items-center gap-1" title={`${key}: ${hex}`}>
-                        <div className="w-4 h-4 rounded-full border border-app-border shadow-xs" style={{ backgroundColor: hex }} />
+                      <div
+                        key={key}
+                        className="flex items-center gap-1"
+                        title={`${key}: ${hex}`}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full border border-app-border shadow-xs"
+                          style={{ backgroundColor: hex }}
+                        />
                       </div>
                     ))}
                   </div>
@@ -235,19 +276,37 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
               {/* Planned Sections */}
               <div>
                 <h5 className="text-xs font-bold uppercase tracking-wider text-app-text-muted mb-3 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-indigo-500" /> Planned Sections & Components ({plan.sections.length})
+                  <Layers className="w-3.5 h-3.5 text-indigo-500" /> Planned
+                  Sections & Components ({plan.sections.length})
                 </h5>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {plan.sections.map((sec) => (
-                    <div key={sec.id} className="p-3 bg-app-surface border border-app-border rounded-xl space-y-1">
+                    <div
+                      key={sec.id}
+                      className="p-3 bg-app-surface border border-app-border rounded-xl space-y-1"
+                    >
                       <div className="flex items-center gap-2">
-                        {sec.component_type === "skill_loader" && <Sliders className="w-4 h-4 text-indigo-500 shrink-0" />}
-                        {sec.component_type === "chart" && <BarChart3 className="w-4 h-4 text-sky-500 shrink-0" />}
-                        {sec.component_type === "qr_code" && <QrCode className="w-4 h-4 text-emerald-500 shrink-0" />}
-                        {sec.component_type !== "skill_loader" && sec.component_type !== "chart" && sec.component_type !== "qr_code" && <FileText className="w-4 h-4 text-indigo-500 shrink-0" />}
-                        <span className="text-xs font-bold text-app-text">{sec.title}</span>
+                        {sec.component_type === "skill_loader" && (
+                          <Sliders className="w-4 h-4 text-indigo-500 shrink-0" />
+                        )}
+                        {sec.component_type === "chart" && (
+                          <BarChart3 className="w-4 h-4 text-sky-500 shrink-0" />
+                        )}
+                        {sec.component_type === "qr_code" && (
+                          <QrCode className="w-4 h-4 text-emerald-500 shrink-0" />
+                        )}
+                        {sec.component_type !== "skill_loader" &&
+                          sec.component_type !== "chart" &&
+                          sec.component_type !== "qr_code" && (
+                            <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                          )}
+                        <span className="text-xs font-bold text-app-text">
+                          {sec.title}
+                        </span>
                       </div>
-                      <p className="text-[11px] text-app-text-muted leading-snug">{sec.description}</p>
+                      <p className="text-[11px] text-app-text-muted leading-snug">
+                        {sec.description}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -256,11 +315,17 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
               {/* Special Features */}
               {plan.special_elements && plan.special_elements.length > 0 && (
                 <div className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
-                  <span className="text-[11px] font-bold text-indigo-500 block mb-1">✨ Engine Capabilities Activated:</span>
+                  <span className="text-[11px] font-bold text-indigo-500 block mb-1">
+                    ✨ Engine Capabilities Activated:
+                  </span>
                   <div className="flex flex-wrap gap-2">
                     {plan.special_elements.map((feat, idx) => (
-                      <span key={idx} className="text-[10px] font-medium bg-app-surface border border-app-border text-app-text px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-indigo-500" /> {feat}
+                      <span
+                        key={idx}
+                        className="text-[10px] font-medium bg-app-surface border border-app-border text-app-text px-2 py-0.5 rounded-md flex items-center gap-1"
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-indigo-500" />{" "}
+                        {feat}
                       </span>
                     ))}
                   </div>
@@ -270,7 +335,8 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
               {/* Refinement Control Box */}
               <div className="p-3.5 bg-app-surface border border-app-border rounded-xl space-y-2">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-app-text-muted flex items-center gap-1">
-                  <Wand2 className="w-3.5 h-3.5 text-indigo-500" /> Refine or Modify Plan
+                  <Wand2 className="w-3.5 h-3.5 text-indigo-500" /> Refine or
+                  Modify Plan
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -286,7 +352,11 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
                     disabled={loading || !refinementInput.trim()}
                     className="px-3 py-2 bg-app-bg border border-app-border hover:bg-app-surface text-app-text text-xs font-bold rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-all"
                   >
-                    {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                    {loading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    )}
                     Refine
                   </button>
                 </div>
@@ -304,12 +374,16 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
                 <Loader2 className="w-20 h-20 animate-spin text-indigo-500 absolute -top-2 -left-2" />
               </div>
               <div>
-                <h4 className="font-bold text-lg text-app-text">AI Architect is Building Your Resume</h4>
+                <h4 className="font-bold text-lg text-app-text">
+                  AI Architect is Building Your Resume
+                </h4>
                 <p className="text-xs text-app-text-muted mt-1 max-w-sm mb-3">
-                  Composing custom layout elements, skill progress bar loaders, typography, and section graphics via AI...
+                  Composing custom layout elements, skill progress bar loaders,
+                  typography, and section graphics via AI...
                 </p>
                 <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 rounded-full font-mono text-xs font-bold shadow-sm">
-                  <Clock className="w-3.5 h-3.5 animate-pulse" /> Elapsed: {formattedTimer}
+                  <Clock className="w-3.5 h-3.5 animate-pulse" /> Elapsed:{" "}
+                  {formattedTimer}
                 </div>
               </div>
             </div>
@@ -333,7 +407,8 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
               >
                 {loading ? (
                   <span className="flex items-center gap-1.5 font-mono">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Generating ({formattedTimer})
+                    <Loader2 className="w-4 h-4 animate-spin" /> Generating (
+                    {formattedTimer})
                   </span>
                 ) : (
                   <>
@@ -359,7 +434,8 @@ export function AIArchitectModal({ isOpen, onClose, onSuccess }: AIArchitectModa
               >
                 {loading ? (
                   <span className="flex items-center gap-1.5 font-mono">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Building ({formattedTimer})
+                    <Loader2 className="w-4 h-4 animate-spin" /> Building (
+                    {formattedTimer})
                   </span>
                 ) : (
                   <>

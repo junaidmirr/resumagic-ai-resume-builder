@@ -21,21 +21,31 @@ export function TemplateThumbnailPreview({ template, className = "" }: Props) {
   }
 
   // Dynamic Mini-Canvas Preview fallback from elements
-  const rawElements = template.generateElements ? template.generateElements() : [];
+  const rawElements = template.generateElements
+    ? template.generateElements()
+    : [];
   // Sort elements by z_index so background shapes render first, then lines and text on top
-  const elements = [...rawElements].sort((a, b) => (a.z_index || 0) - (b.z_index || 0));
-  
+  const elements = [...rawElements].sort(
+    (a, b) => (a.z_index || 0) - (b.z_index || 0),
+  );
+
   const svgWidth = 612;
   const svgHeight = 792;
 
   // Find page background color if specified, default to white
   const bgShape = elements.find(
-    (el) => el.element_type === "shape" && el.shape_type === "rectangle" && (el.width || 0) >= 600 && (el.height || 0) >= 700
+    (el) =>
+      el.element_type === "shape" &&
+      el.shape_type === "rectangle" &&
+      (el.width || 0) >= 600 &&
+      (el.height || 0) >= 700,
   );
   const bgColor = bgShape ? bgShape.fill_color || "#FFFFFF" : "#FFFFFF";
 
   return (
-    <div className={`w-full h-full bg-slate-900 rounded-lg overflow-hidden relative shadow-md border border-app-border ${className}`}>
+    <div
+      className={`w-full h-full bg-slate-900 rounded-lg overflow-hidden relative shadow-md border border-app-border ${className}`}
+    >
       <svg
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         className="w-full h-full"
@@ -115,8 +125,8 @@ export function TemplateThumbnailPreview({ template, className = "" }: Props) {
                   el.align === "center"
                     ? (el.x || 0) + (el.width || 100) / 2
                     : el.align === "right"
-                    ? (el.x || 0) + (el.width || 100)
-                    : el.x || 0
+                      ? (el.x || 0) + (el.width || 100)
+                      : el.x || 0
                 }
                 y={textY}
                 fill={el.text_color || "#1E293B"}
@@ -126,15 +136,15 @@ export function TemplateThumbnailPreview({ template, className = "" }: Props) {
                   el.align === "center"
                     ? "middle"
                     : el.align === "right"
-                    ? "end"
-                    : "start"
+                      ? "end"
+                      : "start"
                 }
                 style={{
                   fontFamily: el.font_name?.includes("Times")
                     ? "Times New Roman, serif"
                     : el.font_name?.includes("Courier")
-                    ? "Courier New, monospace"
-                    : "sans-serif"
+                      ? "Courier New, monospace"
+                      : "sans-serif",
                 }}
               >
                 {el.text.length > 45 ? `${el.text.slice(0, 45)}...` : el.text}

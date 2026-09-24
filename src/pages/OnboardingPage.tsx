@@ -20,14 +20,16 @@ import { resumeService } from "../lib/resumeService";
 import {
   extractTextFromPDF,
   parseResumeTextToWizardData,
-  extractVisualElementsFromPDF
+  extractVisualElementsFromPDF,
 } from "../lib/pdfParser";
 import { generateWizardElements } from "../lib/wizardGenerator";
 import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
-import { buildResumeFromImportedText, normalizeEditorElements } from "../lib/aiArchitect";
-import defaultLogoLight from '../assets/default.png';
-import defaultLogoDark from '../assets/default-dark.png';
-
+import {
+  buildResumeFromImportedText,
+  normalizeEditorElements,
+} from "../lib/aiArchitect";
+import defaultLogoLight from "../assets/default.png";
+import defaultLogoDark from "../assets/default-dark.png";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ export function OnboardingPage() {
       const id = await resumeService.createResume(
         user?.uid || "guest",
         title || "AI Architect Resume",
-        elements
+        elements,
       );
       localStorage.setItem("current_resume_id", id);
       localStorage.setItem(
@@ -62,7 +64,7 @@ export function OnboardingPage() {
           pages: [{ id: "page-1", width: 612, height: 792 }],
           resumeTitle: title || "AI Architect Resume",
           timestamp: Date.now(),
-        })
+        }),
       );
       navigate("/editor");
     } catch (err) {
@@ -76,7 +78,7 @@ export function OnboardingPage() {
           pages: [{ id: "page-1", width: 612, height: 792 }],
           resumeTitle: title || "AI Architect Resume",
           timestamp: Date.now(),
-        })
+        }),
       );
       navigate("/editor");
     }
@@ -95,16 +97,17 @@ export function OnboardingPage() {
     if (file) setSelectedFile(file);
   };
 
-  const handleLinkedInImport = async (
-    type: "pdf",
-    value: File,
-  ) => {
+  const handleLinkedInImport = async (type: "pdf", value: File) => {
     setShowLinkedInModal(false);
     setIsImporting(true);
     try {
       const rawText = await extractTextFromPDF(value);
-      const result = await buildResumeFromImportedText(rawText, "Imported LinkedIn PDF Profile");
-      const title = result.title || `${value.name.replace(/\.[^/.]+$/, "")}'s Resume`;
+      const result = await buildResumeFromImportedText(
+        rawText,
+        "Imported LinkedIn PDF Profile",
+      );
+      const title =
+        result.title || `${value.name.replace(/\.[^/.]+$/, "")}'s Resume`;
       const id = await resumeService.createResume(
         user?.uid || "guest",
         title,
@@ -129,13 +132,16 @@ export function OnboardingPage() {
     try {
       // 1. Extract raw text from the uploaded PDF/document
       const rawText = await extractTextFromPDF(selectedFile);
-      
+
       let elements: any[] = [];
       let title = selectedFile.name.replace(/\.[^/.]+$/, "");
 
       if (rawText && rawText.trim().length > 20) {
         // 2. Use AI Distiller to extract all details & build structured graphics
-        const result = await buildResumeFromImportedText(rawText, enhancementPrompt);
+        const result = await buildResumeFromImportedText(
+          rawText,
+          enhancementPrompt,
+        );
         elements = result.elements;
         if (result.title) title = result.title;
       } else {
@@ -148,7 +154,7 @@ export function OnboardingPage() {
         title,
         elements,
       );
-      
+
       localStorage.setItem("current_resume_id", id);
       navigate("/editor");
     } catch (err: any) {
@@ -254,46 +260,46 @@ export function OnboardingPage() {
             <span>Dashboard</span>
           </button>
           <Link to="/" className="flex items-center gap-2 group">
-            <img src={defaultLogoLight} alt="Resumagic" className="h-7 lg:h-8 w-auto logo-light" />
-            <img src={defaultLogoDark} alt="Resumagic" className="h-7 lg:h-8 w-auto logo-dark" />
+            <img
+              src={defaultLogoLight}
+              alt="Resumagic"
+              className="h-7 lg:h-8 w-auto logo-light"
+            />
+            <img
+              src={defaultLogoDark}
+              alt="Resumagic"
+              className="h-7 lg:h-8 w-auto logo-dark"
+            />
           </Link>
         </div>
         <ThemeToggle />
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-4 py-12 sm:p-6 lg:p-8 relative">
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-24 left-1/2 -mt-10 -ml-40 blur-3xl opacity-50 dark:opacity-20 animate-pulse transition-opacity">
-            <div className="h-[300px] w-[500px] rounded-full bg-linear-to-r from-teal-400 to-indigo-500 opacity-30" />
-          </div>
-        </div>
-
-        <div className="relative z-10 w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl font-extrabold tracking-tight text-app-text sm:text-4xl text-balance">
-              How would you like to create your resume?
+      <main className="flex-1 flex flex-col items-center justify-center p-4 py-12 sm:p-6 lg:p-8">
+        <div className="w-full max-w-4xl">
+          <div className="text-center mb-10">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-app-text">
+              How would you like to build your resume?
             </h1>
-            <p className="mt-4 text-base sm:text-lg text-app-text-secondary">
-              Select an option below to jumpstart your career profile.
+            <p className="mt-2 text-sm text-app-text-secondary">
+              Select an entry method below to start your document.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-4">
             {options.map((option) => (
               <button
                 key={option.id}
                 onClick={option.action}
-                className={`group relative flex flex-col items-start p-6 sm:p-8 rounded-2xl bg-app-surface border border-app-border shadow-sm hover:shadow-xl transition-all duration-300 text-left focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-950 ${option.ringColor}`}
+                className="flex flex-col items-start p-6 rounded-lg bg-app-surface border border-app-border hover:border-slate-400 dark:hover:border-slate-600 shadow-2xs transition-colors text-left focus:outline-none"
               >
-                <div
-                  className={`rounded-xl p-3 mb-5 inline-flex ${option.bgColor} transition-transform group-hover:scale-110 duration-300`}
-                >
-                  <option.icon className={`h-8 w-8 ${option.color}`} />
+                <div className="rounded border border-app-border bg-app-bg p-2.5 mb-4 text-slate-800 dark:text-slate-200">
+                  <option.icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-xl font-bold text-app-text mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                <h3 className="text-base font-semibold text-app-text mb-1">
                   {option.title}
                 </h3>
-                <p className="text-sm text-app-text-muted leading-relaxed">
+                <p className="text-xs text-app-text-secondary leading-relaxed">
                   {option.description}
                 </p>
               </button>

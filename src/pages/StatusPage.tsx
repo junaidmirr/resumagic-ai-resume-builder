@@ -1,6 +1,15 @@
 import { Navbar } from "../components/landing/Navbar";
 import { Footer } from "../components/landing/Footer";
-import { Activity, CheckCircle2, Server, Cpu, Database, Cloud, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  CheckCircle2,
+  Server,
+  Cpu,
+  Database,
+  Cloud,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 
 interface SystemService {
   name: string;
@@ -11,11 +20,41 @@ interface SystemService {
 }
 
 const SERVICES: SystemService[] = [
-  { name: "API Gateway & Web Application Server", status: "Operational", uptime: "99.99%", latency: "24 ms", icon: Server },
-  { name: "AI Resume Architect & Content Writer", status: "Operational", uptime: "99.95%", latency: "1.2 s", icon: Cpu },
-  { name: "High-Speed PDF Generation Engine", status: "Operational", uptime: "99.99%", latency: "38 ms", icon: Activity },
-  { name: "Cloud Sync & User Database", status: "Operational", uptime: "100.0%", latency: "18 ms", icon: Database },
-  { name: "Asset CDN & Image Storage", status: "Operational", uptime: "99.98%", latency: "15 ms", icon: Cloud },
+  {
+    name: "API Gateway & Web Application Server",
+    status: "Operational",
+    uptime: "99.99%",
+    latency: "24 ms",
+    icon: Server,
+  },
+  {
+    name: "AI Resume Architect & Content Writer",
+    status: "Operational",
+    uptime: "99.95%",
+    latency: "1.2 s",
+    icon: Cpu,
+  },
+  {
+    name: "High-Speed PDF Generation Engine",
+    status: "Operational",
+    uptime: "99.99%",
+    latency: "38 ms",
+    icon: Activity,
+  },
+  {
+    name: "Cloud Sync & User Database",
+    status: "Operational",
+    uptime: "100.0%",
+    latency: "18 ms",
+    icon: Database,
+  },
+  {
+    name: "Asset CDN & Image Storage",
+    status: "Operational",
+    uptime: "99.98%",
+    latency: "15 ms",
+    icon: Cloud,
+  },
 ];
 
 export function StatusPage() {
@@ -34,7 +73,8 @@ export function StatusPage() {
             Real-Time System Health & Status
           </h1>
           <p className="text-sm md:text-base text-app-text-secondary max-w-2xl mx-auto">
-            Live monitoring for API gateways, AI content generators, PDF rendering workers, and cloud synchronization.
+            Live monitoring for API gateways, AI content generators, PDF
+            rendering workers, and cloud synchronization.
           </p>
         </div>
       </section>
@@ -66,10 +106,22 @@ export function StatusPage() {
                       <IconComp className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-app-text">{svc.name}</h3>
+                      <h3 className="font-bold text-sm text-app-text">
+                        {svc.name}
+                      </h3>
                       <div className="flex items-center gap-4 mt-1 text-xs text-app-text-muted">
-                        <span>Uptime: <strong className="text-app-text">{svc.uptime}</strong></span>
-                        <span>Avg Latency: <strong className="text-app-text">{svc.latency}</strong></span>
+                        <span>
+                          Uptime:{" "}
+                          <strong className="text-app-text">
+                            {svc.uptime}
+                          </strong>
+                        </span>
+                        <span>
+                          Avg Latency:{" "}
+                          <strong className="text-app-text">
+                            {svc.latency}
+                          </strong>
+                        </span>
                       </div>
                     </div>
                   </div>

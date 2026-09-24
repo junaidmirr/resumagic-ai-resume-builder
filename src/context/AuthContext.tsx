@@ -40,9 +40,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [credits, setCredits] = useState<number>(0);
   const [userPlan, setUserPlan] = useState<string>("free");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [claimedSignupCredits, setClaimedSignupCredits] = useState<boolean>(false);
+  const [claimedSignupCredits, setClaimedSignupCredits] =
+    useState<boolean>(false);
 
-  const initUserInDB = async (uid: string, email: string | null, name: string | null) => {
+  const initUserInDB = async (
+    uid: string,
+    email: string | null,
+    name: string | null,
+  ) => {
     try {
       const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
@@ -72,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof cache.credits === "number") setCredits(cache.credits);
         if (cache.userPlan) setUserPlan(cache.userPlan);
         if (typeof cache.isAdmin === "boolean") setIsAdmin(cache.isAdmin);
-        if (typeof cache.claimedSignupCredits === "boolean") setClaimedSignupCredits(cache.claimedSignupCredits);
+        if (typeof cache.claimedSignupCredits === "boolean")
+          setClaimedSignupCredits(cache.claimedSignupCredits);
         return cache;
       }
     } catch (e) {
@@ -81,11 +87,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  const saveLocalCache = (uid: string, data: { credits: number; userPlan: string; isAdmin: boolean; claimedSignupCredits: boolean }) => {
+  const saveLocalCache = (
+    uid: string,
+    data: {
+      credits: number;
+      userPlan: string;
+      isAdmin: boolean;
+      claimedSignupCredits: boolean;
+    },
+  ) => {
     try {
       localStorage.setItem(
         `resumagic_user_cache_${uid}`,
-        JSON.stringify({ ...data, lastFetched: Date.now() })
+        JSON.stringify({ ...data, lastFetched: Date.now() }),
       );
     } catch (e) {
       console.warn("[Auth] Failed to save local cache:", e);
@@ -109,16 +123,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (snap.exists()) {
         const data = snap.data();
         const newCredits = data.credits || 0;
-        let newPlan = data.plan || data.userPlan || data.lastPurchasedPlan || "free";
+        let newPlan =
+          data.plan || data.userPlan || data.lastPurchasedPlan || "free";
 
         // Auto-heal plan status for users with paid transactions / credit balances
         if (newPlan === "free" || !newPlan) {
-          if (newCredits >= 800 || data.lastPurchasedPlan === "pro" || data.lastPurchasedPlan === "pro_yearly" || data.lastPurchasedPlan === "pro_monthly") {
+          if (
+            newCredits >= 800 ||
+            data.lastPurchasedPlan === "pro" ||
+            data.lastPurchasedPlan === "pro_yearly" ||
+            data.lastPurchasedPlan === "pro_monthly"
+          ) {
             newPlan = "pro";
-            setDoc(userRef, { plan: "pro", userPlan: "pro", lastPurchasedPlan: "pro" }, { merge: true }).catch(console.error);
-          } else if (newCredits >= 100 || data.lastPurchasedPlan === "starter") {
+            setDoc(
+              userRef,
+              { plan: "pro", userPlan: "pro", lastPurchasedPlan: "pro" },
+              { merge: true },
+            ).catch(console.error);
+          } else if (
+            newCredits >= 100 ||
+            data.lastPurchasedPlan === "starter"
+          ) {
             newPlan = "starter";
-            setDoc(userRef, { plan: "starter", userPlan: "starter", lastPurchasedPlan: "starter" }, { merge: true }).catch(console.error);
+            setDoc(
+              userRef,
+              {
+                plan: "starter",
+                userPlan: "starter",
+                lastPurchasedPlan: "starter",
+              },
+              { merge: true },
+            ).catch(console.error);
           }
         }
 
@@ -147,7 +182,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const uid = auth.currentUser.uid;
     try {
       const userRef = doc(db, "users", uid);
-      await setDoc(userRef, { plan: planName, userPlan: planName, lastPurchasedPlan: planName }, { merge: true });
+      await setDoc(
+        userRef,
+        { plan: planName, userPlan: planName, lastPurchasedPlan: planName },
+        { merge: true },
+      );
       setUserPlan(planName);
       saveLocalCache(uid, {
         credits,
@@ -170,7 +209,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = snap.data();
         if (!data.claimedSignupCredits) {
           const newCredits = (data.credits || 0) + 15;
-          await setDoc(userRef, { credits: newCredits, claimedSignupCredits: true }, { merge: true });
+          await setDoc(
+            userRef,
+            { credits: newCredits, claimedSignupCredits: true },
+            { merge: true },
+          );
           setCredits(newCredits);
           setClaimedSignupCredits(true);
           saveLocalCache(uid, {
@@ -236,7 +279,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      await initUserInDB(result.user.uid, result.user.email, result.user.displayName);
+      await initUserInDB(
+        result.user.uid,
+        result.user.email,
+        result.user.displayName,
+      );
       await refreshCredits();
     } catch (error) {
       console.error("Login Error:", error);

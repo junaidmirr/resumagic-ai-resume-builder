@@ -24,12 +24,15 @@ import {
   ChevronDown,
   ArrowRight,
   Zap,
-  Palette
+  Palette,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useDialog } from "../../context/DialogContext";
 import { UpgradeTriggerModal } from "../common/UpgradeTriggerModal";
-import { generateCareerDocumentClient, convertDocumentTextToCanvasElements } from "../../lib/careerDocGenerator";
+import {
+  generateCareerDocumentClient,
+  convertDocumentTextToCanvasElements,
+} from "../../lib/careerDocGenerator";
 import { CoverLetterTemplateModal } from "./CoverLetterTemplateModal";
 import { buildCoverLetterCanvasElements } from "../../lib/coverLetterTemplates";
 
@@ -42,21 +45,89 @@ interface SavedDocument {
 }
 
 const mainDocTypes = [
-  { id: "cover_letter", label: "Job Cover Letter", icon: FileText, emoji: "💼", hint: "Letter for job applications" },
-  { id: "cold_email", label: "Recruiter Email", icon: Mail, emoji: "✉️", hint: "Outreach to HR & managers" },
-  { id: "sop", label: "University SOP", icon: GraduationCap, emoji: "🎓", hint: "Admissions essay" },
-  { id: "thank_you", label: "Thank You Email", icon: Send, emoji: "🙏", hint: "Follow-up after interview" },
-  { id: "resignation", label: "Resignation Letter", icon: Briefcase, emoji: "📝", hint: "Official 2-week notice" },
-  { id: "salary_negotiation", label: "Salary Negotiation", icon: DollarSign, emoji: "💰", hint: "Ask for higher pay" },
-  { id: "linkedin_bio", label: "LinkedIn Bio", icon: Share2, emoji: "🌐", hint: "Profile about section" },
-  { id: "lor", label: "Recommendation LOR", icon: UserCheck, emoji: "🌟", hint: "Reference letter" },
+  {
+    id: "cover_letter",
+    label: "Job Cover Letter",
+    icon: FileText,
+    emoji: "💼",
+    hint: "Letter for job applications",
+  },
+  {
+    id: "cold_email",
+    label: "Recruiter Email",
+    icon: Mail,
+    emoji: "✉️",
+    hint: "Outreach to HR & managers",
+  },
+  {
+    id: "sop",
+    label: "University SOP",
+    icon: GraduationCap,
+    emoji: "🎓",
+    hint: "Admissions essay",
+  },
+  {
+    id: "thank_you",
+    label: "Thank You Email",
+    icon: Send,
+    emoji: "🙏",
+    hint: "Follow-up after interview",
+  },
+  {
+    id: "resignation",
+    label: "Resignation Letter",
+    icon: Briefcase,
+    emoji: "📝",
+    hint: "Official 2-week notice",
+  },
+  {
+    id: "salary_negotiation",
+    label: "Salary Negotiation",
+    icon: DollarSign,
+    emoji: "💰",
+    hint: "Ask for higher pay",
+  },
+  {
+    id: "linkedin_bio",
+    label: "LinkedIn Bio",
+    icon: Share2,
+    emoji: "🌐",
+    hint: "Profile about section",
+  },
+  {
+    id: "lor",
+    label: "Recommendation LOR",
+    icon: UserCheck,
+    emoji: "🌟",
+    hint: "Reference letter",
+  },
 ];
 
 const quickExamples = [
-  { label: "Software Engineer @ Google", doc_type: "cover_letter", role: "Senior Software Engineer", company: "Google" },
-  { label: "Product Manager @ Stripe", doc_type: "cover_letter", role: "Lead Product Manager", company: "Stripe" },
-  { label: "CS Masters @ Stanford", doc_type: "sop", role: "M.S. in Computer Science", company: "Stanford University" },
-  { label: "Recruiter Email @ Meta", doc_type: "cold_email", role: "Full Stack Developer", company: "Meta" },
+  {
+    label: "Software Engineer @ Google",
+    doc_type: "cover_letter",
+    role: "Senior Software Engineer",
+    company: "Google",
+  },
+  {
+    label: "Product Manager @ Stripe",
+    doc_type: "cover_letter",
+    role: "Lead Product Manager",
+    company: "Stripe",
+  },
+  {
+    label: "CS Masters @ Stanford",
+    doc_type: "sop",
+    role: "M.S. in Computer Science",
+    company: "Stanford University",
+  },
+  {
+    label: "Recruiter Email @ Meta",
+    doc_type: "cold_email",
+    role: "Full Stack Developer",
+    company: "Meta",
+  },
 ];
 
 export function CareerDocumentsView() {
@@ -66,7 +137,7 @@ export function CareerDocumentsView() {
 
   const [selectedType, setSelectedType] = useState("cover_letter");
   const [promptInput, setPromptInput] = useState("");
-  
+
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
   const [copied, setCopied] = useState(false);
@@ -75,7 +146,8 @@ export function CareerDocumentsView() {
   const [savedDocs, setSavedDocs] = useState<SavedDocument[]>([]);
   const [viewHistory, setViewHistory] = useState(false);
 
-  const activeDoc = mainDocTypes.find((d) => d.id === selectedType) || mainDocTypes[0];
+  const activeDoc =
+    mainDocTypes.find((d) => d.id === selectedType) || mainDocTypes[0];
 
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [pendingTextToDesign, setPendingTextToDesign] = useState("");
@@ -92,14 +164,20 @@ export function CareerDocumentsView() {
 
   const handleSelectTemplate = (templateId: string) => {
     if (!pendingTextToDesign) return;
-    const canvasElements = buildCoverLetterCanvasElements(pendingTitleToDesign, pendingTextToDesign, templateId);
+    const canvasElements = buildCoverLetterCanvasElements(
+      pendingTitleToDesign,
+      pendingTextToDesign,
+      templateId,
+    );
     localStorage.setItem("designed_resume", JSON.stringify(canvasElements));
     navigate("/editor");
   };
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(`saved_career_docs_${user?.uid || "guest"}`);
+      const stored = localStorage.getItem(
+        `saved_career_docs_${user?.uid || "guest"}`,
+      );
       if (stored) setSavedDocs(JSON.parse(stored));
     } catch (e) {
       console.error(e);
@@ -117,7 +195,10 @@ export function CareerDocumentsView() {
     const updated = [newDoc, ...savedDocs];
     setSavedDocs(updated);
     try {
-      localStorage.setItem(`saved_career_docs_${user?.uid || "guest"}`, JSON.stringify(updated));
+      localStorage.setItem(
+        `saved_career_docs_${user?.uid || "guest"}`,
+        JSON.stringify(updated),
+      );
     } catch (e) {
       console.error(e);
     }
@@ -132,7 +213,10 @@ export function CareerDocumentsView() {
       const updated = savedDocs.filter((d) => d.id !== id);
       setSavedDocs(updated);
       try {
-        localStorage.setItem(`saved_career_docs_${user?.uid || "guest"}`, JSON.stringify(updated));
+        localStorage.setItem(
+          `saved_career_docs_${user?.uid || "guest"}`,
+          JSON.stringify(updated),
+        );
       } catch (e) {
         console.error(e);
       }
@@ -141,14 +225,18 @@ export function CareerDocumentsView() {
 
   const handleGenerate = async () => {
     if (!user) {
-      await alert({ title: "Login Required", description: "Please log in to generate documents." });
+      await alert({
+        title: "Login Required",
+        description: "Please log in to generate documents.",
+      });
       return;
     }
 
     if (!promptInput.trim()) {
       await alert({
         title: "Enter Role & Company",
-        description: "Please type the role and company (e.g. 'Software Engineer at Google').",
+        description:
+          "Please type the role and company (e.g. 'Software Engineer at Google').",
       });
       return;
     }
@@ -175,13 +263,20 @@ export function CareerDocumentsView() {
 
       if (data && data.success && data.content) {
         setGeneratedContent(data.content);
-        saveToHistory(data.title || `${activeDoc.label} for ${company}`, data.content, selectedType);
+        saveToHistory(
+          data.title || `${activeDoc.label} for ${company}`,
+          data.content,
+          selectedType,
+        );
         await refreshCredits().catch(() => {});
       } else {
         throw new Error(data.error || "Failed to generate document");
       }
     } catch (err: any) {
-      await alert({ title: "Generation Error", description: err.message || "Failed to generate document." });
+      await alert({
+        title: "Generation Error",
+        description: err.message || "Failed to generate document.",
+      });
     } finally {
       setGenerating(false);
     }
@@ -205,7 +300,6 @@ export function CareerDocumentsView() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 text-app-text pb-12">
-      
       {/* Top Header Controls */}
       <div className="flex items-center justify-between">
         <div>
@@ -213,7 +307,8 @@ export function CareerDocumentsView() {
             <span>✨</span> What do you need written today?
           </h2>
           <p className="text-xs text-app-text-muted mt-0.5">
-            Select a document type, type your target role & company, and AI does the rest.
+            Select a document type, type your target role & company, and AI does
+            the rest.
           </p>
         </div>
 
@@ -259,9 +354,13 @@ export function CareerDocumentsView() {
                       <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
                         {doc.doc_type.replace(/_/g, " ")}
                       </span>
-                      <span className="text-[10px] text-app-text-muted">{doc.createdAt}</span>
+                      <span className="text-[10px] text-app-text-muted">
+                        {doc.createdAt}
+                      </span>
                     </div>
-                    <h4 className="font-bold text-xs text-app-text truncate">{doc.title}</h4>
+                    <h4 className="font-bold text-xs text-app-text truncate">
+                      {doc.title}
+                    </h4>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -296,7 +395,6 @@ export function CareerDocumentsView() {
       ) : (
         /* INTERACTIVE SINGLE-CARD ASSISTANT */
         <div className="space-y-6">
-
           {/* 1. DOCUMENT TYPE SELECTOR PILLS */}
           <div className="bg-app-surface border border-app-border rounded-3xl p-5 shadow-sm space-y-3">
             <label className="text-xs font-bold text-app-text-muted uppercase tracking-wider block">
@@ -317,10 +415,14 @@ export function CareerDocumentsView() {
                   >
                     <span className="text-lg shrink-0">{doc.emoji}</span>
                     <div className="min-w-0">
-                      <div className={`font-black text-xs truncate ${isSelected ? "text-white" : "text-app-text"}`}>
+                      <div
+                        className={`font-black text-xs truncate ${isSelected ? "text-white" : "text-app-text"}`}
+                      >
                         {doc.label}
                       </div>
-                      <div className={`text-[10px] truncate ${isSelected ? "text-white/80" : "text-app-text-muted"}`}>
+                      <div
+                        className={`text-[10px] truncate ${isSelected ? "text-white/80" : "text-app-text-muted"}`}
+                      >
                         {doc.hint}
                       </div>
                     </div>
@@ -340,7 +442,9 @@ export function CareerDocumentsView() {
 
               {/* Quick Sample Chips */}
               <div className="hidden sm:flex items-center gap-1.5">
-                <span className="text-[10px] text-app-text-muted font-bold">Try sample:</span>
+                <span className="text-[10px] text-app-text-muted font-bold">
+                  Try sample:
+                </span>
                 {quickExamples.map((ex, i) => (
                   <button
                     key={i}
@@ -400,8 +504,12 @@ export function CareerDocumentsView() {
                 <div className="flex items-center gap-2">
                   <span className="text-xl">🎉</span>
                   <div>
-                    <h4 className="font-black text-sm text-app-text">Your Generated {activeDoc.label}</h4>
-                    <p className="text-[10px] text-app-text-muted">Saved in history • Ready to copy</p>
+                    <h4 className="font-black text-sm text-app-text">
+                      Your Generated {activeDoc.label}
+                    </h4>
+                    <p className="text-[10px] text-app-text-muted">
+                      Saved in history • Ready to copy
+                    </p>
                   </div>
                 </div>
 
@@ -446,7 +554,6 @@ export function CareerDocumentsView() {
               </div>
             </motion.div>
           )}
-
         </div>
       )}
 

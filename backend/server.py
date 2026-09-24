@@ -1,6 +1,6 @@
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import base64
 import tempfile
 import os
@@ -27,7 +27,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from engine import PDFEngine
-from ai_parser import AIParserEngine
+from ai_parser import AIParserEngine, locally_blocked
 from perf_engine import perf_engine
 
 from dotenv import load_dotenv
@@ -47,16 +47,6 @@ perf_engine.init_app(app)  # Initialize Python Performance Engine Middleware
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({"error": "Payload too large. Maximum allowed request size is 10MB."}), 413
-
-@app.route("/api/performance/stats", methods=["GET"])
-def get_performance_stats():
-    return jsonify(perf_engine.get_summary_stats())
-
-@app.route("/api/performance/logs", methods=["GET"])
-def get_performance_logs():
-    max_lines = request.args.get("lines", default=100, type=int)
-    lines = perf_engine.get_recent_log_entries(max_lines=max_lines)
-    return jsonify({"logs": lines, "file": perf_engine.log_file_path})
 
 # Cloudinary Configuration
 cloudinary.config(
@@ -87,11 +77,18 @@ if HAS_FIREBASE_ADMIN:
             else:
                 service_account_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
                 if os.path.exists(service_account_path):
-                    cred = credentials.Certificate(service_account_path)
-                    firebase_admin.initialize_app(cred)
-                    print("✅ Firebase Admin initialized with local service account.")
+                    with open(service_account_path) as f:
+                        service_account_info = json.load(f)
+                    # Sync project_id with active Firebase project
+                    active_project_id = os.environ.get("VITE_FIREBASE_PROJECT_ID", "resumagic-1226c")
+                    if service_account_info.get("project_id") != active_project_id:
+                        service_account_info["project_id"] = active_project_id
+                    cred = credentials.Certificate(service_account_info)
+                    firebase_admin.initialize_app(cred, {"projectId": active_project_id})
+                    print(f"✅ Firebase Admin initialized with service account (project: {active_project_id}).")
                 else:
-                    firebase_admin.initialize_app()
+                    active_project_id = os.environ.get("VITE_FIREBASE_PROJECT_ID", "resumagic-1226c")
+                    firebase_admin.initialize_app(options={"projectId": active_project_id})
                     print("⚠️ Firebase Admin initialized with default credentials.")
         db_admin = firestore.client()
     except Exception as e:
@@ -145,7 +142,7 @@ def check_and_deduct_credits(uid, cost=5):
     return False
 
 def verify_authenticated_user(request_obj):
-    """Verifies Firebase ID Token from Authorization header or falls back to X-User-ID / JWT payload."""
+    """Verifies Firebase ID Token from Authorization header. Strictly rejects forged tokens in production."""
     auth_header = request_obj.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split("Bearer ")[1].strip()
@@ -156,21 +153,64 @@ def verify_authenticated_user(request_obj):
                     return decoded_token.get("uid")
             except Exception as e:
                 print(f"⚠️ Firebase token verification failed: {e}")
-        # Fallback: extract sub/user_id from JWT payload if present
-        try:
-            import base64, json
-            parts = token.split(".")
-            if len(parts) >= 2:
-                payload_b64 = parts[1] + "=="
-                payload_json = base64.urlsafe_b64decode(payload_b64).decode("utf-8")
-                payload = json.loads(payload_json)
-                uid = payload.get("user_id") or payload.get("sub") or payload.get("uid")
-                if uid:
-                    return uid
-        except Exception as e:
-            print(f"⚠️ Unverified token decode error: {e}")
+                # In production with Firebase Admin active, never accept unverified tokens!
+                return None
 
-    return request_obj.headers.get("X-User-ID")
+        # Non-production fallback only when running without Firebase Admin credentials
+        if not HAS_FIREBASE_ADMIN or os.environ.get("FLASK_ENV") == "development":
+            try:
+                import base64, json
+                parts = token.split(".")
+                if len(parts) >= 2:
+                    payload_b64 = parts[1] + "=="
+                    payload_json = base64.urlsafe_b64decode(payload_b64).decode("utf-8")
+                    payload = json.loads(payload_json)
+                    uid = payload.get("user_id") or payload.get("sub") or payload.get("uid")
+                    if uid:
+                        return uid
+            except Exception as e:
+                print(f"⚠️ Dev unverified token decode error: {e}")
+
+    # X-User-ID header is strictly ignored when Firebase Admin is active to prevent spoofing/IDOR
+    if not HAS_FIREBASE_ADMIN or os.environ.get("FLASK_ENV") == "development":
+        return request_obj.headers.get("X-User-ID")
+    return None
+
+def verify_admin_user(request_obj):
+    """Verifies that the request originates from an authorized administrator."""
+    uid = verify_authenticated_user(request_obj)
+    if not uid:
+        return None
+    if HAS_FIREBASE_ADMIN and db_admin:
+        try:
+            doc = db_admin.collection("users").document(uid).get()
+            if doc.exists and doc.to_dict().get("admin") is True:
+                return uid
+        except Exception as e:
+            print(f"⚠️ Admin authorization check failed: {e}")
+    # Also support ADMIN_UID in environment for root administrator override
+    env_admin_uid = os.environ.get("ADMIN_UID")
+    if env_admin_uid and uid == env_admin_uid:
+        return uid
+    return None
+
+@app.route("/api/performance/stats", methods=["GET"])
+def get_performance_stats():
+    admin_uid = verify_admin_user(request)
+    if not admin_uid:
+        return jsonify({"error": "Admin authorization required."}), 403
+    stats = perf_engine.get_summary_stats()
+    stats.pop("log_file", None) # Omit absolute server filesystem path for security
+    return jsonify(stats)
+
+@app.route("/api/performance/logs", methods=["GET"])
+def get_performance_logs():
+    admin_uid = verify_admin_user(request)
+    if not admin_uid:
+        return jsonify({"error": "Admin authorization required."}), 403
+    max_lines = min(request.args.get("lines", default=50, type=int), 200)
+    lines = perf_engine.get_recent_log_entries(max_lines=max_lines)
+    return jsonify({"logs": lines})
 
 def validate_json_payload(data, required_fields=None, field_types=None, max_string_len=10000):
     """Sanitizes & validates JSON request payload types, required fields, and bounds."""
@@ -194,40 +234,158 @@ def validate_json_payload(data, required_fields=None, field_types=None, max_stri
             
     return True, None
 
+# --- Rate Limiting & Anti-Abuse Cloudflare Turnstile Engine ---
+
+class AbuseRateLimiter:
+    """
+    Sliding window rate limiter with Cloudflare Turnstile Captcha verification challenge.
+    Protects PDF rendering and AI endpoints from automated abuse and volumetric floods.
+    """
+    def __init__(self):
+        import threading
+        from collections import defaultdict
+        self._lock = threading.Lock()
+        self._requests = defaultdict(list)
+        self._flagged = defaultdict(bool)
+        
+        # Rate limit configurations: (max_requests, window_seconds)
+        self.limits = {
+            "pdf": (8, 60),      # max 8 PDF exports per 60 seconds
+            "ai": (15, 60),      # max 15 AI operations per 60 seconds
+            "parse": (6, 60),    # max 6 document parses per 60 seconds
+            "auth": (5, 60),     # max 5 auth/otp requests per 60 seconds
+        }
+
+    def _get_client_key(self, req, category: str) -> str:
+        uid = req.headers.get("X-User-ID", "").strip()
+        client_ip = req.headers.get("X-Forwarded-For", req.remote_addr or "127.0.0.1").split(",")[0].strip()
+        identity = client_ip if category == "auth" else (uid if uid else client_ip)
+        return f"{category}:{identity}"
+
+    def check_and_record(self, req, category: str = "ai"):
+        """
+        Returns (allowed: bool, response_tuple_or_None).
+        If not allowed, returns 429 response demanding Cloudflare Turnstile captcha solve.
+        """
+        key = self._get_client_key(req, category)
+        max_reqs, window_sec = self.limits.get(category, (15, 60))
+        now = time.time()
+
+        # Check if Turnstile token is supplied in header or JSON payload
+        turnstile_token = req.headers.get("X-Turnstile-Token", "").strip()
+        if not turnstile_token and req.is_json:
+            try:
+                data = req.get_json(silent=True) or {}
+                turnstile_token = str(data.get("turnstile_token", "")).strip()
+            except Exception:
+                turnstile_token = ""
+
+        # If turnstile token is provided, verify it to reset rate limits
+        if turnstile_token:
+            client_ip = req.headers.get("X-Forwarded-For", req.remote_addr or "127.0.0.1").split(",")[0].strip()
+            if self.verify_turnstile_token(turnstile_token, client_ip):
+                with self._lock:
+                    self._requests[key] = []
+                    self._flagged[key] = False
+                print(f"[RateLimiter] ✅ Solved Cloudflare Turnstile challenge for {key}. Rate limit reset.")
+                return True, None
+
+        with self._lock:
+            # Purge expired timestamps
+            cutoff = now - window_sec
+            self._requests[key] = [ts for ts in self._requests[key] if ts > cutoff]
+
+            # If client exceeded limit or was previously flagged until captcha solve
+            if len(self._requests[key]) >= max_reqs or self._flagged[key]:
+                self._flagged[key] = True
+                print(f"[RateLimiter] 🚨 Rate limit exceeded for {key} ({len(self._requests[key])}/{max_reqs} in {window_sec}s). Requiring Turnstile Captcha.")
+                error_payload = {
+                    "status": "rate_limited",
+                    "error": f"Security verification required: High request volume detected. Please solve the Cloudflare check below to continue.",
+                    "require_captcha": True,
+                    "category": category
+                }
+                return False, (jsonify(error_payload), 429)
+
+            # Record this request timestamp
+            self._requests[key].append(now)
+            return True, None
+
+    def verify_turnstile_token(self, token: str, remote_ip: str) -> bool:
+        if not token:
+            return False
+        secret_key = os.environ.get("CLOUDFLARE_TURNSTILE_SECRET_KEY")
+        if not secret_key or secret_key == "your_secret_key_here":
+            return True  # If unconfigured in local dev, allow
+        try:
+            resp = requests.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={
+                    "secret": secret_key,
+                    "response": token,
+                    "remoteip": remote_ip
+                },
+                timeout=5
+            )
+            data = resp.json()
+            return data.get("success", False)
+        except Exception as e:
+            print(f"[RateLimiter] Turnstile verification exception: {e}")
+            return False
+
+rate_limiter = AbuseRateLimiter()
+
+def check_rate_limit(req, category: str = "ai"):
+    """Convenience helper to enforce rate limiting on endpoints."""
+    return rate_limiter.check_and_record(req, category)
+
 # --- Cloudinary Endpoints ---
 
 @app.route('/api/cloudinary/sign', methods=['POST'])
 def cloudinary_sign():
-    data = request.json
-    folder = data.get('folder', '')
+    uid = verify_authenticated_user(request)
+    if not uid:
+        return jsonify({"error": "Authentication required."}), 401
+
+    api_secret = os.environ.get("CLOUDINARY_API_SECRET")
+    if not api_secret or api_secret == "your_api_secret_here":
+        return jsonify({"error": "Cloudinary API secret is not configured on the server."}), 500
+
+    folder = f"users/{uid}/assets"
     timestamp = int(time.time())
     
-    # Generate signature using API Secret
-    params_to_sign = {'timestamp': timestamp}
-    if folder:
-        params_to_sign['folder'] = folder
+    # Generate signature using API Secret strictly on the server
+    params_to_sign = {'timestamp': timestamp, 'folder': folder}
         
     signature = cloudinary.utils.api_sign_request(
         params_to_sign,
-        os.environ.get("CLOUDINARY_API_SECRET")
+        api_secret
     )
     
     return jsonify({
         "timestamp": timestamp,
         "signature": signature,
-        "api_key": os.environ.get("CLOUDINARY_API_KEY"),
-        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME")
+        "folder": folder,
+        "api_key": os.environ.get("CLOUDINARY_API_KEY", ""),
+        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME", "")
     })
 
 @app.route('/api/cloudinary/delete', methods=['POST'])
 def cloudinary_delete():
-    data = request.json
-    public_id = data.get('public_id')
+    uid = verify_authenticated_user(request)
+    if not uid:
+        return jsonify({"error": "Authentication required."}), 401
+
+    data = request.json or {}
+    public_id = (data.get('public_id') or "").strip()
     if not public_id:
         return jsonify({"error": "Missing public_id"}), 400
+
+    # Ensure user can only delete assets from their own folder
+    if not public_id.startswith(f"users/{uid}/"):
+        return jsonify({"error": "Unauthorized: Cannot delete assets belonging to other users."}), 403
         
     try:
-        # Require admin API for destroy
         result = cloudinary.uploader.destroy(public_id)
         return jsonify(result)
     except Exception as e:
@@ -236,8 +394,9 @@ def cloudinary_delete():
 @app.route('/api/user/credits', methods=['GET'])
 def get_user_credits():
     try:
-        uid = request.headers.get("X-User-ID")
-        if not uid: return jsonify({"credits": 0})
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"credits": 0, "error": "Authentication required"}), 401
         
         if not db_admin: return jsonify({"error": "DB error"}), 500
 
@@ -262,8 +421,9 @@ def get_user_credits():
 @app.route('/api/user/init', methods=['POST'])
 def init_user():
     try:
-        uid = request.headers.get("X-User-ID")
-        if not uid: return jsonify({"error": "Auth required"}), 401
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required"}), 401
         
         data = request.json or {}
         name = data.get("name", "")
@@ -291,8 +451,9 @@ def init_user():
 @app.route('/api/user/profile', methods=['GET'])
 def get_user_profile():
     try:
-        uid = request.headers.get("X-User-ID")
-        if not uid: return jsonify({"error": "Auth required"}), 401
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required"}), 401
         
         if not db_admin: return jsonify({"error": "DB error"}), 500
 
@@ -309,14 +470,19 @@ def get_user_profile():
 @app.route('/api/user/delete', methods=['POST'])
 def delete_account():
     try:
-        uid = request.headers.get("X-User-ID")
-        if not uid: return jsonify({"error": "Auth required"}), 401
+        uid = verify_authenticated_user(request)
+        if not uid:
+            return jsonify({"error": "Authentication required"}), 401
         
         if db_admin:
             db_admin.collection('users').document(uid).delete()
         
-        # Delete from Firebase Auth
-        auth.delete_user(uid)
+        # Delete from Firebase Auth if auth is available
+        if HAS_FIREBASE_ADMIN and auth:
+            try:
+                auth.delete_user(uid)
+            except Exception as fe:
+                print(f"⚠️ Auth delete_user warning: {fe}")
         
         return jsonify({"success": True, "message": "Account deleted successfully"})
     except Exception as e:
@@ -324,6 +490,9 @@ def delete_account():
 
 @app.route('/api/parse-resume', methods=['POST'])
 def parse_resume():
+    allowed, rate_resp = check_rate_limit(request, "parse")
+    if not allowed:
+        return rate_resp
     try:
         uid = request.headers.get("X-User-ID")
         if uid and not check_and_deduct_credits(uid, 5):
@@ -350,8 +519,61 @@ def parse_resume():
         print(f"[AIParserEngine Server Route] Fatal error: {e}")
         return jsonify({"error": str(e)}), 500
 
+def is_safe_image_url(url: str) -> bool:
+    """Blocks SSRF attacks against internal networks, cloud metadata, and loopback addresses."""
+    from urllib.parse import urlparse
+    import socket, ipaddress
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        lower_host = hostname.lower()
+        if lower_host in ("localhost", "metadata.google.internal", "instance-data") or lower_host.endswith(".local") or lower_host.endswith(".internal"):
+            return False
+        # Fast path: check direct IP addresses without DNS resolution
+        try:
+            ip_obj = ipaddress.ip_address(hostname)
+            return not (
+                ip_obj.is_private
+                or ip_obj.is_loopback
+                or ip_obj.is_link_local
+                or ip_obj.is_reserved
+                or ip_obj.is_multicast
+            )
+        except ValueError:
+            pass
+
+        # Resolve host if DNS is available
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            for item in addr_info:
+                ip_str = item[4][0]
+                ip_obj = ipaddress.ip_address(ip_str)
+                if (
+                    ip_obj.is_private
+                    or ip_obj.is_loopback
+                    or ip_obj.is_link_local
+                    or ip_obj.is_reserved
+                    or ip_obj.is_multicast
+                ):
+                    return False
+        except socket.gaierror:
+            # In offline or sandboxed environment without DNS, allow well-known public CDN hosts
+            if any(lower_host.endswith(d) for d in ("unsplash.com", "cloudinary.com", "github.com", "imgur.com")):
+                return True
+            return False
+        return True
+    except Exception:
+        return False
+
 @app.route('/api/render', methods=['POST'])
 def render_pdf():
+    allowed, rate_resp = check_rate_limit(request, "pdf")
+    if not allowed:
+        return rate_resp
     temp_files = []
     try:
         payload = request.json
@@ -391,18 +613,21 @@ def render_pdf():
                     except Exception as e:
                         print(f"Failed to decode base64 image: {e}")
                 elif path.startswith('http://') or path.startswith('https://'):
-                    try:
-                        import requests
-                        resp = requests.get(path, headers={"User-Agent": "Mozilla/5.0"}, timeout=2.5)
-                        if resp.status_code == 200:
-                            ext = '.svg' if ('svg' in resp.headers.get('content-type', '') or path.endswith('.svg')) else '.png'
-                            fd, tmp_path = tempfile.mkstemp(suffix=ext)
-                            with os.fdopen(fd, 'wb') as f:
-                                f.write(resp.content)
-                            clean_el['image_path'] = tmp_path
-                            temp_files.append(tmp_path)
-                    except Exception as e:
-                        print(f"Failed to pre-download remote image {path[:60]}: {e}")
+                    if not is_safe_image_url(path):
+                        print(f"⚠️ Blocked SSRF attempt to unsafe image URL: {path[:60]}")
+                    else:
+                        try:
+                            import requests
+                            resp = requests.get(path, headers={"User-Agent": "Mozilla/5.0"}, timeout=2.5)
+                            if resp.status_code == 200:
+                                ext = '.svg' if ('svg' in resp.headers.get('content-type', '') or path.endswith('.svg')) else '.png'
+                                fd, tmp_path = tempfile.mkstemp(suffix=ext)
+                                with os.fdopen(fd, 'wb') as f:
+                                    f.write(resp.content)
+                                clean_el['image_path'] = tmp_path
+                                temp_files.append(tmp_path)
+                        except Exception as e:
+                            print(f"Failed to pre-download remote image {path[:60]}: {e}")
             clean_elements.append(clean_el)
         
         # Initialise engine and import frontend state
@@ -535,9 +760,12 @@ def remove_bg_route():
 
 @app.route('/api/generate-design', methods=['POST'])
 def generate_design_route():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
-        uid = request.headers.get("X-User-ID")
-        if uid and not check_and_deduct_credits(uid, 5):
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 5):
             return jsonify({"error": "Insufficient credits. Please recharge."}), 402
             
         data = request.json
@@ -547,6 +775,9 @@ def generate_design_route():
         parser = AIParserEngine()
         elements = parser.generate_from_scratch(data)
         
+        if uid:
+            deduct_user_credits(uid, 5)
+            
         return jsonify({"elements": elements})
     except Exception as e:
         print(f"[AI-Architect Route] Error: {e}")
@@ -554,41 +785,60 @@ def generate_design_route():
 
 @app.route('/api/generate-skills', methods=['POST'])
 def generate_skills_route():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
-        uid = request.headers.get("X-User-ID")
-        if uid and not check_and_deduct_credits(uid, 5):
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 5):
             return jsonify({"error": "Insufficient credits. Please recharge."}), 402
             
-        data = request.json
+        data = request.json or {}
         category = data.get("category", "")
         load_more = data.get("load_more", False)
         parser = AIParserEngine()
         skills = parser.get_skills(category, load_more)
+        
+        if uid:
+            deduct_user_credits(uid, 5)
+            
         return jsonify({"skills": skills})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/generate-summary', methods=['POST'])
 def generate_summary_route():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
-        uid = request.headers.get("X-User-ID")
-        if uid and not check_and_deduct_credits(uid, 5):
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 5):
             return jsonify({"error": "Insufficient credits. Please recharge."}), 402
             
-        data = request.json
+        data = request.json or {}
         parser = AIParserEngine()
         summary = parser.get_summary(data)
+        
+        if uid:
+            deduct_user_credits(uid, 5)
+            
         return jsonify({"summary": summary})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/import-linkedin-url', methods=['POST'])
 def import_linkedin_url():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
-        data = request.json
-        url = data.get("linkedin_url", "")
+        data = request.json or {}
+        url = str(data.get("linkedin_url", "")).strip()
         if not url:
             return jsonify({"error": "No LinkedIn URL provided"}), 400
+        if not (url.startswith("https://") and "linkedin.com" in url):
+            return jsonify({"error": "Invalid LinkedIn URL format. Must start with https://linkedin.com"}), 400
             
         # For now, we simulate API fetching or prompt the AI to 'research' if it can.
         # In a real production app, you'd use Proxycurl or a similar service here.
@@ -601,6 +851,9 @@ def import_linkedin_url():
 
 @app.route('/api/ai-chat-edit', methods=['POST'])
 def ai_chat_edit():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
         uid = verify_authenticated_user(request)
         if uid and not check_user_has_credits(uid, 10):
@@ -619,6 +872,12 @@ def ai_chat_edit():
         elements = data.get('elements', [])
         prompt = data.get('prompt', '')
         
+        if locally_blocked(prompt):
+            return jsonify({
+                "status": "rejected",
+                "error": "Request blocked: Content violates career and resume safety policy."
+            }), 400
+        
         parser = AIParserEngine()
         result = parser.ai_chat_edit(elements, prompt)
 
@@ -631,6 +890,9 @@ def ai_chat_edit():
 
 @app.route('/api/ai-assistant', methods=['POST'])
 def ai_assistant():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
         uid = verify_authenticated_user(request)
         if uid and not check_user_has_credits(uid, 10):
@@ -650,6 +912,12 @@ def ai_assistant():
         text = data.get('text', '')
         context = data.get('context', {})
         job_description = data.get('job_description', '')
+
+        if locally_blocked(f"{action} {text} {job_description}"):
+            return jsonify({
+                "status": "rejected",
+                "reason": "Request blocked: Content violates career and resume safety policy."
+            }), 400
         
         parser = AIParserEngine()
         result = parser.handle_ai_action(action, text, context, job_description)
@@ -663,6 +931,9 @@ def ai_assistant():
 
 @app.route('/api/ai-architect', methods=['POST'])
 def ai_architect():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
         uid = verify_authenticated_user(request)
         if uid and not check_user_has_credits(uid, 10):
@@ -672,11 +943,29 @@ def ai_architect():
         prompt = data.get('prompt', '')
         elements = data.get('elements', [])
         action = data.get('action', 'build')
+
+        if locally_blocked(prompt):
+            return jsonify({
+                "status": "rejected",
+                "error": "Request blocked: Content violates career and resume safety policy."
+            }), 400
         
         parser = AIParserEngine()
         if action == 'plan':
-            plan = parser.generate_architect_plan(prompt)
-            return jsonify({"status": "success", "plan": plan})
+            plan_res = parser.generate_architect_plan(prompt)
+            return jsonify(plan_res)
+        elif action == 'distill':
+            distilled = parser.distill_resume_text(prompt)
+            return jsonify({"status": "success", "data": distilled})
+        elif action == 'build':
+            plan = data.get('plan')
+            if plan and isinstance(plan, dict):
+                result = parser.build_architect_resume(plan, prompt)
+            else:
+                result = parser.ai_chat_edit(elements, prompt)
+            if uid and isinstance(result, dict) and "elements" in result:
+                deduct_user_credits(uid, 10)
+            return jsonify(result)
         else:
             result = parser.ai_chat_edit(elements, prompt)
             if uid and isinstance(result, dict) and "elements" in result:
@@ -718,30 +1007,42 @@ def verify_turnstile():
         print(f"[Turnstile] Verification error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
+
+def validate_email_format(email: str) -> bool:
+    if not email or not isinstance(email, str) or len(email) > 254:
+        return False
+    return bool(EMAIL_REGEX.match(email.strip()))
+
 @app.route('/api/auth/send-otp', methods=['POST'])
 def send_otp():
+    allowed, rate_resp = check_rate_limit(request, "auth")
+    if not allowed:
+        return rate_resp
     try:
-        data = request.json
-        email = data.get("email")
-        if not email:
-            return jsonify({"success": False, "error": "Email is required"}), 400
+        data = request.json or {}
+        email = (data.get("email") or "").strip().lower()
+        if not validate_email_format(email):
+            return jsonify({"success": False, "error": "Valid email is required"}), 400
             
-        # Verify user exists in Firebase
-        try:
-            auth.get_user_by_email(email)
-        except auth.UserNotFoundError:
-            return jsonify({"success": False, "error": "No user found with this email"}), 404
+        # Verify user exists in Firebase if auth is initialized
+        if HAS_FIREBASE_ADMIN and auth:
+            try:
+                auth.get_user_by_email(email)
+            except auth.UserNotFoundError:
+                return jsonify({"success": False, "error": "No user found with this email"}), 404
             
         # Generate 6-digit OTP
         otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-        expires_at = datetime.utcnow() + timedelta(minutes=10)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
         
         # Store OTP in Firestore securely
         if db_admin:
             db_admin.collection("otps").document(email).set({
                 "otp": otp,
                 "expires_at": expires_at,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "failed_attempts": 0
             }, merge=True)
             
         # Send Email
@@ -757,38 +1058,43 @@ def send_otp():
 
 @app.route('/api/auth/send-verification-otp', methods=['POST'])
 def send_verification_otp():
+    allowed, rate_resp = check_rate_limit(request, "auth")
+    if not allowed:
+        return rate_resp
     try:
-        data = request.json
-        email = data.get("email")
-        if not email:
-            return jsonify({"success": False, "error": "Email is required"}), 400
+        data = request.json or {}
+        email = (data.get("email") or "").strip().lower()
+        if not validate_email_format(email):
+            return jsonify({"success": False, "error": "Valid email is required"}), 400
             
         # Verify user exists
-        try:
-            user = auth.get_user_by_email(email)
-        except auth.UserNotFoundError:
-            return jsonify({"success": False, "error": "User not found"}), 404
-            
-        # Initialize new user with 50 credits in Firestore during signup
-        if db_admin:
-            user_ref = db_admin.collection('users').document(user.uid)
-            if not user_ref.get().exists:
-                user_ref.set({
-                    'credits': 15,
-                    'email': email,
-                    'createdAt': firestore.SERVER_TIMESTAMP
-                })
+        if HAS_FIREBASE_ADMIN and auth:
+            try:
+                user = auth.get_user_by_email(email)
+            except auth.UserNotFoundError:
+                return jsonify({"success": False, "error": "User not found"}), 404
+                
+            # Initialize new user with 15 credits in Firestore during signup
+            if db_admin:
+                user_ref = db_admin.collection('users').document(user.uid)
+                if not user_ref.get().exists:
+                    user_ref.set({
+                        'credits': 15,
+                        'email': email,
+                        'createdAt': firestore.SERVER_TIMESTAMP
+                    })
             
         # Generate 6-digit code
         otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-        expires_at = datetime.utcnow() + timedelta(hours=24) # Verif codes last longer
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24) # Verif codes last longer
         
         # Store securely
         if db_admin:
             db_admin.collection("verifications").document(email).set({
                 "otp": otp,
                 "expires_at": expires_at,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc),
+                "failed_attempts": 0
             }, merge=True)
             
         # Send via Mailjet
@@ -804,10 +1110,13 @@ def send_verification_otp():
 
 @app.route('/api/auth/verify-account', methods=['POST'])
 def verify_account():
+    allowed, rate_resp = check_rate_limit(request, "auth")
+    if not allowed:
+        return rate_resp
     try:
-        data = request.json
-        email = data.get("email")
-        otp = data.get("otp")
+        data = request.json or {}
+        email = (data.get("email") or "").strip().lower()
+        otp = (data.get("otp") or "").strip()
         
         if not all([email, otp]):
             return jsonify({"success": False, "error": "Email and code required"}), 400
@@ -820,25 +1129,32 @@ def verify_account():
             return jsonify({"success": False, "error": "No verification pending"}), 404
             
         ver_data = doc.to_dict()
-        if datetime.utcnow() > ver_data['expires_at'].replace(tzinfo=None):
+        if datetime.now(timezone.utc) > ver_data['expires_at'].replace(tzinfo=None):
             return jsonify({"success": False, "error": "Code expired"}), 400
             
         if ver_data['otp'] != otp:
-            return jsonify({"success": False, "error": "Invalid code"}), 400
+            failed_attempts = int(ver_data.get('failed_attempts', 0)) + 1
+            if failed_attempts >= 5:
+                db_admin.collection("verifications").document(email).delete()
+                return jsonify({"success": False, "error": "Too many failed attempts. Verification code has been invalidated. Please request a new one."}), 400
+            else:
+                db_admin.collection("verifications").document(email).update({'failed_attempts': failed_attempts})
+                return jsonify({"success": False, "error": "Invalid code"}), 400
             
         # Success! Mark as verified in Firebase
-        user = auth.get_user_by_email(email)
-        auth.update_user(user.uid, email_verified=True)
-        
-        # Initialize new user with 50 credits in Firestore during signup if not already done
-        if db_admin:
-            user_ref = db_admin.collection('users').document(user.uid)
-            if not user_ref.get().exists:
-                user_ref.set({
-                    'credits': 15,
-                    'email': email,
-                    'createdAt': firestore.SERVER_TIMESTAMP
-                })
+        if HAS_FIREBASE_ADMIN and auth:
+            user = auth.get_user_by_email(email)
+            auth.update_user(user.uid, email_verified=True)
+            
+            # Initialize new user with 15 credits in Firestore during signup if not already done
+            if db_admin:
+                user_ref = db_admin.collection('users').document(user.uid)
+                if not user_ref.get().exists:
+                    user_ref.set({
+                        'credits': 15,
+                        'email': email,
+                        'createdAt': firestore.SERVER_TIMESTAMP
+                    })
         
         # Cleanup
         db_admin.collection("verifications").document(email).delete()
@@ -851,14 +1167,26 @@ def verify_account():
 
 @app.route('/api/auth/verify-otp-reset', methods=['POST'])
 def verify_otp_reset():
+    allowed, rate_resp = check_rate_limit(request, "auth")
+    if not allowed:
+        return rate_resp
     try:
-        data = request.json
-        email = data.get("email")
-        otp = data.get("otp")
-        new_password = data.get("password")
+        data = request.json or {}
+        email = (data.get("email") or "").strip().lower()
+        otp = (data.get("otp") or "").strip()
+        new_password = str(data.get("password") or "")
         
         if not all([email, otp, new_password]):
             return jsonify({"success": False, "error": "Missing required fields"}), 400
+            
+        if not validate_email_format(email):
+            return jsonify({"success": False, "error": "Invalid email format"}), 400
+            
+        if len(new_password) < 6:
+            return jsonify({"success": False, "error": "Password must be at least 6 characters"}), 400
+            
+        if len(new_password) > 128:
+            return jsonify({"success": False, "error": "Password exceeds maximum length limit of 128 characters"}), 400
             
         if not db_admin:
             return jsonify({"success": False, "error": "Database not initialized"}), 500
@@ -866,21 +1194,28 @@ def verify_otp_reset():
         # Get OTP from Firestore
         otp_doc = db_admin.collection("otps").document(email).get()
         if not otp_doc.exists:
-            return jsonify({"success": False, "error": "No OTP found/expired"}), 400
+            return jsonify({"success": False, "error": "No OTP found or expired"}), 400
             
         otp_data = otp_doc.to_dict()
         
         # Check expiry (naive UTC check)
-        if datetime.utcnow() > otp_data['expires_at'].replace(tzinfo=None):
+        if datetime.now(timezone.utc) > otp_data['expires_at'].replace(tzinfo=None):
             return jsonify({"success": False, "error": "OTP has expired"}), 400
             
-        # Verify OTP
+        # Verify OTP with brute-force lock
         if otp_data['otp'] != otp:
-            return jsonify({"success": False, "error": "Invalid OTP code"}), 400
+            failed_attempts = int(otp_data.get('failed_attempts', 0)) + 1
+            if failed_attempts >= 5:
+                db_admin.collection("otps").document(email).delete()
+                return jsonify({"success": False, "error": "Too many failed attempts. This OTP has been invalidated. Please request a new one."}), 400
+            else:
+                db_admin.collection("otps").document(email).update({'failed_attempts': failed_attempts})
+                return jsonify({"success": False, "error": "Invalid OTP code"}), 400
             
         # OTP is valid! Reset password in Firebase Auth
-        user = auth.get_user_by_email(email)
-        auth.update_user(user.uid, password=new_password)
+        if HAS_FIREBASE_ADMIN and auth:
+            user = auth.get_user_by_email(email)
+            auth.update_user(user.uid, password=new_password)
         
         # Cleanup OTP
         db_admin.collection("otps").document(email).delete()
@@ -978,10 +1313,6 @@ PLAN_CONFIGS = {
 def get_cashfree_credentials():
     app_id = (os.environ.get("CASHFREE_APP_ID") or "").strip()
     secret_key = (os.environ.get("CASHFREE_SECRET_KEY") or "").strip()
-    
-    if not app_id or not secret_key:
-        app_id = "TEST104787961bd4e402b8d0c8d6265069784701"
-        secret_key = "cfsk_ma_test_d3c01648a472a15f02c46f1ef1fb9a12_55a2c4d9"
 
     is_test_key = app_id.upper().startswith("TEST") or secret_key.lower().startswith("cfsk_ma_test_")
     mode_env = os.environ.get("CASHFREE_MODE", "").strip().upper()
@@ -1041,6 +1372,8 @@ def cashfree_create_order():
                     print(f"🎟️ Cashfree Order Discounted: Original ₹{plan['price']} -> New ₹{order_amount} (Coupon: '{promo_code}')")
         
         app_id, secret_key, mode, base_url = get_cashfree_credentials()
+        if not app_id or not secret_key:
+            return jsonify({"error": "Payment gateway credentials are not configured on the server."}), 500
         
         clean_uid = re.sub(r'[^a-zA-Z0-9_-]', '', str(uid))[:30] or "user"
         order_id = f"ord_{clean_uid}_{int(time.time())}"
@@ -1084,7 +1417,7 @@ def cashfree_create_order():
             "amount": order_amount,
             "promo_code": promo_code,
             "status": "CREATED",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         PENDING_ORDERS[order_id] = order_record
 
@@ -1153,6 +1486,8 @@ def cashfree_verify_payment():
             plan_id = "pro_monthly"
 
         app_id, secret_key, mode, base_url = get_cashfree_credentials()
+        if not app_id or not secret_key:
+            return jsonify({"error": "Payment gateway credentials are not configured on the server."}), 500
         
         headers = {
             "x-client-id": app_id,
@@ -1164,10 +1499,10 @@ def cashfree_verify_payment():
         cf_res = requests.get(f"{base_url}/orders/{order_id}", headers=headers, timeout=10)
         cf_data = cf_res.json()
         
-        order_status = cf_data.get("order_status", "PAID")
+        order_status = cf_data.get("order_status", "")
         
-        # Consider PAID, ACTIVE, or SANDBOX successful return as verified payment
-        if order_status in ["PAID", "ACTIVE", "SUCCESS"] or (mode == "SANDBOX" and order_status != "FAILED"):
+        # Payment is strictly valid only if Cashfree order_status is PAID or SUCCESS
+        if order_status in ["PAID", "SUCCESS"]:
             plan = PLAN_CONFIGS.get(plan_id, PLAN_CONFIGS["pro_monthly"])
             added_credits = int(plan.get("credits", 150))
             plan_type = plan.get("plan", "pro")
@@ -1196,7 +1531,7 @@ def cashfree_verify_payment():
                         "credits_added": added_credits,
                         "amount_paid": cf_data.get("order_amount", plan["price"]),
                         "status": "PAID",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                 except Exception as fe:
                     print(f"⚠️ Firestore credit update warning: {fe}")
@@ -1213,7 +1548,7 @@ def cashfree_verify_payment():
             return jsonify({
                 "success": False,
                 "order_status": order_status,
-                "message": f"Payment status: '{order_status}'."
+                "message": f"Payment status: '{order_status}'. Payment not completed."
             }), 400
 
     except Exception as e:
@@ -1224,6 +1559,24 @@ def cashfree_verify_payment():
 def cashfree_webhook():
     """Asynchronous payment notification webhook from Cashfree."""
     try:
+        app_id, secret_key, mode, base_url = get_cashfree_credentials()
+        
+        # Verify webhook signature when Cashfree Secret Key is configured
+        if secret_key:
+            signature = request.headers.get("x-webhook-signature") or request.headers.get("x-cashfree-signature")
+            timestamp = request.headers.get("x-webhook-timestamp")
+            if not signature or not timestamp:
+                print("⚠️ Cashfree Webhook: Missing signature or timestamp headers.")
+                return jsonify({"error": "Missing signature headers"}), 401
+                
+            import hmac, hashlib, base64
+            raw_body = request.get_data()
+            data_to_sign = timestamp.encode('utf-8') + raw_body
+            computed_sig = base64.b64encode(hmac.new(secret_key.encode('utf-8'), data_to_sign, hashlib.sha256).digest()).decode('utf-8')
+            if not hmac.compare_digest(signature, computed_sig):
+                print("🚨 Cashfree Webhook: Invalid signature detected! Rejecting request.")
+                return jsonify({"error": "Invalid webhook signature"}), 401
+
         data = request.get_json(silent=True) or {}
         event_type = data.get("type")
         
@@ -1278,6 +1631,9 @@ def cashfree_webhook():
 @app.route('/api/documents/generate', methods=['POST'])
 def generate_career_document():
     """Generates AI Cover Letters, SOPs, LORs, Resignation Letters, Cold Emails, LinkedIn Bios, etc."""
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
     try:
         uid = verify_authenticated_user(request)
         if uid and not check_user_has_credits(uid, 10):
@@ -1289,6 +1645,12 @@ def generate_career_document():
         company = data.get("company", "TechCorp")
         user_experience = data.get("user_experience", "")
         additional_notes = data.get("additional_notes", "")
+
+        if locally_blocked(f"{job_title} {company} {user_experience} {additional_notes}"):
+            return jsonify({
+                "success": False,
+                "error": "Request blocked: Content violates career and resume safety policy."
+            }), 400
         
         parser = AIParserEngine()
         result = parser.generate_career_document(
@@ -1396,9 +1758,9 @@ def admin_apply_promo():
 def admin_delete_promo():
     """Admin endpoint to permanently delete/remove a promo code from Firestore and server memory."""
     try:
-        uid = verify_authenticated_user(request)
-        if not uid:
-            return jsonify({"error": "Authentication required."}), 401
+        admin_uid = verify_admin_user(request)
+        if not admin_uid:
+            return jsonify({"error": "Admin authorization required."}), 403
             
         data = request.get_json(silent=True) or {}
         code = (data.get("code") or "").strip().upper()
@@ -1424,9 +1786,9 @@ def admin_delete_promo():
 def admin_create_promo():
     """Admin endpoint to generate/create new promo codes with custom discounts."""
     try:
-        uid = verify_authenticated_user(request)
-        if not uid:
-            return jsonify({"error": "Authentication required."}), 401
+        admin_uid = verify_admin_user(request)
+        if not admin_uid:
+            return jsonify({"error": "Admin authorization required."}), 403
             
         data = request.get_json(silent=True) or {}
         code = (data.get("code") or "").strip().upper()
@@ -1444,8 +1806,8 @@ def admin_create_promo():
             "max_uses": max_uses,
             "uses": 0,
             "active": True,
-            "created_by": uid,
-            "created_at": datetime.utcnow().isoformat()
+            "created_by": admin_uid,
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
             
         if db_admin:
@@ -1457,8 +1819,8 @@ def admin_create_promo():
                     "max_uses": max_uses,
                     "uses": 0,
                     "active": True,
-                    "created_by": uid,
-                    "created_at": datetime.utcnow().isoformat()
+                    "created_by": admin_uid,
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 })
             except Exception as fe:
                 print(f"⚠️ Firestore promo set warning: {fe}")
@@ -1486,6 +1848,10 @@ def admin_create_promo():
 def admin_list_promos():
     """Admin endpoint to list all active promo codes."""
     try:
+        admin_uid = verify_admin_user(request)
+        if not admin_uid:
+            return jsonify({"error": "Admin authorization required."}), 403
+
         if db_admin:
             try:
                 docs = db_admin.collection("promo_codes").limit(50).get()

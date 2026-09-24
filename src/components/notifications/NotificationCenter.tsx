@@ -1,17 +1,38 @@
 import { useState, useRef, useEffect } from "react";
-import { useNotifications, type AppNotification } from "../../context/NotificationContext";
-import { Bell, Sparkles, Gift, CheckCircle2, ShieldAlert, X, Trash2 } from "lucide-react";
+import {
+  useNotifications,
+  type AppNotification,
+} from "../../context/NotificationContext";
+import {
+  Bell,
+  Sparkles,
+  Gift,
+  CheckCircle2,
+  ShieldAlert,
+  X,
+  Trash2,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function NotificationCenter() {
-  const { notifications, unreadCount, markAsRead, claimReward, deleteNotification, clearAllNotifications } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    claimReward,
+    deleteNotification,
+    clearAllNotifications,
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -49,7 +70,7 @@ export function NotificationCenter() {
         {isOpen && (
           <>
             {/* Mobile Backdrop Overlay */}
-            <div 
+            <div
               className="sm:hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-40"
               onClick={() => setIsOpen(false)}
             />
@@ -64,7 +85,9 @@ export function NotificationCenter() {
               <div className="p-4 border-b border-app-border flex items-center justify-between bg-app-bg/50">
                 <div className="flex items-center gap-2">
                   <Bell className="w-4 h-4 text-brand-primary" />
-                  <h3 className="font-bold text-app-text text-sm">Notifications</h3>
+                  <h3 className="font-bold text-app-text text-sm">
+                    Notifications
+                  </h3>
                   {unreadCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-xs font-bold">
                       {unreadCount} new
@@ -104,12 +127,15 @@ export function NotificationCenter() {
                       key={notif.id}
                       onClick={() => markAsRead(notif.id)}
                       className={`p-3.5 sm:p-4 transition-colors relative cursor-pointer group/item ${
-                        !notif.read ? "bg-brand-primary/5 hover:bg-brand-primary/10" : "hover:bg-app-bg"
+                        !notif.read
+                          ? "bg-brand-primary/5 hover:bg-brand-primary/10"
+                          : "hover:bg-app-bg"
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="p-2 rounded-xl bg-brand-primary/10 text-brand-primary shrink-0 mt-0.5">
-                          {notif.type === "verification" || notif.type === "reward" ? (
+                          {notif.type === "verification" ||
+                          notif.type === "reward" ? (
                             <Gift className="w-4 h-4" />
                           ) : notif.type === "welcome" ? (
                             <Sparkles className="w-4 h-4" />
@@ -120,7 +146,9 @@ export function NotificationCenter() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <h4 className="text-xs font-bold text-app-text truncate">{notif.title}</h4>
+                            <h4 className="text-xs font-bold text-app-text truncate">
+                              {notif.title}
+                            </h4>
                             <div className="flex items-center gap-1.5 shrink-0">
                               {!notif.read && (
                                 <span className="w-2 h-2 rounded-full bg-brand-primary shrink-0" />
@@ -141,11 +169,13 @@ export function NotificationCenter() {
                             {notif.message}
                           </p>
 
-                          {(notif.rewardAmount || notif.type === "verification") && (
+                          {(notif.rewardAmount ||
+                            notif.type === "verification") && (
                             <div>
                               {notif.claimed ? (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Claimed {notif.rewardAmount || 15} Credits
+                                  <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                                  Claimed {notif.rewardAmount || 15} Credits
                                 </span>
                               ) : (
                                 <button

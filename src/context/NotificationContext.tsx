@@ -34,14 +34,26 @@ interface NotificationContextType {
   claimReward: (notif: AppNotification) => Promise<boolean>;
   deleteNotification: (id: string) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
-  sendNotification: (targetUid: string, notif: Omit<AppNotification, "id" | "read" | "timestamp">) => Promise<void>;
-  broadcastNotification: (notif: Omit<AppNotification, "id" | "read" | "timestamp">) => Promise<void>;
+  sendNotification: (
+    targetUid: string,
+    notif: Omit<AppNotification, "id" | "read" | "timestamp">,
+  ) => Promise<void>;
+  broadcastNotification: (
+    notif: Omit<AppNotification, "id" | "read" | "timestamp">,
+  ) => Promise<void>;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+const NotificationContext = createContext<NotificationContextType | undefined>(
+  undefined,
+);
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { user, claimedSignupCredits, claimSignupCredits, refreshCredits } = useAuth();
+export function NotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, claimedSignupCredits, claimSignupCredits, refreshCredits } =
+    useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   useEffect(() => {
@@ -67,22 +79,34 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             rewardAmount: data.rewardAmount || 0,
             claimed: !!data.claimed,
             read: !!data.read,
-            timestamp: data.timestamp?.seconds ? data.timestamp.seconds * 1000 : Date.now(),
+            timestamp: data.timestamp?.seconds
+              ? data.timestamp.seconds * 1000
+              : Date.now(),
           };
         });
 
         // If email is verified and user hasn't claimed signup credits yet and hasn't dismissed it, check if we need to create it!
-        const isDismissed = localStorage.getItem(`dismissed_verification_${user.uid}`) === "true";
-        const hasCreatedBefore = localStorage.getItem(`created_verification_${user.uid}`) === "true";
+        const isDismissed =
+          localStorage.getItem(`dismissed_verification_${user.uid}`) === "true";
+        const hasCreatedBefore =
+          localStorage.getItem(`created_verification_${user.uid}`) === "true";
 
-        if (user.emailVerified && !claimedSignupCredits && !isDismissed && !hasCreatedBefore) {
-          const hasVerificationNotif = notifs.some((n) => n.type === "verification");
+        if (
+          user.emailVerified &&
+          !claimedSignupCredits &&
+          !isDismissed &&
+          !hasCreatedBefore
+        ) {
+          const hasVerificationNotif = notifs.some(
+            (n) => n.type === "verification",
+          );
           if (!hasVerificationNotif) {
             localStorage.setItem(`created_verification_${user.uid}`, "true");
             // Auto-create email verification reward notification in Firestore
             addDoc(notifRef, {
               title: "🎉 Email Verified! Claim 15 Free AI Credits",
-              message: "Congratulations! Your email address has been verified. Claim your free 15 AI Credits now to start building resumes.",
+              message:
+                "Congratulations! Your email address has been verified. Claim your free 15 AI Credits now to start building resumes.",
               type: "verification",
               rewardAmount: 15,
               claimed: false,
@@ -96,7 +120,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       },
       (error) => {
         console.error("[NotificationContext] Snapshot error:", error);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -120,7 +144,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (notif.type === "verification") {
         const success = await claimSignupCredits();
         if (success) {
-          const notifDoc = doc(db, "users", user.uid, "notifications", notif.id);
+          const notifDoc = doc(
+            db,
+            "users",
+            user.uid,
+            "notifications",
+            notif.id,
+          );
           await updateDoc(notifDoc, { claimed: true, read: true });
           return true;
         }
@@ -128,9 +158,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         // Generic reward claiming logic: fetch current credits and ADD rewardAmount to existing balance
         const notifDoc = doc(db, "users", user.uid, "notifications", notif.id);
         const userRef = doc(db, "users", user.uid);
-        
+
         const userSnap = await getDoc(userRef);
-        const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
+        const currentCredits = userSnap.exists()
+          ? userSnap.data().credits || 0
+          : 0;
         const newCredits = currentCredits + notif.rewardAmount;
 
         await updateDoc(userRef, { credits: newCredits });
@@ -156,31 +188,39 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const notifDoc = doc(db, "users", user.uid, "notifications", id);
       await deleteDoc(notifDoc);
     } catch (err) {
-      console.error("[NotificationContext] Failed to delete notification:", err);
+      console.error(
+        "[NotificationContext] Failed to delete notification:",
+        err,
+      );
     }
   };
 
   const clearAllNotifications = async () => {
     if (!user) return;
     try {
-      const hasVerification = notifications.some((n) => n.type === "verification");
+      const hasVerification = notifications.some(
+        (n) => n.type === "verification",
+      );
       if (hasVerification) {
         localStorage.setItem(`dismissed_verification_${user.uid}`, "true");
       }
       const idsToDelete = notifications.map((n) => n.id);
       setNotifications([]);
       const deletePromises = idsToDelete.map((id) =>
-        deleteDoc(doc(db, "users", user.uid, "notifications", id))
+        deleteDoc(doc(db, "users", user.uid, "notifications", id)),
       );
       await Promise.all(deletePromises);
     } catch (err) {
-      console.error("[NotificationContext] Failed to clear all notifications:", err);
+      console.error(
+        "[NotificationContext] Failed to clear all notifications:",
+        err,
+      );
     }
   };
 
   const sendNotification = async (
     targetUid: string,
-    notif: Omit<AppNotification, "id" | "read" | "timestamp">
+    notif: Omit<AppNotification, "id" | "read" | "timestamp">,
   ) => {
     try {
       const notifRef = collection(db, "users", targetUid, "notifications");
@@ -203,7 +243,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   const broadcastNotification = async (
-    notif: Omit<AppNotification, "id" | "read" | "timestamp">
+    notif: Omit<AppNotification, "id" | "read" | "timestamp">,
   ) => {
     try {
       const usersSnap = await getDocs(collection(db, "users"));
@@ -252,7 +292,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 export function useNotifications() {
   const context = useContext(NotificationContext);
   if (context === undefined) {
-    throw new Error("useNotifications must be used within NotificationProvider");
+    throw new Error(
+      "useNotifications must be used within NotificationProvider",
+    );
   }
   return context;
 }

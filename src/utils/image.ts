@@ -4,9 +4,9 @@
 
 export async function cropAndCompressImage(
   imageSrc: string,
-  crop: { x: number, y: number, width: number, height: number },
+  crop: { x: number; y: number; width: number; height: number },
   quality: number = 0.7,
-  targetWidth: number = 800
+  targetWidth: number = 800,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -31,7 +31,7 @@ export async function cropAndCompressImage(
         0,
         0,
         targetWidth,
-        targetWidth
+        targetWidth,
       );
 
       // Export as compressed base64 JPEG

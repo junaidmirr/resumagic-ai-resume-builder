@@ -1,15 +1,15 @@
 import React, { useState, useRef } from "react";
-import { 
-  X, 
-  RotateCcw, 
-  Trash2, 
-  Check, 
-  PenTool, 
-  Highlighter, 
-  Sparkles, 
-  Scissors, 
+import {
+  X,
+  RotateCcw,
+  Trash2,
+  Check,
+  PenTool,
+  Highlighter,
+  Sparkles,
+  Scissors,
   Feather,
-  Eraser
+  Eraser,
 } from "lucide-react";
 
 export type PenType = "pen" | "highlighter" | "neon" | "dashed" | "calligraphy";
@@ -59,7 +59,9 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
   const [isEraser, setIsEraser] = useState(false);
 
   const [strokes, setStrokes] = useState<Stroke[]>([]);
-  const [currentPoints, setCurrentPoints] = useState<{ x: number; y: number }[]>([]);
+  const [currentPoints, setCurrentPoints] = useState<
+    { x: number; y: number }[]
+  >([]);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -69,7 +71,8 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
   // Convert array of points into smooth Quadratic Bezier SVG path data
   const pointsToPathD = (pts: { x: number; y: number }[]): string => {
     if (pts.length === 0) return "";
-    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y} L ${pts[0].x + 0.1} ${pts[0].y + 0.1}`;
+    if (pts.length === 1)
+      return `M ${pts[0].x} ${pts[0].y} L ${pts[0].x + 0.1} ${pts[0].y + 0.1}`;
 
     let d = `M ${pts[0].x} ${pts[0].y}`;
     for (let i = 1; i < pts.length - 1; i++) {
@@ -110,9 +113,12 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
       if (isEraser) {
         const lastPt = currentPoints[currentPoints.length - 1];
         setStrokes((prev) =>
-          prev.filter((s) =>
-            !s.points.some((p) => Math.hypot(p.x - lastPt.x, p.y - lastPt.y) < penSize * 2)
-          )
+          prev.filter(
+            (s) =>
+              !s.points.some(
+                (p) => Math.hypot(p.x - lastPt.x, p.y - lastPt.y) < penSize * 2,
+              ),
+          ),
         );
       } else {
         const pathD = pointsToPathD(currentPoints);
@@ -186,8 +192,10 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
   };
 
   const renderStrokeElement = (st: Stroke, idx: number) => {
-    const strokeDash = st.penType === "dashed" ? `${st.size * 2},${st.size * 1.5}` : undefined;
-    const filterStyle = st.penType === "neon" ? `drop-shadow(0 0 6px ${st.color})` : undefined;
+    const strokeDash =
+      st.penType === "dashed" ? `${st.size * 2},${st.size * 1.5}` : undefined;
+    const filterStyle =
+      st.penType === "neon" ? `drop-shadow(0 0 6px ${st.color})` : undefined;
 
     return (
       <path
@@ -213,16 +221,17 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
       <div className="bg-app-surface border border-app-border rounded-2xl sm:rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        
         {/* Compact Header */}
         <div className="py-2.5 px-4 border-b border-app-border flex items-center justify-between bg-app-surface shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
               <PenTool size={16} />
             </div>
-            <h3 className="text-xs sm:text-sm font-bold text-app-text">Freehand Vector Studio</h3>
+            <h3 className="text-xs sm:text-sm font-bold text-app-text">
+              Freehand Vector Studio
+            </h3>
           </div>
-          
+
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleUndo}
@@ -303,7 +312,9 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
                 onChange={(e) => setPenSize(Number(e.target.value))}
                 className="w-16 sm:w-24 accent-teal-500 cursor-pointer"
               />
-              <span className="font-mono font-bold text-app-text w-6 text-right">{penSize}px</span>
+              <span className="font-mono font-bold text-app-text w-6 text-right">
+                {penSize}px
+              </span>
             </div>
 
             {/* Opacity Slider */}
@@ -318,7 +329,9 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
                 onChange={(e) => setPenOpacity(Number(e.target.value))}
                 className="w-16 sm:w-20 accent-teal-500 cursor-pointer"
               />
-              <span className="font-mono font-bold text-app-text w-8 text-right">{Math.round(penOpacity * 100)}%</span>
+              <span className="font-mono font-bold text-app-text w-8 text-right">
+                {Math.round(penOpacity * 100)}%
+              </span>
             </div>
 
             {/* Color Swatches & Picker */}
@@ -331,7 +344,9 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
                     setIsEraser(false);
                   }}
                   className={`w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 transition-transform ${
-                    penColor === c && !isEraser ? "scale-125 ring-2 ring-teal-500" : "hover:scale-110"
+                    penColor === c && !isEraser
+                      ? "scale-125 ring-2 ring-teal-500"
+                      : "hover:scale-110"
                   }`}
                   style={{ backgroundColor: c }}
                 />
@@ -364,8 +379,18 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
             >
               {/* Subtle Grid Background */}
               <defs>
-                <pattern id="draw-grid-sm" width="24" height="24" patternUnits="userSpaceOnUse">
-                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#f1f5f9" strokeWidth="1" />
+                <pattern
+                  id="draw-grid-sm"
+                  width="24"
+                  height="24"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M 24 0 L 0 0 0 24"
+                    fill="none"
+                    stroke="#f1f5f9"
+                    strokeWidth="1"
+                  />
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#draw-grid-sm)" />
@@ -382,11 +407,19 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
                   strokeWidth={penSize}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeDasharray={penType === "dashed" ? `${penSize * 2},${penSize * 1.5}` : undefined}
+                  strokeDasharray={
+                    penType === "dashed"
+                      ? `${penSize * 2},${penSize * 1.5}`
+                      : undefined
+                  }
                   opacity={penType === "highlighter" ? 0.45 : penOpacity}
                   style={{
-                    filter: penType === "neon" ? `drop-shadow(0 0 6px ${penColor})` : undefined,
-                    mixBlendMode: penType === "highlighter" ? "multiply" : "normal",
+                    filter:
+                      penType === "neon"
+                        ? `drop-shadow(0 0 6px ${penColor})`
+                        : undefined,
+                    mixBlendMode:
+                      penType === "highlighter" ? "multiply" : "normal",
                   }}
                 />
               )}
@@ -399,7 +432,7 @@ export function DrawingModal({ isOpen, onClose, onSave }: DrawingModalProps) {
           <span className="text-[11px] text-app-text-muted font-medium">
             {strokes.length} stroke{strokes.length === 1 ? "" : "s"}
           </span>
-          
+
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}

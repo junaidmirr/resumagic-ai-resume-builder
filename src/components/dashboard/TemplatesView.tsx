@@ -9,16 +9,24 @@ interface TemplatesViewProps {
   isCreating: boolean;
 }
 
-export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps) {
+export function TemplatesView({
+  onUseTemplate,
+  isCreating,
+}: TemplatesViewProps) {
   const [filter, setFilter] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const categories = ["All", ...Array.from(new Set(templates.map((t) => t.category)))];
+  const categories = [
+    "All",
+    ...Array.from(new Set(templates.map((t) => t.category))),
+  ];
 
   const filteredTemplates = templates.filter((t) => {
     const matchesCategory = filter === "All" || t.category === filter;
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = t.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -27,10 +35,14 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
       <div className="p-4 sm:p-6 lg:p-8 border-b border-app-border shrink-0 bg-app-surface/50">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-app-text mb-1 tracking-tight">Template Library</h2>
-            <p className="text-xs sm:text-sm text-app-text-muted">Choose from 20+ professional, ATS-optimized designs.</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-app-text mb-1 tracking-tight">
+              Template Library
+            </h2>
+            <p className="text-xs sm:text-sm text-app-text-muted">
+              Choose from 20+ professional, ATS-optimized designs.
+            </p>
           </div>
-          
+
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="relative w-full md:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-app-text-muted" />
@@ -64,7 +76,10 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
             ))}
           </div>
 
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-20">
+          <motion.div
+            layout
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 pb-20"
+          >
             <AnimatePresence>
               {filteredTemplates.map((template) => (
                 <motion.div
@@ -92,9 +107,11 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
                         FREE
                       </div>
                     )}
-                    
+
                     {/* Hover Overlay (Desktop) */}
-                    <div className={`hidden md:flex absolute inset-0 bg-app-surface/80 backdrop-blur-[2px] items-center justify-center transition-opacity duration-300 ${hoveredId === template.id ? 'opacity-100' : 'opacity-0'}`}>
+                    <div
+                      className={`hidden md:flex absolute inset-0 bg-app-surface/80 backdrop-blur-[2px] items-center justify-center transition-opacity duration-300 ${hoveredId === template.id ? "opacity-100" : "opacity-0"}`}
+                    >
                       <button
                         onClick={() => onUseTemplate(template)}
                         disabled={isCreating}
@@ -111,9 +128,11 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="p-3.5 sm:p-4 border-t border-app-border flex flex-col gap-2.5">
-                    <h3 className="font-bold text-sm sm:text-base text-app-text truncate">{template.name}</h3>
+                    <h3 className="font-bold text-sm sm:text-base text-app-text truncate">
+                      {template.name}
+                    </h3>
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 bg-brand-primary/10 text-brand-primary rounded-md">
                         {template.category}
@@ -144,14 +163,19 @@ export function TemplatesView({ onUseTemplate, isCreating }: TemplatesViewProps)
               ))}
             </AnimatePresence>
           </motion.div>
-          
+
           {filteredTemplates.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="w-16 h-16 bg-app-surface border border-app-border rounded-2xl flex items-center justify-center mb-4">
                 <Search className="w-8 h-8 text-app-text-muted" />
               </div>
-              <h3 className="text-lg font-bold text-app-text">Premium Templates Coming Soon!</h3>
-              <p className="text-app-text-muted text-sm mt-1">We are currently crafting beautiful, pixel-perfect templates for you to use. Check back later!</p>
+              <h3 className="text-lg font-bold text-app-text">
+                Premium Templates Coming Soon!
+              </h3>
+              <p className="text-app-text-muted text-sm mt-1">
+                We are currently crafting beautiful, pixel-perfect templates for
+                you to use. Check back later!
+              </p>
             </div>
           )}
         </div>

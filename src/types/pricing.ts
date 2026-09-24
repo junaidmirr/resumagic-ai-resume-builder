@@ -1,4 +1,5 @@
-export type PlanTier = "free" | "student" | "starter" | "pro" | "career_pro" | "lifetime";
+export type PlanTier =
+  "free" | "student" | "starter" | "pro" | "career_pro" | "lifetime";
 
 export interface PlanConfig {
   id: string;

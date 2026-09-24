@@ -6,12 +6,12 @@
   --color-brand-primary: var(--brand-primary);
   --color-brand-secondary: var(--brand-secondary);
   --color-brand-accent: var(--brand-accent);
-  
+
   --color-app-bg: var(--app-bg);
   --color-app-surface: var(--app-surface);
   --color-app-card: var(--app-card);
   --color-app-border: var(--app-border);
-  
+
   --color-app-text: var(--app-text);
   --color-app-text-muted: var(--app-text-muted);
   --color-app-text-secondary: var(--app-text-secondary);
@@ -20,32 +20,39 @@
 }
 
 :root {
-  --brand-primary: #6D5DF6;
-  --brand-secondary: #4F46E5;
-  --brand-accent: #8B5CF6;
-  --brand-success: #22C55E;
-  --brand-warning: #F59E0B;
-  --brand-danger: #EF4444;
+  --brand-primary: #0f172a;
+  --brand-secondary: #334155;
+  --brand-accent: #0d9488;
+  --brand-success: #16a34a;
+  --brand-warning: #d97706;
+  --brand-danger: #dc2626;
 
-  --app-bg: #F8FAFC;
-  --app-surface: #FFFFFF;
-  --app-card: #FFFFFF;
-  --app-border: rgba(0, 0, 0, 0.08);
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-card: #ffffff;
+  --app-border: #e2e8f0;
 
-  --app-text: #0F172A;
+  --app-text: #0f172a;
   --app-text-secondary: #475569;
-  --app-text-muted: #94A3B8;
+  --app-text-muted: #64748b;
 }
 
 .dark {
-  --app-bg: #0B1020;
-  --app-surface: #131A2E;
-  --app-card: #1A2238;
-  --app-border: rgba(255, 255, 255, 0.08);
+  --brand-primary: #f8fafc;
+  --brand-secondary: #e2e8f0;
+  --brand-accent: #2dd4bf;
+  --brand-success: #22c55e;
+  --brand-warning: #f59e0b;
+  --brand-danger: #ef4444;
 
-  --app-text: #FFFFFF;
-  --app-text-secondary: #A8B3CF;
-  --app-text-muted: #7A859E;
+  --app-bg: #090d16;
+  --app-surface: #0f172a;
+  --app-card: #151e2e;
+  --app-border: #1e293b;
+
+  --app-text: #f8fafc;
+  --app-text-secondary: #94a3b8;
+  --app-text-muted: #64748b;
 }
 
 @layer base {
@@ -55,40 +62,44 @@
   body {
     background-color: var(--app-bg);
     color: var(--app-text);
-    @apply transition-colors duration-300 antialiased selection:bg-brand-primary/20 selection:text-brand-primary;
+    @apply transition-colors duration-200 antialiased selection:bg-slate-200 dark:selection:bg-slate-800;
   }
 }
 
 @layer utilities {
   .glass {
-    background-color: color-mix(in srgb, var(--app-surface) 60%, transparent);
-    backdrop-filter: blur(16px);
+    background-color: var(--app-surface);
     border: 1px solid var(--app-border);
   }
-  
+
   .glass-card {
-    background-color: color-mix(in srgb, var(--app-card) 80%, transparent);
-    backdrop-filter: blur(12px);
+    background-color: var(--app-surface);
     border: 1px solid var(--app-border);
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   }
-  
+
   .text-gradient {
-    background-image: linear-gradient(to right, var(--brand-primary), var(--brand-accent), var(--brand-secondary));
-    -webkit-background-clip: text;
-    color: transparent;
+    color: var(--app-text);
   }
 
   .hover-lift {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-brand-primary/20;
+    @apply transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-600;
   }
 }
 
 /* Theme Logo Toggle */
-.logo-dark { display: none; }
-.logo-light { display: block; }
-.dark .logo-dark { display: block; }
-.dark .logo-light { display: none; }
+.logo-dark {
+  display: none;
+}
+.logo-light {
+  display: block;
+}
+.dark .logo-dark {
+  display: block;
+}
+.dark .logo-light {
+  display: none;
+}
 
 /* Custom Canvas Scrollbars for Touch & Desktop */
 .custom-canvas-scroll {

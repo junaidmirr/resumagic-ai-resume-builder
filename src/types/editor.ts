@@ -6,7 +6,7 @@ export interface Page {
 
 export interface ElementBase {
   id: string;
-  element_type: 'text' | 'shape' | 'image';
+  element_type: "text" | "shape" | "image";
   page_id?: string;
   x: number;
   y: number;
@@ -18,7 +18,7 @@ export interface ElementBase {
 }
 
 export interface TextElement extends ElementBase {
-  element_type: 'text';
+  element_type: "text";
   text: string;
   font_size?: number;
   font_name?: string;
@@ -26,7 +26,7 @@ export interface TextElement extends ElementBase {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
-  align?: 'left' | 'center' | 'right' | 'justify';
+  align?: "left" | "center" | "right" | "justify";
   line_height?: number;
   letter_spacing?: number;
   width?: number;
@@ -34,8 +34,8 @@ export interface TextElement extends ElementBase {
 }
 
 export interface ShapeElement extends ElementBase {
-  element_type: 'shape';
-  shape_type: 'rectangle' | 'circle' | 'line' | 'arrow' | 'path' | 'polygon';
+  element_type: "shape";
+  shape_type: "rectangle" | "circle" | "line" | "arrow" | "path" | "polygon";
   width?: number;
   height?: number;
   fill_color?: string;
@@ -48,11 +48,11 @@ export interface ShapeElement extends ElementBase {
   control_y?: number; // Quadratic Bezier control point Y
   path_d?: string; // For custom SVG paths (e.g. bezier waves)
   points?: number[]; // For polygons: [x1, y1, x2, y2, ...]
-  pen_type?: 'pen' | 'highlighter' | 'neon' | 'dashed' | 'calligraphy';
+  pen_type?: "pen" | "highlighter" | "neon" | "dashed" | "calligraphy";
 }
 
 export interface ImageElement extends ElementBase {
-  element_type: 'image';
+  element_type: "image";
   width: number;
   height: number;
   image_path: string;
@@ -60,7 +60,7 @@ export interface ImageElement extends ElementBase {
   icon_name?: string;
   emoji_char?: string;
   border_color?: string;
-  mask_shape?: 'circle' | 'rounded' | 'heart' | 'none';
+  mask_shape?: "circle" | "rounded" | "heart" | "none";
   remove_bg?: boolean;
   opacity?: number;
   shadow?: boolean;
@@ -77,10 +77,12 @@ export interface AIFixItem {
   target_field?: string;
   suggested_value?: string;
   target_element_id?: string;
+  action_type?:
+    "replace_text" | "append_text" | "add_bullet" | "insert_element" | string;
 }
 
 export interface AIResponsePayload {
-  status: 'success' | 'rejected' | 'error';
+  status: "success" | "rejected" | "error";
   result?: string;
   reason?: string;
   fixes?: AIFixItem[];

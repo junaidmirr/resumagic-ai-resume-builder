@@ -1,0 +1,62 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node dependencies & Build outputs
+node_modules
+dist
+dist-ssr
+*.local
+
+# Python Environments & Cache
+.venv
+venv
+backend/venv
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache
+
+# Secrets and Environment Variables (NEVER COMMIT)
+.env
+.env.*
+serviceAccountKey.json
+backend/serviceAccountKey.json
+*.pem
+*.key
+
+# Editor & OS files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local test outputs and scratch migration scripts
+*.pdf
+test_*.py
+fix_*.py
+fix-*.cjs
+update-*.js
+update_*.py
+test-*.js
+test-*.cjs
+rewrite_*.py
+dashboard_overhaul.py
+enforce_logos.py
+empty_templates.py
+graphify-out
+properties.txt
+0a1f2802009abb5e9ee70a2a8d4a9b5d.txt
+.temp_*
+tests/__pycache__

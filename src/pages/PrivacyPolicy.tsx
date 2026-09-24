@@ -83,9 +83,9 @@ export function PrivacyPolicy() {
                 Firestore to securely sync your resumes across devices.
               </li>
               <li>
-                <strong>AI Processing:</strong> We use advanced AI services to help
-                you generate and refine resume content. Your data is processed
-                for the immediate purpose of generating your resume.
+                <strong>AI Processing:</strong> We use advanced AI services to
+                help you generate and refine resume content. Your data is
+                processed for the immediate purpose of generating your resume.
               </li>
               <li>
                 <strong>Security:</strong> We use Cloudflare Turnstile to

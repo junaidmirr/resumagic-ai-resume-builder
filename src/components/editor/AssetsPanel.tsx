@@ -1,8 +1,26 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, Trash2, Image as ImageIcon, Loader2, Search, Sparkles, X, Camera, ExternalLink } from "lucide-react";
+import {
+  Upload,
+  Trash2,
+  Image as ImageIcon,
+  Loader2,
+  Search,
+  Sparkles,
+  X,
+  Camera,
+  ExternalLink,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "../../lib/firebase";
-import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import imageCompression from "browser-image-compression";
 
 interface Asset {
@@ -36,32 +54,73 @@ const ICONIFY_HOSTS = [
 ];
 
 const POPULAR_ICON_CHIPS = [
-  "phone", "email", "github", "linkedin", "location", 
-  "star", "briefcase", "user", "code", "globe", "calendar", "award",
+  "phone",
+  "email",
+  "github",
+  "linkedin",
+  "location",
+  "star",
+  "briefcase",
+  "user",
+  "code",
+  "globe",
+  "calendar",
+  "award",
 ];
 
 const POPULAR_PHOTO_CHIPS = [
-  "headshot", "business", "minimalist", "office", "nature", 
-  "technology", "city", "workspace", "portrait", "developer"
+  "headshot",
+  "business",
+  "minimalist",
+  "office",
+  "nature",
+  "technology",
+  "city",
+  "workspace",
+  "portrait",
+  "developer",
 ];
 
 const DEFAULT_ICONS = [
-  "lucide:phone", "lucide:mail", "lucide:globe", "lucide:map-pin", 
-  "lucide:linkedin", "lucide:github", "lucide:twitter", "lucide:briefcase", 
-  "lucide:user", "lucide:star", "lucide:calendar", "lucide:code", 
-  "lucide:award", "lucide:book", "lucide:file-text", "lucide:check-circle", 
-  "lucide:heart", "lucide:send", "lucide:layers", "lucide:cpu", 
-  "lucide:database", "lucide:feather", "lucide:figma", "lucide:zap"
+  "lucide:phone",
+  "lucide:mail",
+  "lucide:globe",
+  "lucide:map-pin",
+  "lucide:linkedin",
+  "lucide:github",
+  "lucide:twitter",
+  "lucide:briefcase",
+  "lucide:user",
+  "lucide:star",
+  "lucide:calendar",
+  "lucide:code",
+  "lucide:award",
+  "lucide:book",
+  "lucide:file-text",
+  "lucide:check-circle",
+  "lucide:heart",
+  "lucide:send",
+  "lucide:layers",
+  "lucide:cpu",
+  "lucide:database",
+  "lucide:feather",
+  "lucide:figma",
+  "lucide:zap",
 ];
 
-async function fetchIconifySearchWithFallback(queryStr: string): Promise<string[]> {
+async function fetchIconifySearchWithFallback(
+  queryStr: string,
+): Promise<string[]> {
   for (const host of ICONIFY_HOSTS) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`${host}/search?query=${encodeURIComponent(queryStr)}&limit=60`, {
-        signal: controller.signal,
-      });
+      const res = await fetch(
+        `${host}/search?query=${encodeURIComponent(queryStr)}&limit=60`,
+        {
+          signal: controller.signal,
+        },
+      );
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
@@ -70,7 +129,9 @@ async function fetchIconifySearchWithFallback(queryStr: string): Promise<string[
         }
       }
     } catch (e) {
-      console.warn(`[Iconify API Fallback] ${host} failed, attempting next mirror...`);
+      console.warn(
+        `[Iconify API Fallback] ${host} failed, attempting next mirror...`,
+      );
     }
   }
   return [];
@@ -78,7 +139,9 @@ async function fetchIconifySearchWithFallback(queryStr: string): Promise<string[
 
 export function AssetsPanel({ onInsert }: AssetsPanelProps) {
   const { user } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState<"icons" | "photos" | "uploads">("icons");
+  const [activeSubTab, setActiveSubTab] = useState<
+    "icons" | "photos" | "uploads"
+  >("icons");
 
   // --- Uploads State ---
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -88,7 +151,9 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
 
   // --- Iconify API State ---
   const [iconQuery, setIconQuery] = useState("");
-  const [iconResults, setIconResults] = useState<{ id: string; url: string; label: string }[]>([]);
+  const [iconResults, setIconResults] = useState<
+    { id: string; url: string; label: string }[]
+  >([]);
   const [loadingIcons, setLoadingIcons] = useState(false);
 
   // --- Unsplash API State ---
@@ -96,15 +161,18 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
   const [photoResults, setPhotoResults] = useState<UnsplashPhoto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
-  const unsplashAccessKey = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || "8U_8rC3n3tXn2nJ3N2m1L2k3j4h5g6f7e8d9c0b1a2";
+  const unsplashAccessKey = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || "";
 
   // Fetch Firestore Uploaded Assets
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "users", user.uid, "assets"), orderBy("createdAt", "desc"));
+    const q = query(
+      collection(db, "users", user.uid, "assets"),
+      orderBy("createdAt", "desc"),
+    );
     const unsub = onSnapshot(q, (snap) => {
       const data: Asset[] = [];
-      snap.forEach(doc => data.push({ id: doc.id, ...doc.data() } as Asset));
+      snap.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Asset));
       setAssets(data);
     });
     return unsub;
@@ -159,7 +227,7 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
       try {
         const q = photoQuery.trim() || "headshot";
         const res = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=30&client_id=${unsplashAccessKey}`
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=30&client_id=${unsplashAccessKey}`,
         );
 
         if (res.ok) {
@@ -183,7 +251,10 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
           setPhotoResults(getFallbackUnsplashPhotos(q));
         }
       } catch (err) {
-        console.warn("[Unsplash API Notice] Using high-res curated photos fallback:", err);
+        console.warn(
+          "[Unsplash API Notice] Using high-res curated photos fallback:",
+          err,
+        );
         setPhotoResults(getFallbackUnsplashPhotos(photoQuery));
       } finally {
         setLoadingPhotos(false);
@@ -199,7 +270,9 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
       const triggerUrl = photo.downloadLocation.includes("?")
         ? `${photo.downloadLocation}&client_id=${unsplashAccessKey}`
         : `${photo.downloadLocation}?client_id=${unsplashAccessKey}`;
-      fetch(triggerUrl).catch((err) => console.warn("Unsplash download trigger warning:", err));
+      fetch(triggerUrl).catch((err) =>
+        console.warn("Unsplash download trigger warning:", err),
+      );
     }
     // 2. Hotlink original photo URL onto canvas
     onInsert(photo.regularUrl, 200, 200);
@@ -222,18 +295,23 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
       const options = {
         maxSizeMB: 1,
         maxWidthOrHeight: 1200,
-        useWebWorker: true
+        useWebWorker: true,
       };
       const compressedFile = await imageCompression(file, options);
       setUploadProgress(30);
 
+      const idToken = await user.getIdToken().catch(() => "");
       const folderPath = `users/${user.uid}/assets`;
       const signRes = await fetch("/api/cloudinary/sign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folder: folderPath })
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user.uid,
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ folder: folderPath }),
       });
-      
+
       if (!signRes.ok) throw new Error("Failed to get upload signature");
       const signData = await signRes.json();
       setUploadProgress(50);
@@ -245,10 +323,13 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
       formData.append("timestamp", signData.timestamp.toString());
       formData.append("signature", signData.signature);
 
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name}/image/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${signData.cloud_name}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Failed to upload to Cloudinary");
@@ -260,9 +341,9 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
       await addDoc(collection(db, "users", user.uid, "assets"), {
         url: data.secure_url,
         name: file.name,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
-      
+
       setIsUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -276,17 +357,23 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
 
   const handleDelete = async (asset: Asset, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user || !window.confirm("Remove this asset from your gallery?")) return;
-    
+    if (!user || !window.confirm("Remove this asset from your gallery?"))
+      return;
+
     try {
-      const urlParts = asset.url.split('/');
-      const filename = urlParts[urlParts.length - 1].split('.')[0];
+      const urlParts = asset.url.split("/");
+      const filename = urlParts[urlParts.length - 1].split(".")[0];
       const publicId = `users/${user.uid}/assets/${filename}`;
 
+      const idToken = await user.getIdToken().catch(() => "");
       await fetch("/api/cloudinary/delete", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ public_id: publicId })
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user.uid,
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({ public_id: publicId }),
       });
 
       await deleteDoc(doc(db, "users", user.uid, "assets", asset.id));
@@ -343,7 +430,10 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
           <div className="p-3 border-b border-app-border space-y-2 bg-app-surface/30 shrink-0">
             {/* Search Input */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={14}
+              />
               <input
                 type="text"
                 value={iconQuery}
@@ -384,12 +474,16 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
             {loadingIcons ? (
               <div className="flex flex-col items-center justify-center h-40 text-slate-400 gap-2">
                 <Loader2 size={24} className="animate-spin text-teal-500" />
-                <span className="text-[11px] font-semibold">Searching Iconify Registry...</span>
+                <span className="text-[11px] font-semibold">
+                  Searching Iconify Registry...
+                </span>
               </div>
             ) : iconResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-center">
                 <Search size={28} className="mb-2 opacity-30" />
-                <p className="text-xs font-semibold">No icons found for "{iconQuery}"</p>
+                <p className="text-xs font-semibold">
+                  No icons found for "{iconQuery}"
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-4 gap-2">
@@ -408,9 +502,15 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
                       onError={(e) => {
                         const imgEl = e.currentTarget;
                         if (imgEl.src.includes("api.iconify.design")) {
-                          imgEl.src = imgEl.src.replace("api.iconify.design", "api.simplesvg.com");
+                          imgEl.src = imgEl.src.replace(
+                            "api.iconify.design",
+                            "api.simplesvg.com",
+                          );
                         } else if (imgEl.src.includes("api.simplesvg.com")) {
-                          imgEl.src = imgEl.src.replace("api.simplesvg.com", "api.unisvg.com");
+                          imgEl.src = imgEl.src.replace(
+                            "api.simplesvg.com",
+                            "api.unisvg.com",
+                          );
                         }
                       }}
                     />
@@ -428,7 +528,10 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
           <div className="p-3 border-b border-app-border space-y-2 bg-app-surface/30 shrink-0">
             {/* Search Input */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                size={14}
+              />
               <input
                 type="text"
                 value={photoQuery}
@@ -469,12 +572,16 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
             {loadingPhotos ? (
               <div className="flex flex-col items-center justify-center h-40 text-slate-400 gap-2">
                 <Loader2 size={24} className="animate-spin text-teal-500" />
-                <span className="text-[11px] font-semibold">Searching Photo Library...</span>
+                <span className="text-[11px] font-semibold">
+                  Searching Photo Library...
+                </span>
               </div>
             ) : photoResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-center">
                 <Camera size={28} className="mb-2 opacity-30" />
-                <p className="text-xs font-semibold">No photos found for "{photoQuery}"</p>
+                <p className="text-xs font-semibold">
+                  No photos found for "{photoQuery}"
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
@@ -494,7 +601,9 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
                         loading="lazy"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white text-[10px] font-bold tracking-wide">ADD TO CANVAS</span>
+                        <span className="text-white text-[10px] font-bold tracking-wide">
+                          ADD TO CANVAS
+                        </span>
                       </div>
                     </div>
 
@@ -535,20 +644,26 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
       {activeSubTab === "uploads" && (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="p-4 border-b border-app-border shrink-0">
-            <input 
-              type="file" 
-              accept="image/*" 
-              ref={fileInputRef} 
-              onChange={handleUpload} 
-              className="hidden" 
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleUpload}
+              className="hidden"
             />
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !user}
               className="w-full py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-teal-500/20"
             >
-              {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-              {isUploading ? `Uploading ${uploadProgress}%` : "Upload Custom Asset"}
+              {isUploading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Upload size={16} />
+              )}
+              {isUploading
+                ? `Uploading ${uploadProgress}%`
+                : "Upload Custom Asset"}
             </button>
           </div>
 
@@ -556,32 +671,42 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
             {!user ? (
               <div className="p-6 flex flex-col items-center justify-center h-full text-slate-400 text-center">
                 <ImageIcon size={36} className="mb-3 opacity-40" />
-                <h4 className="font-bold text-xs text-app-text-secondary mb-1">Login Required</h4>
-                <p className="text-[10px]">Please log in to upload and save custom assets.</p>
+                <h4 className="font-bold text-xs text-app-text-secondary mb-1">
+                  Login Required
+                </h4>
+                <p className="text-[10px]">
+                  Please log in to upload and save custom assets.
+                </p>
               </div>
             ) : assets.length === 0 && !isUploading ? (
               <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-center">
                 <ImageIcon size={32} className="mb-3 opacity-30" />
-                <p className="text-[11px] font-semibold">No assets uploaded yet</p>
-                <p className="text-[10px] text-slate-400 mt-1">Upload logos, signatures, or photos</p>
+                <p className="text-[11px] font-semibold">
+                  No assets uploaded yet
+                </p>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Upload logos, signatures, or photos
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {assets.map((asset) => (
-                  <div 
-                    key={asset.id} 
+                  <div
+                    key={asset.id}
                     onClick={() => onInsert(asset.url)}
                     className="group relative aspect-square rounded-xl border border-app-border bg-white dark:bg-slate-800 overflow-hidden cursor-pointer hover:border-teal-500 transition-all shadow-sm"
                   >
-                    <img 
-                      src={asset.url} 
-                      alt={asset.name} 
+                    <img
+                      src={asset.url}
+                      alt={asset.name}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
-                      <span className="text-white text-[10px] font-bold tracking-wide">INSERT</span>
+                      <span className="text-white text-[10px] font-bold tracking-wide">
+                        INSERT
+                      </span>
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => handleDelete(asset, e)}
                       className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-10"
                     >
@@ -603,50 +728,86 @@ function getFallbackUnsplashPhotos(queryStr: string): UnsplashPhoto[] {
     {
       id: "u1",
       alt: "Professional Headshot Portrait",
-      thumbUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60",
-      regularUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80",
+      thumbUrl:
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60",
+      regularUrl:
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80",
       downloadLocation: "",
-      user: { name: "Joseph Gonzalez", username: "josephgonzalez", profileUrl: "https://unsplash.com/@josephgonzalez" },
+      user: {
+        name: "Joseph Gonzalez",
+        username: "josephgonzalez",
+        profileUrl: "https://unsplash.com/@josephgonzalez",
+      },
     },
     {
       id: "u2",
       alt: "Corporate Business Portrait",
-      thumbUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=60",
-      regularUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80",
+      thumbUrl:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=60",
+      regularUrl:
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80",
       downloadLocation: "",
-      user: { name: "Jonas Kakaroto", username: "jonaskakaroto", profileUrl: "https://unsplash.com/@jonaskakaroto" },
+      user: {
+        name: "Jonas Kakaroto",
+        username: "jonaskakaroto",
+        profileUrl: "https://unsplash.com/@jonaskakaroto",
+      },
     },
     {
       id: "u3",
       alt: "Modern Executive Headshot",
-      thumbUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=60",
-      regularUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80",
+      thumbUrl:
+        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=60",
+      regularUrl:
+        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80",
       downloadLocation: "",
-      user: { name: "Christina @ wocintechchat.com", username: "wocintechchat", profileUrl: "https://unsplash.com/@wocintechchat" },
+      user: {
+        name: "Christina @ wocintechchat.com",
+        username: "wocintechchat",
+        profileUrl: "https://unsplash.com/@wocintechchat",
+      },
     },
     {
       id: "u4",
       alt: "Minimalist Workspace Setup",
-      thumbUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop&q=60",
-      regularUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80",
+      thumbUrl:
+        "https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop&q=60",
+      regularUrl:
+        "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80",
       downloadLocation: "",
-      user: { name: "Alex Kotliarskyi", username: "alexkotliarskyi", profileUrl: "https://unsplash.com/@alexkotliarskyi" },
+      user: {
+        name: "Alex Kotliarskyi",
+        username: "alexkotliarskyi",
+        profileUrl: "https://unsplash.com/@alexkotliarskyi",
+      },
     },
     {
       id: "u5",
       alt: "Software Engineer Coding Workspace",
-      thumbUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&auto=format&fit=crop&q=60",
-      regularUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80",
+      thumbUrl:
+        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&auto=format&fit=crop&q=60",
+      regularUrl:
+        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80",
       downloadLocation: "",
-      user: { name: "Clement H", username: "clementh", profileUrl: "https://unsplash.com/@clementh" },
+      user: {
+        name: "Clement H",
+        username: "clementh",
+        profileUrl: "https://unsplash.com/@clementh",
+      },
     },
     {
       id: "u6",
       alt: "Creative Designer Studio Desk",
-      thumbUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&auto=format&fit=crop&q=60",
-      regularUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80",
+      thumbUrl:
+        "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500&auto=format&fit=crop&q=60",
+      regularUrl:
+        "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80",
       downloadLocation: "",
-      user: { name: "Annie Spratt", username: "anniespratt", profileUrl: "https://unsplash.com/@anniespratt" },
+      user: {
+        name: "Annie Spratt",
+        username: "anniespratt",
+        profileUrl: "https://unsplash.com/@anniespratt",
+      },
     },
   ];
   return curated;

@@ -8,7 +8,13 @@ export interface CoverLetterTemplate {
   accent_color: string;
   text_color: string;
   font_family: string;
-  layout: "top_banner" | "left_sidebar" | "minimal_header" | "centered_classic" | "dual_tone" | "brutalist";
+  layout:
+    | "top_banner"
+    | "left_sidebar"
+    | "minimal_header"
+    | "centered_classic"
+    | "dual_tone"
+    | "brutalist";
   badge: string;
   isPremium: boolean;
 }
@@ -18,7 +24,8 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     id: "modern_executive",
     name: "Modern Executive",
     category: "executive",
-    description: "Dark navy header banner with sleek indigo accent line. Executive & corporate look.",
+    description:
+      "Dark navy header banner with sleek indigo accent line. Executive & corporate look.",
     bg_color: "#ffffff",
     header_bg: "#0f172a",
     accent_color: "#6366f1",
@@ -26,13 +33,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Inter",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "slate_minimalist",
     name: "Slate Minimalist",
     category: "minimal",
-    description: "Clean slate header bar with subtle borders and balanced typography.",
+    description:
+      "Clean slate header bar with subtle borders and balanced typography.",
     bg_color: "#ffffff",
     header_bg: "#334155",
     accent_color: "#0284c7",
@@ -40,13 +48,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Open Sans",
     layout: "minimal_header",
     badge: "FREE",
-    isPremium: false
+    isPremium: false,
   },
   {
     id: "emerald_pro",
     name: "Emerald Professional",
     category: "executive",
-    description: "Rich emerald header with mint green accent line. High authority & prestige.",
+    description:
+      "Rich emerald header with mint green accent line. High authority & prestige.",
     bg_color: "#ffffff",
     header_bg: "#065f46",
     accent_color: "#10b981",
@@ -54,13 +63,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Roboto",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "crimson_leadership",
     name: "Crimson Leadership",
     category: "executive",
-    description: "Deep burgundy crimson header with rose accent line. Powerful & bold.",
+    description:
+      "Deep burgundy crimson header with rose accent line. Powerful & bold.",
     bg_color: "#ffffff",
     header_bg: "#881337",
     accent_color: "#f43f5e",
@@ -68,13 +78,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Montserrat",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "corporate_hierarchy",
     name: "Corporate Hierarchy",
     category: "executive",
-    description: "Classic blue double header with traditional serif headers and formal layout.",
+    description:
+      "Classic blue double header with traditional serif headers and formal layout.",
     bg_color: "#ffffff",
     header_bg: "#1e3a8a",
     accent_color: "#3b82f6",
@@ -82,13 +93,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Times New Roman",
     layout: "centered_classic",
     badge: "FREE",
-    isPremium: false
+    isPremium: false,
   },
   {
     id: "tech_neon_coder",
     name: "Tech Neon Coder",
     category: "creative",
-    description: "Dark obsidian theme with vibrant cyan accents and monospace typography.",
+    description:
+      "Dark obsidian theme with vibrant cyan accents and monospace typography.",
     bg_color: "#090d16",
     header_bg: "#06b6d4",
     accent_color: "#22d3ee",
@@ -96,13 +108,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Roboto Mono",
     layout: "dual_tone",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "elegant_scholar",
     name: "Elegant Scholar",
     category: "academic",
-    description: "Classic ivory paper tone with Playfair Display serif headers and gold accent.",
+    description:
+      "Classic ivory paper tone with Playfair Display serif headers and gold accent.",
     bg_color: "#fdfbf7",
     header_bg: "#451a03",
     accent_color: "#b45309",
@@ -110,13 +123,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Playfair Display",
     layout: "centered_classic",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "geometric_tech",
     name: "Geometric Tech",
     category: "modern",
-    description: "Angular header geometric block with crisp indigo text and modern layout.",
+    description:
+      "Angular header geometric block with crisp indigo text and modern layout.",
     bg_color: "#ffffff",
     header_bg: "#4f46e5",
     accent_color: "#818cf8",
@@ -124,13 +138,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Inter",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "midnight_obsidian",
     name: "Midnight Obsidian",
     category: "creative",
-    description: "Sleek dark mode cover letter with teal highlights and crisp white body text.",
+    description:
+      "Sleek dark mode cover letter with teal highlights and crisp white body text.",
     bg_color: "#0f172a",
     header_bg: "#1e293b",
     accent_color: "#14b8a6",
@@ -138,13 +153,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Inter",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "rose_gold",
     name: "Rose Gold Deluxe",
     category: "creative",
-    description: "Warm rose gold banner with elegant typography and subtle pink dividers.",
+    description:
+      "Warm rose gold banner with elegant typography and subtle pink dividers.",
     bg_color: "#ffffff",
     header_bg: "#9f1239",
     accent_color: "#f43f5e",
@@ -152,13 +168,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Montserrat",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "vibrant_dual_tone",
     name: "Vibrant Dual Tone",
     category: "modern",
-    description: "Dual-tone royal blue split header with high-visibility title badges.",
+    description:
+      "Dual-tone royal blue split header with high-visibility title badges.",
     bg_color: "#ffffff",
     header_bg: "#2563eb",
     accent_color: "#60a5fa",
@@ -166,13 +183,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Inter",
     layout: "dual_tone",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "nordic_clean",
     name: "Nordic Clean",
     category: "minimal",
-    description: "Scandinavian minimalist layout with generous spacing and thin rules.",
+    description:
+      "Scandinavian minimalist layout with generous spacing and thin rules.",
     bg_color: "#f8fafc",
     header_bg: "#0f172a",
     accent_color: "#64748b",
@@ -180,13 +198,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Lato",
     layout: "minimal_header",
     badge: "FREE",
-    isPremium: false
+    isPremium: false,
   },
   {
     id: "solar_flare",
     name: "Solar Flare",
     category: "creative",
-    description: "Warm amber & orange header banner with high energy typography.",
+    description:
+      "Warm amber & orange header banner with high energy typography.",
     bg_color: "#ffffff",
     header_bg: "#b45309",
     accent_color: "#f97316",
@@ -194,13 +213,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Open Sans",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "indigo_horizon",
     name: "Indigo Horizon",
     category: "modern",
-    description: "Deep indigo top band with violet accent line and clean body text.",
+    description:
+      "Deep indigo top band with violet accent line and clean body text.",
     bg_color: "#ffffff",
     header_bg: "#3730a3",
     accent_color: "#8b5cf6",
@@ -208,13 +228,14 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Inter",
     layout: "top_banner",
     badge: "PRO",
-    isPremium: true
+    isPremium: true,
   },
   {
     id: "stark_brutalist",
     name: "Stark Brutalist",
     category: "minimal",
-    description: "High contrast thick borders, bold typography, and sharp structural layout.",
+    description:
+      "High contrast thick borders, bold typography, and sharp structural layout.",
     bg_color: "#ffffff",
     header_bg: "#000000",
     accent_color: "#000000",
@@ -222,16 +243,18 @@ export const COVER_LETTER_TEMPLATES: CoverLetterTemplate[] = [
     font_family: "Oswald",
     layout: "brutalist",
     badge: "PRO",
-    isPremium: true
-  }
+    isPremium: true,
+  },
 ];
 
 export function buildCoverLetterCanvasElements(
   docTitle: string,
   rawText: string,
-  templateId: string = "slate_minimalist"
+  templateId: string = "slate_minimalist",
 ): any[] {
-  const tmpl = COVER_LETTER_TEMPLATES.find((t) => t.id === templateId) || COVER_LETTER_TEMPLATES[0];
+  const tmpl =
+    COVER_LETTER_TEMPLATES.find((t) => t.id === templateId) ||
+    COVER_LETTER_TEMPLATES[0];
   const elements: any[] = [];
 
   // Canvas Dimensions: 612 x 792 pts. y=792 is TOP, y=0 is BOTTOM.
@@ -313,7 +336,11 @@ export function buildCoverLetterCanvasElements(
     });
 
     // Subtitle / Date Pill
-    const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const dateStr = new Date().toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
     elements.push({
       id: `txt_date_${Date.now()}`,
       element_type: "text",
@@ -434,7 +461,8 @@ export function buildCoverLetterCanvasElements(
   let currentY = 665; // Start below header banner (704 - 39 = 665)
 
   rawParagraphs.forEach((para, idx) => {
-    const isHeading = para.startsWith("#") || (para.length < 60 && !para.endsWith("."));
+    const isHeading =
+      para.startsWith("#") || (para.length < 60 && !para.endsWith("."));
     const cleanPara = para.replace(/#|\*/g, "").trim();
 
     // Estimate height based on character length (~85 chars per line, 18px per line)

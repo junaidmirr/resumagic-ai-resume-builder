@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 export interface AuthModalConfig {
   title?: string;
@@ -13,7 +13,9 @@ type AuthModalContextType = {
   closeModal: () => void;
 };
 
-const AuthModalContext = createContext<AuthModalContextType | undefined>(undefined);
+const AuthModalContext = createContext<AuthModalContextType | undefined>(
+  undefined,
+);
 
 export function AuthModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,11 +25,13 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     setConfig(newConfig);
     setIsOpen(true);
   };
-  
+
   const closeModal = () => setIsOpen(false);
 
   return (
-    <AuthModalContext.Provider value={{ isOpen, config, openModal, closeModal }}>
+    <AuthModalContext.Provider
+      value={{ isOpen, config, openModal, closeModal }}
+    >
       {children}
     </AuthModalContext.Provider>
   );
@@ -35,6 +39,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
 
 export const useAuthModal = () => {
   const context = useContext(AuthModalContext);
-  if (!context) throw new Error('useAuthModal must be used within AuthModalProvider');
+  if (!context)
+    throw new Error("useAuthModal must be used within AuthModalProvider");
   return context;
 };

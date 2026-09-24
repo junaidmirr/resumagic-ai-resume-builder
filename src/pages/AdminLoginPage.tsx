@@ -3,7 +3,14 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
-import { ShieldCheck, Lock, Mail, ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import {
+  ShieldCheck,
+  Lock,
+  Mail,
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import defaultLogoDark from "../assets/default.png";
 
 export function AdminLoginPage() {
@@ -35,7 +42,9 @@ export function AdminLoginPage() {
           navigate("/worklabs_adminforresumagic/dashboard");
         } else {
           await logout();
-          setError("Access Denied: Your account does not have administrator privileges (admin=true).");
+          setError(
+            "Access Denied: Your account does not have administrator privileges (admin=true).",
+          );
         }
       }
     } catch (err: any) {
@@ -64,9 +73,12 @@ export function AdminLoginPage() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-primary to-purple-600 flex items-center justify-center mb-4 shadow-lg shadow-brand-primary/25">
             <ShieldCheck className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight mb-2">Admin Portal</h1>
+          <h1 className="text-2xl font-black tracking-tight mb-2">
+            Admin Portal
+          </h1>
           <p className="text-xs text-slate-400">
-            Sign in with an authorized administrator account (<code className="text-brand-primary">admin=true</code>)
+            Sign in with an authorized administrator account (
+            <code className="text-brand-primary">admin=true</code>)
           </p>
         </div>
 

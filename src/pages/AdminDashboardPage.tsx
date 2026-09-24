@@ -33,7 +33,7 @@ import {
   Gift,
   Copy,
   Check,
-  Tag
+  Tag,
 } from "lucide-react";
 import defaultLogoDark from "../assets/default.png";
 
@@ -64,7 +64,9 @@ export function AdminDashboardPage() {
   const [usersList, setUsersList] = useState<UserDoc[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "notifications" | "promos">("users");
+  const [activeTab, setActiveTab] = useState<
+    "users" | "notifications" | "promos"
+  >("users");
 
   // Notification Dispatcher Form State
   const [targetType, setTargetType] = useState<"all" | "single">("all");
@@ -76,12 +78,16 @@ export function AdminDashboardPage() {
   const [dispatchSuccess, setDispatchSuccess] = useState(false);
 
   // Credit Edit State
-  const [editingCreditsUid, setEditingCreditsUid] = useState<string | null>(null);
+  const [editingCreditsUid, setEditingCreditsUid] = useState<string | null>(
+    null,
+  );
   const [newCreditValue, setNewCreditValue] = useState<number>(0);
 
   // Promo Code Admin State
   const [newPromoCode, setNewPromoCode] = useState("");
-  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
+  const [discountType, setDiscountType] = useState<"percent" | "fixed">(
+    "percent",
+  );
   const [discountValue, setDiscountValue] = useState<number>(20);
   const [maxUses, setMaxUses] = useState<number>(100);
   const [isCreatingPromo, setIsCreatingPromo] = useState(false);
@@ -144,7 +150,12 @@ export function AdminDashboardPage() {
   }, [activeTab]);
 
   const handleDeletePromoCode = async (code: string) => {
-    if (!window.confirm(`Are you sure you want to delete promo code '${code}'? It will be permanently removed from database.`)) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete promo code '${code}'? It will be permanently removed from database.`,
+      )
+    )
+      return;
     try {
       const token = await user?.getIdToken().catch(() => "");
       const res = await fetch("/api/admin/promo/delete", {
@@ -169,12 +180,17 @@ export function AdminDashboardPage() {
     }
   };
 
-  const handleToggleAdmin = async (targetUid: string, currentStatus: boolean) => {
+  const handleToggleAdmin = async (
+    targetUid: string,
+    currentStatus: boolean,
+  ) => {
     try {
       const userRef = doc(db, "users", targetUid);
       await updateDoc(userRef, { admin: !currentStatus });
       setUsersList((prev) =>
-        prev.map((u) => (u.uid === targetUid ? { ...u, admin: !currentStatus } : u))
+        prev.map((u) =>
+          u.uid === targetUid ? { ...u, admin: !currentStatus } : u,
+        ),
       );
     } catch (err) {
       console.error("[Admin] Failed to toggle admin status:", err);
@@ -186,7 +202,9 @@ export function AdminDashboardPage() {
       const userRef = doc(db, "users", targetUid);
       await updateDoc(userRef, { credits: newCreditValue });
       setUsersList((prev) =>
-        prev.map((u) => (u.uid === targetUid ? { ...u, credits: newCreditValue } : u))
+        prev.map((u) =>
+          u.uid === targetUid ? { ...u, credits: newCreditValue } : u,
+        ),
       );
       setEditingCreditsUid(null);
     } catch (err) {
@@ -195,7 +213,10 @@ export function AdminDashboardPage() {
   };
 
   const handleDeleteUser = async (targetUid: string, email: string) => {
-    if (!window.confirm(`Are you sure you want to delete account for ${email}?`)) return;
+    if (
+      !window.confirm(`Are you sure you want to delete account for ${email}?`)
+    )
+      return;
     try {
       await deleteDoc(doc(db, "users", targetUid));
       setUsersList((prev) => prev.filter((u) => u.uid !== targetUid));
@@ -236,7 +257,10 @@ export function AdminDashboardPage() {
           uses: 0,
           active: true,
         };
-        setPromosList((prev) => [newPromoItem, ...prev.filter((p) => p.code !== data.code)]);
+        setPromosList((prev) => [
+          newPromoItem,
+          ...prev.filter((p) => p.code !== data.code),
+        ]);
         fetchPromoCodes();
       } else {
         alert(data.error || "Failed to create promo code.");
@@ -292,7 +316,9 @@ export function AdminDashboardPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
         <Loader2 className="w-8 h-8 animate-spin text-brand-primary mb-4" />
-        <p className="text-sm font-medium text-slate-400">Verifying Admin Access...</p>
+        <p className="text-sm font-medium text-slate-400">
+          Verifying Admin Access...
+        </p>
       </div>
     );
   }
@@ -300,12 +326,15 @@ export function AdminDashboardPage() {
   const filteredUsers = usersList.filter(
     (u) =>
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   const totalUsersCount = usersList.length;
   const adminUsersCount = usersList.filter((u) => u.admin).length;
-  const totalDistributedCredits = usersList.reduce((acc, u) => acc + (u.credits || 0), 0);
+  const totalDistributedCredits = usersList.reduce(
+    (acc, u) => acc + (u.credits || 0),
+    0,
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col font-sans">
@@ -317,7 +346,9 @@ export function AdminDashboardPage() {
           </div>
           <div>
             <h1 className="text-sm font-black tracking-tight">Admin Console</h1>
-            <p className="text-[10px] text-slate-400">Production Governance & Analytics</p>
+            <p className="text-[10px] text-slate-400">
+              Production Governance & Analytics
+            </p>
           </div>
         </div>
 
@@ -343,7 +374,9 @@ export function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Users</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Total Users
+              </p>
               <h3 className="text-2xl font-black">{totalUsersCount}</h3>
             </div>
             <div className="p-3 rounded-xl bg-brand-primary/10 text-brand-primary">
@@ -353,8 +386,12 @@ export function AdminDashboardPage() {
 
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Administrators</p>
-              <h3 className="text-2xl font-black text-purple-400">{adminUsersCount}</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Administrators
+              </p>
+              <h3 className="text-2xl font-black text-purple-400">
+                {adminUsersCount}
+              </h3>
             </div>
             <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400">
               <ShieldCheck className="w-6 h-6" />
@@ -363,8 +400,12 @@ export function AdminDashboardPage() {
 
           <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Active Promos</p>
-              <h3 className="text-2xl font-black text-amber-400">{promosList.length}</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Active Promos
+              </p>
+              <h3 className="text-2xl font-black text-amber-400">
+                {promosList.length}
+              </h3>
             </div>
             <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
               <Gift className="w-6 h-6" />
@@ -393,7 +434,8 @@ export function AdminDashboardPage() {
                 : "text-slate-400 hover:text-white hover:bg-slate-900"
             }`}
           >
-            <Gift className="w-4 h-4" /> Promo Code Generator ({promosList.length})
+            <Gift className="w-4 h-4" /> Promo Code Generator (
+            {promosList.length})
           </button>
 
           <button
@@ -428,7 +470,10 @@ export function AdminDashboardPage() {
                 disabled={loadingUsers}
                 className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold rounded-xl flex items-center gap-2 text-slate-300 transition-colors"
               >
-                <RefreshCw className={`w-4 h-4 ${loadingUsers ? "animate-spin" : ""}`} /> Refresh List
+                <RefreshCw
+                  className={`w-4 h-4 ${loadingUsers ? "animate-spin" : ""}`}
+                />{" "}
+                Refresh List
               </button>
             </div>
 
@@ -447,23 +492,36 @@ export function AdminDashboardPage() {
                   <tbody className="divide-y divide-slate-800/60">
                     {loadingUsers ? (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-slate-500">
+                        <td
+                          colSpan={5}
+                          className="p-8 text-center text-slate-500"
+                        >
                           <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-primary" />
                           Loading accounts...
                         </td>
                       </tr>
                     ) : filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-slate-500">
+                        <td
+                          colSpan={5}
+                          className="p-8 text-center text-slate-500"
+                        >
                           No users found matching query.
                         </td>
                       </tr>
                     ) : (
                       filteredUsers.map((u) => (
-                        <tr key={u.uid} className="hover:bg-slate-800/40 transition-colors">
+                        <tr
+                          key={u.uid}
+                          className="hover:bg-slate-800/40 transition-colors"
+                        >
                           <td className="p-4">
-                            <div className="font-bold text-white">{u.email}</div>
-                            <div className="text-[10px] text-slate-500 font-mono">{u.uid}</div>
+                            <div className="font-bold text-white">
+                              {u.email}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              {u.uid}
+                            </div>
                           </td>
                           <td className="p-4 font-mono font-bold text-amber-400">
                             {editingCreditsUid === u.uid ? (
@@ -471,7 +529,9 @@ export function AdminDashboardPage() {
                                 <input
                                   type="number"
                                   value={newCreditValue}
-                                  onChange={(e) => setNewCreditValue(Number(e.target.value))}
+                                  onChange={(e) =>
+                                    setNewCreditValue(Number(e.target.value))
+                                  }
                                   className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded text-white text-xs"
                                 />
                                 <button
@@ -504,7 +564,9 @@ export function AdminDashboardPage() {
                           </td>
                           <td className="p-4">
                             <button
-                              onClick={() => handleToggleAdmin(u.uid, !!u.admin)}
+                              onClick={() =>
+                                handleToggleAdmin(u.uid, !!u.admin)
+                              }
                               className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all ${
                                 u.admin
                                   ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
@@ -547,7 +609,6 @@ export function AdminDashboardPage() {
         {activeTab === "promos" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
               {/* Generator Form */}
               <div className="md:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -555,8 +616,12 @@ export function AdminDashboardPage() {
                     <Gift className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white">Generate Promo Code</h3>
-                    <p className="text-xs text-slate-400">Create discount coupons for users.</p>
+                    <h3 className="text-base font-bold text-white">
+                      Generate Promo Code
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Create discount coupons for users.
+                    </p>
                   </div>
                 </div>
 
@@ -569,7 +634,9 @@ export function AdminDashboardPage() {
                       type="text"
                       placeholder="e.g. LAUNCH50 or SAVE20"
                       value={newPromoCode}
-                      onChange={(e) => setNewPromoCode(e.target.value.toUpperCase())}
+                      onChange={(e) =>
+                        setNewPromoCode(e.target.value.toUpperCase())
+                      }
                       className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-bold text-white uppercase tracking-wider focus:outline-none focus:border-brand-primary"
                     />
                   </div>
@@ -634,7 +701,9 @@ export function AdminDashboardPage() {
                     className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    {isCreatingPromo ? "Generating Code..." : "Create Promo Code"}
+                    {isCreatingPromo
+                      ? "Generating Code..."
+                      : "Create Promo Code"}
                   </button>
                 </form>
               </div>
@@ -655,7 +724,10 @@ export function AdminDashboardPage() {
                 </div>
 
                 {promosList.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-8 text-center">No promo codes generated yet. Use the generator on the left to create your first coupon.</p>
+                  <p className="text-xs text-slate-500 py-8 text-center">
+                    No promo codes generated yet. Use the generator on the left
+                    to create your first coupon.
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {promosList.map((p, idx) => (
@@ -668,7 +740,8 @@ export function AdminDashboardPage() {
                             {p.code}
                           </span>
                           <span className="text-xs font-bold text-white">
-                            {p.discount_value}{p.discount_type === "percent" ? "% OFF" : " ₹ OFF"}
+                            {p.discount_value}
+                            {p.discount_type === "percent" ? "% OFF" : " ₹ OFF"}
                           </span>
                         </div>
 
@@ -701,7 +774,6 @@ export function AdminDashboardPage() {
                   </div>
                 )}
               </div>
-
             </div>
           </div>
         )}
@@ -710,15 +782,19 @@ export function AdminDashboardPage() {
         {activeTab === "notifications" && (
           <div className="max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-white mb-1">Push Notification & Reward Dispatcher</h3>
+              <h3 className="text-lg font-bold text-white mb-1">
+                Push Notification & Reward Dispatcher
+              </h3>
               <p className="text-xs text-slate-400">
-                Send real-time in-app notifications and bonus AI credits to users.
+                Send real-time in-app notifications and bonus AI credits to
+                users.
               </p>
             </div>
 
             {dispatchSuccess && (
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> Notification & Reward dispatched successfully!
+                <CheckCircle2 className="w-4 h-4" /> Notification & Reward
+                dispatched successfully!
               </div>
             )}
 
@@ -808,7 +884,8 @@ export function AdminDashboardPage() {
                     className="w-32 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-amber-400 font-bold focus:outline-none focus:border-brand-primary"
                   />
                   <span className="text-xs text-slate-400">
-                    If &gt; 0, users will see a "Claim {rewardAmount} Credits" button in their bell notification.
+                    If &gt; 0, users will see a "Claim {rewardAmount} Credits"
+                    button in their bell notification.
                   </span>
                 </div>
               </div>

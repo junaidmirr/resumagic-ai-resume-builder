@@ -12,15 +12,45 @@ import {
   Plus,
   Compass,
   Ruler,
-  Grid
+  Grid,
 } from "lucide-react";
 
 export const PAGE_FORMATS = [
-  { id: "letter", label: "US Letter", width: 612, height: 792, desc: "8.5 × 11 in (US Standard)" },
-  { id: "a4", label: "A4 Standard", width: 595, height: 842, desc: "210 × 297 mm (International)" },
-  { id: "legal", label: "US Legal", width: 612, height: 1008, desc: "8.5 × 14 in (Legal Formal)" },
-  { id: "executive", label: "Executive", width: 522, height: 756, desc: "7.25 × 10.5 in (Compact)" },
-  { id: "a5", label: "A5 Booklet", width: 420, height: 595, desc: "148 × 210 mm (Half A4)" },
+  {
+    id: "letter",
+    label: "US Letter",
+    width: 612,
+    height: 792,
+    desc: "8.5 × 11 in (US Standard)",
+  },
+  {
+    id: "a4",
+    label: "A4 Standard",
+    width: 595,
+    height: 842,
+    desc: "210 × 297 mm (International)",
+  },
+  {
+    id: "legal",
+    label: "US Legal",
+    width: 612,
+    height: 1008,
+    desc: "8.5 × 14 in (Legal Formal)",
+  },
+  {
+    id: "executive",
+    label: "Executive",
+    width: 522,
+    height: 756,
+    desc: "7.25 × 10.5 in (Compact)",
+  },
+  {
+    id: "a5",
+    label: "A5 Booklet",
+    width: 420,
+    height: 595,
+    desc: "148 × 210 mm (Half A4)",
+  },
 ];
 
 export const PAGE_BG_PRESETS = [
@@ -54,11 +84,12 @@ export function PagePropertiesPanel({
   setActivePageId,
   onSnapshot,
 }: PagePropertiesPanelProps) {
-  const activePage = pages.find((p) => p.id === activePageId) || pages[0] || {
-    id: "page-1",
-    width: 612,
-    height: 792,
-  };
+  const activePage = pages.find((p) => p.id === activePageId) ||
+    pages[0] || {
+      id: "page-1",
+      width: 612,
+      height: 792,
+    };
 
   const isLandscape = activePage.width > activePage.height;
   const activeBgColor = activePage.bg_color || "#ffffff";
@@ -67,7 +98,7 @@ export function PagePropertiesPanel({
   const updateActivePage = (updates: Partial<Page>) => {
     onSnapshot();
     setPages((prevPages) =>
-      prevPages.map((p) => (p.id === activePage.id ? { ...p, ...updates } : p))
+      prevPages.map((p) => (p.id === activePage.id ? { ...p, ...updates } : p)),
     );
   };
 
@@ -76,8 +107,12 @@ export function PagePropertiesPanel({
     const fmt = PAGE_FORMATS.find((f) => f.id === fmtId);
     if (!fmt) return;
 
-    const newWidth = isLandscape ? Math.max(fmt.width, fmt.height) : Math.min(fmt.width, fmt.height);
-    const newHeight = isLandscape ? Math.min(fmt.width, fmt.height) : Math.max(fmt.width, fmt.height);
+    const newWidth = isLandscape
+      ? Math.max(fmt.width, fmt.height)
+      : Math.min(fmt.width, fmt.height);
+    const newHeight = isLandscape
+      ? Math.min(fmt.width, fmt.height)
+      : Math.max(fmt.width, fmt.height);
 
     updateActivePage({
       format: fmtId as any,
@@ -87,8 +122,13 @@ export function PagePropertiesPanel({
   };
 
   // Toggle Orientation between Portrait & Landscape
-  const handleToggleOrientation = (targetOrientation: "portrait" | "landscape") => {
-    if ((targetOrientation === "landscape" && isLandscape) || (targetOrientation === "portrait" && !isLandscape)) {
+  const handleToggleOrientation = (
+    targetOrientation: "portrait" | "landscape",
+  ) => {
+    if (
+      (targetOrientation === "landscape" && isLandscape) ||
+      (targetOrientation === "portrait" && !isLandscape)
+    ) {
       return;
     }
 
@@ -124,7 +164,8 @@ export function PagePropertiesPanel({
               Page Properties
             </h3>
             <span className="text-[10px] text-app-text-muted">
-              Page {pages.findIndex((p) => p.id === activePage.id) + 1} of {pages.length}
+              Page {pages.findIndex((p) => p.id === activePage.id) + 1} of{" "}
+              {pages.length}
             </span>
           </div>
         </div>
@@ -164,7 +205,9 @@ export function PagePropertiesPanel({
                   <div className="text-xs font-black">{fmt.label}</div>
                   <div className="text-[10px] opacity-75">{fmt.desc}</div>
                 </div>
-                {isSelected && <Check className="w-4 h-4 text-brand-primary shrink-0" />}
+                {isSelected && (
+                  <Check className="w-4 h-4 text-brand-primary shrink-0" />
+                )}
               </button>
             );
           })}
@@ -219,20 +262,28 @@ export function PagePropertiesPanel({
         </label>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <span className="text-[10px] text-app-text-muted font-bold block mb-1">Width</span>
+            <span className="text-[10px] text-app-text-muted font-bold block mb-1">
+              Width
+            </span>
             <input
               type="number"
               value={activePage.width}
-              onChange={(e) => handleCustomWidthChange(parseInt(e.target.value))}
+              onChange={(e) =>
+                handleCustomWidthChange(parseInt(e.target.value))
+              }
               className="w-full px-3 py-1.5 bg-app-bg border border-app-border rounded-xl text-xs font-mono font-bold text-app-text focus:outline-none focus:border-brand-primary"
             />
           </div>
           <div>
-            <span className="text-[10px] text-app-text-muted font-bold block mb-1">Height</span>
+            <span className="text-[10px] text-app-text-muted font-bold block mb-1">
+              Height
+            </span>
             <input
               type="number"
               value={activePage.height}
-              onChange={(e) => handleCustomHeightChange(parseInt(e.target.value))}
+              onChange={(e) =>
+                handleCustomHeightChange(parseInt(e.target.value))
+              }
               className="w-full px-3 py-1.5 bg-app-bg border border-app-border rounded-xl text-xs font-mono font-bold text-app-text focus:outline-none focus:border-brand-primary"
             />
           </div>
@@ -249,7 +300,8 @@ export function PagePropertiesPanel({
         {/* Color Presets */}
         <div className="grid grid-cols-3 gap-2">
           {PAGE_BG_PRESETS.map((bg) => {
-            const isSelected = activeBgColor.toLowerCase() === bg.color.toLowerCase();
+            const isSelected =
+              activeBgColor.toLowerCase() === bg.color.toLowerCase();
             return (
               <button
                 key={bg.color}
@@ -264,7 +316,9 @@ export function PagePropertiesPanel({
                   className="w-4 h-4 rounded-full border shrink-0 shadow-xs"
                   style={{ backgroundColor: bg.color, borderColor: bg.border }}
                 />
-                <span className="text-[11px] font-bold text-app-text truncate">{bg.label}</span>
+                <span className="text-[11px] font-bold text-app-text truncate">
+                  {bg.label}
+                </span>
               </button>
             );
           })}

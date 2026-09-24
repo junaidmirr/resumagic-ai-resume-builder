@@ -127,7 +127,7 @@ export function ImageCropModal({
                 // Scale needed to cover the viewSize
                 const scaleToCover = Math.max(
                   viewSize / img.naturalWidth,
-                  viewSize / img.naturalHeight
+                  viewSize / img.naturalHeight,
                 );
                 setBaseScale(scaleToCover);
                 setImageLoaded(true);
@@ -136,8 +136,12 @@ export function ImageCropModal({
                 imageLoaded ? "opacity-100" : "opacity-0"
               }`}
               style={{
-                width: imageRef.current ? imageRef.current.naturalWidth : "auto",
-                height: imageRef.current ? imageRef.current.naturalHeight : "auto",
+                width: imageRef.current
+                  ? imageRef.current.naturalWidth
+                  : "auto",
+                height: imageRef.current
+                  ? imageRef.current.naturalHeight
+                  : "auto",
                 transform: `translate(${offset.x}px, ${offset.y}px) scale(${
                   baseScale * zoom
                 })`,

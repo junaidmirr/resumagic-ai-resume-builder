@@ -63,7 +63,7 @@ export interface Template {
   elements: (pageId: string, wizardData?: any) => EditorElement[];
 }
 
-export const templates: Template[] = RESUME_TEMPLATES.map(t => {
+export const templates: Template[] = RESUME_TEMPLATES.map((t) => {
   const isFree = t.id === "minimalist_grid" || t.id === "corporate_hierarchy";
   return {
     id: t.id,
@@ -71,7 +71,9 @@ export const templates: Template[] = RESUME_TEMPLATES.map(t => {
     category: t.category,
     thumbnailUrl: thumbMap[t.id] || "",
     isPremium: !isFree,
-    generateElements: (wizardData?: any) => t.elements("page-1", wizardData) as EditorElement[],
-    elements: (pageId: string, wizardData?: any) => t.elements(pageId, wizardData) as EditorElement[],
+    generateElements: (wizardData?: any) =>
+      t.elements("page-1", wizardData) as EditorElement[],
+    elements: (pageId: string, wizardData?: any) =>
+      t.elements(pageId, wizardData) as EditorElement[],
   };
 });

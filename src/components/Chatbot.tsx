@@ -1,8 +1,20 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, Clock, Sparkles, X, Copy, Check, Square } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Clock,
+  Sparkles,
+  X,
+  Copy,
+  Check,
+  Square,
+} from "lucide-react";
 import type { EditorElement } from "../types/editor";
 import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
+import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
 
 interface ChatbotProps {
   elements?: EditorElement[];
@@ -68,7 +80,7 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
-    
+
     if (credits < 10) {
       alert("Insufficient credits (10 required). Please recharge.");
       return;
@@ -93,9 +105,8 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         headers["Authorization"] = `Bearer ${idToken}`;
       }
 
-      const resp = await fetch("/api/ai-chat-edit", {
+      const resp = await fetchWithCaptcha("/api/ai-chat-edit", {
         method: "POST",
-        signal: abortControllerRef.current.signal,
         headers,
         body: JSON.stringify({
           elements,
@@ -103,14 +114,35 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         }),
       });
 
+      let result: any = null;
+      try {
+        result = await resp.json();
+      } catch (e) {
+        // non-json error response
+      }
+
       if (!resp.ok) {
         if (resp.status === 402)
           throw new Error("Insufficient credits. Please recharge.");
-        throw new Error("Backend failed to process request");
+        const errMsg =
+          result?.error ||
+          result?.message ||
+          `Backend failed to process request (${resp.status})`;
+        throw new Error(errMsg);
+      }
+
+      if (result?.status === "rejected") {
+        setMessages((p) => [
+          ...p,
+          {
+            role: "bot",
+            text: `⚠️ ${result.reason || result.error || "I am a dedicated Resume & Career AI. I can only assist with resume building and career development topics."}`,
+          },
+        ]);
+        return;
       }
 
       setStage("Executing...");
-      const result = await resp.json();
 
       if (result.elements && onUpdateElements) {
         onUpdateElements(result.elements);
@@ -212,7 +244,11 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
                   }}
                   className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors"
                 >
-                  {copiedIndex === i ? <Check size={12} className="text-teal-500" /> : <Copy size={12} />}
+                  {copiedIndex === i ? (
+                    <Check size={12} className="text-teal-500" />
+                  ) : (
+                    <Copy size={12} />
+                  )}
                   {copiedIndex === i ? "Copied!" : "Copy block"}
                 </button>
               )}
@@ -230,7 +266,8 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
                 {stage}
               </span>
               <span className="font-mono text-xs font-bold text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20 flex items-center gap-1">
-                <Clock size={12} className="animate-pulse text-teal-500" /> {formattedTimer}
+                <Clock size={12} className="animate-pulse text-teal-500" />{" "}
+                {formattedTimer}
               </span>
             </div>
           </div>

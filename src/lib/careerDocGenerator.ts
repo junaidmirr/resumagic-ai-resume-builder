@@ -1,3 +1,5 @@
+import { fetchWithCaptcha } from "./apiWithCaptcha";
+
 export interface GenerateDocParams {
   doc_type: string;
   job_title: string;
@@ -23,7 +25,7 @@ const docBlueprints: Record<string, { name: string; instructions: string }> = {
 1. Paragraph 1: Powerful opening hook expressing strong interest in the role at target company.
 2. Paragraph 2: Core experience highlights with quantified achievements.
 3. Paragraph 3: Alignment with company culture, product mission, and engineering standards.
-4. Paragraph 4: Professional call to action requesting an interview.`
+4. Paragraph 4: Professional call to action requesting an interview.`,
   },
   sop: {
     name: "Statement of Purpose (SOP)",
@@ -31,7 +33,7 @@ const docBlueprints: Record<string, { name: string; instructions: string }> = {
 1. Academic passion and core motivation.
 2. Academic background & project achievements.
 3. Why this specific university & program.
-4. Future career goals & research vision.`
+4. Future career goals & research vision.`,
   },
   lor: {
     name: "Recommendation Letter (LOR)",
@@ -39,14 +41,14 @@ const docBlueprints: Record<string, { name: string; instructions: string }> = {
 1. Supervisory relationship & duration.
 2. Technical strengths, leadership, and problem-solving abilities.
 3. Specific exemplary project milestone achieved.
-4. Highest unreserved endorsement.`
+4. Highest unreserved endorsement.`,
   },
   resignation: {
     name: "Resignation Letter",
     instructions: `Structure into a professional 2-week notice:
 1. Clear statement of resignation & effective last working day.
 2. Gratitude for professional growth and team support.
-3. Commitment to smooth knowledge transfer and transition.`
+3. Commitment to smooth knowledge transfer and transition.`,
   },
   cold_email: {
     name: "Recruiter Cold Outreach Email",
@@ -54,14 +56,14 @@ const docBlueprints: Record<string, { name: string; instructions: string }> = {
 - Catchy subject lines.
 - Opening hook featuring candidate's top achievement.
 - Clear value proposition for target company.
-- Low-friction Call to Action.`
+- Low-friction Call to Action.`,
   },
   thank_you: {
     name: "Post-Interview Thank You Email",
     instructions: `Structure into a warm, professional post-interview note:
 1. Expression of appreciation for the interview discussion.
 2. Mention of a specific topic or problem discussed during the interview.
-3. Re-affirmation of strong interest and readiness for next steps.`
+3. Re-affirmation of strong interest and readiness for next steps.`,
   },
   salary_negotiation: {
     name: "Salary Negotiation Script",
@@ -69,41 +71,64 @@ const docBlueprints: Record<string, { name: string; instructions: string }> = {
 1. Appreciation for the initial offer.
 2. Market research data anchoring the candidate's target compensation.
 3. Polite request for counter-offer range (base, sign-on, equity).
-4. Commitment to delivering top-tier impact.`
+4. Commitment to delivering top-tier impact.`,
   },
   linkedin_bio: {
     name: "LinkedIn Bio & Headline Suite",
     instructions: `Provide:
 1. 3 High-Impact Headlines (Max 120 chars each).
 2. 'About' Summary (Engaging 1st person storytelling with key achievements).
-3. 5 Strategic Skills Tags.`
+3. 5 Strategic Skills Tags.`,
   },
   interview_answers: {
     name: "Behavioral STAR Answers",
-    instructions: `Provide STAR (Situation, Task, Action, Result) answers for 3 top behavioral questions for this role.`
-  }
+    instructions: `Provide STAR (Situation, Task, Action, Result) answers for 3 top behavioral questions for this role.`,
+  },
 };
 
-export async function generateCareerDocumentClient(params: GenerateDocParams): Promise<GenerateDocResult> {
-  const { doc_type, job_title, company, user_experience = "", additional_notes = "", uid, idToken } = params;
-  const spec = docBlueprints[doc_type] || { name: "Career Document", instructions: "Format into clean, executive Markdown." };
+export async function generateCareerDocumentClient(
+  params: GenerateDocParams,
+): Promise<GenerateDocResult> {
+  const {
+    doc_type,
+    job_title,
+    company,
+    user_experience = "",
+    additional_notes = "",
+    uid,
+    idToken,
+  } = params;
+  const spec = docBlueprints[doc_type] || {
+    name: "Career Document",
+    instructions: "Format into clean, executive Markdown.",
+  };
 
-  // 1. Try Backend API (/api/documents/generate) with a 4-second timeout
+  // 1. Try Backend API (/api/documents/generate) (Uses Swirls Primary AI with Gemini fallback)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
     if (uid) headers["X-User-ID"] = uid;
     if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
 
-    const res = await fetch("/api/documents/generate", {
+    const res = await fetchWithCaptcha("/api/documents/generate", {
       method: "POST",
       headers,
-      body: JSON.stringify({ doc_type, job_title, company, user_experience, additional_notes }),
-      signal: controller.signal,
+      body: JSON.stringify({
+        doc_type,
+        job_title,
+        company,
+        user_experience,
+        additional_notes,
+      }),
     });
-    clearTimeout(timeoutId);
+
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}));
+      if (data.error && data.error.includes("violates")) {
+        throw new Error(data.error);
+      }
+    }
 
     if (res.ok) {
       const data = await res.json();
@@ -111,66 +136,29 @@ export async function generateCareerDocumentClient(params: GenerateDocParams): P
         return data;
       }
     }
-  } catch (backendErr) {
-    console.warn("[CareerDocGen] Backend API unavailable or timed out, trying Direct Gemini API...", backendErr);
-  }
-
-  // 2. Try Direct Gemini REST API from Client Side if VITE_GEMINI_API_KEY is present
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof window !== "undefined" && (window as any).__GEMINI_KEY__);
-  if (geminiApiKey) {
-    const prompt = `You are a World-Class Executive Career Coach & Professional Writer.
-TASK: Write a highly persuasive, flawless, professional ${spec.name}.
-
-TARGET ROLE / PROGRAM: ${job_title}
-TARGET COMPANY / INSTITUTION: ${company}
-CANDIDATE BACKGROUND & EXPERIENCE:
-${user_experience ? user_experience : 'Experienced professional with technical and leadership capabilities.'}
-
-ADDITIONAL DIRECTIVES:
-${additional_notes ? additional_notes : 'Executive tone, persuasive positioning, and clear impact.'}
-
-SPECIFIC STRUCTURAL REQUIREMENTS:
-${spec.instructions}
-
-FORMATTING:
-- Return clean, beautifully formatted Markdown with headers.
-- 100% finished and ready to copy/send directly.`;
-
-    const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
-    for (const modelName of modelsToTry) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const candidateText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidateText && candidateText.trim().length > 0) {
-            return {
-              success: true,
-              doc_type,
-              title: `${spec.name} - ${company}`,
-              content: candidateText.trim(),
-            };
-          }
-        }
-      } catch (geminiErr) {
-        console.warn(`[CareerDocGen] Direct Gemini REST model ${modelName} failed, trying next...`, geminiErr);
-      }
+  } catch (backendErr: any) {
+    if (
+      backendErr?.message?.includes("violates") ||
+      backendErr?.message?.includes("Security verification") ||
+      backendErr?.message?.includes("cancelled")
+    ) {
+      throw backendErr;
     }
+    console.warn(
+      "[CareerDocGen] Backend API unavailable, utilizing client-side template generator...",
+      backendErr,
+    );
   }
 
-  // 3. Guaranteed High-Quality Client-Side Structured Template Fallback
-  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const expSummary = user_experience.trim() ? user_experience.trim() : "software engineering, system design, and technical execution";
+  // 2. Guaranteed High-Quality Client-Side Structured Template Fallback
+  const today = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const expSummary = user_experience.trim()
+    ? user_experience.trim()
+    : "software engineering, system design, and technical execution";
 
   let structuredText = "";
 
@@ -278,7 +266,10 @@ Sincerely,
   };
 }
 
-export function convertDocumentTextToCanvasElements(docTitle: string, rawText: string): any[] {
+export function convertDocumentTextToCanvasElements(
+  docTitle: string,
+  rawText: string,
+): any[] {
   const elements: any[] = [];
 
   // Top Header Accent Banner Shape
@@ -337,7 +328,11 @@ export function convertDocumentTextToCanvasElements(docTitle: string, rawText: s
   });
 
   // Subtitle / Date Pill inside Banner
-  const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const dateStr = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
   elements.push({
     id: `txt_date_${Date.now()}`,
     element_type: "text",
@@ -366,7 +361,8 @@ export function convertDocumentTextToCanvasElements(docTitle: string, rawText: s
   let currentY = 670; // Start below header banner (708 - 38 = 670)
 
   rawParagraphs.forEach((para, idx) => {
-    const isHeading = para.startsWith("#") || (para.length < 60 && !para.endsWith("."));
+    const isHeading =
+      para.startsWith("#") || (para.length < 60 && !para.endsWith("."));
     const cleanPara = para.replace(/#|\*/g, "").trim();
 
     // Estimate height based on character length (~85 chars per line, 18px per line)
@@ -399,4 +395,3 @@ export function convertDocumentTextToCanvasElements(docTitle: string, rawText: s
 
   return elements;
 }
-

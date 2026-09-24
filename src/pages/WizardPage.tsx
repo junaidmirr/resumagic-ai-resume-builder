@@ -19,8 +19,9 @@ import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { resumeService } from "../lib/resumeService";
 import { generateWizardElements } from "../lib/wizardGenerator";
-import defaultLogoLight from '../assets/default.png';
-import defaultLogoDark from '../assets/default-dark.png';
+import defaultLogoLight from "../assets/default.png";
+import defaultLogoDark from "../assets/default-dark.png";
+import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
 
 // Types
 export interface WizardData {
@@ -183,18 +184,19 @@ export function WizardPage() {
     try {
       // Mock AI Layout Design Pass
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      const selectedTemplate = templates.find(t => t.id === data.templateId) || templates[0];
+
+      const selectedTemplate =
+        templates.find((t) => t.id === data.templateId) || templates[0];
       const elements = selectedTemplate.generateElements(data);
-      
+
       const title = data.contact.firstName
-          ? `${data.contact.firstName}'s Resume`
-          : "My AI Resume";
-          
+        ? `${data.contact.firstName}'s Resume`
+        : "My AI Resume";
+
       const id = await resumeService.createResume(
         user?.uid || "guest",
         title,
-        elements
+        elements,
       );
       localStorage.setItem("current_resume_id", id);
       navigate("/editor");
@@ -229,45 +231,109 @@ export function WizardPage() {
   const fetchAiSkills = async (loadMore = false) => {
     setGeneratingSkills(true);
     try {
-      // Mock AI Delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      const categoryLower = skillCategory.toLowerCase();
-      let mockSkills = [];
-      if (categoryLower.includes("software") || categoryLower.includes("engineer")) {
-        mockSkills = ["React.js", "Node.js", "TypeScript", "Python", "Docker", "AWS", "GraphQL", "System Design"];
-      } else if (categoryLower.includes("design") || categoryLower.includes("ui")) {
-        mockSkills = ["Figma", "User Research", "Wireframing", "Prototyping", "Adobe Creative Suite", "Design Systems"];
-      } else if (categoryLower.includes("product") || categoryLower.includes("manager")) {
-        mockSkills = ["Agile/Scrum", "Product Roadmapping", "Jira", "A/B Testing", "Data Analysis", "Stakeholder Management"];
+      const resp = await fetchWithCaptcha("/api/generate-skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: skillCategory || "Software Engineering",
+          load_more: loadMore,
+        }),
+      });
+      if (resp.ok) {
+        const result = await resp.json();
+        if (Array.isArray(result.skills) && result.skills.length > 0) {
+          if (loadMore) {
+            setAiSkills((prev) =>
+              Array.from(new Set([...prev, ...result.skills])),
+            );
+          } else {
+            setAiSkills(result.skills);
+          }
+          return;
+        }
+      }
+
+      // Fallback skills
+      const categoryLower = (skillCategory || "").toLowerCase();
+      let fallbackSkills = [];
+      if (
+        categoryLower.includes("software") ||
+        categoryLower.includes("engineer") ||
+        categoryLower.includes("dev")
+      ) {
+        fallbackSkills = [
+          "React.js",
+          "Node.js",
+          "TypeScript",
+          "Python",
+          "Docker",
+          "AWS Cloud",
+          "GraphQL",
+          "System Design",
+        ];
+      } else if (
+        categoryLower.includes("design") ||
+        categoryLower.includes("ui") ||
+        categoryLower.includes("ux")
+      ) {
+        fallbackSkills = [
+          "Figma",
+          "User Research",
+          "Wireframing",
+          "Prototyping",
+          "Adobe Creative Suite",
+          "Design Systems",
+        ];
+      } else if (
+        categoryLower.includes("product") ||
+        categoryLower.includes("manager")
+      ) {
+        fallbackSkills = [
+          "Agile/Scrum",
+          "Product Roadmapping",
+          "Jira",
+          "A/B Testing",
+          "Data Analysis",
+          "Stakeholder Management",
+        ];
       } else {
-        mockSkills = ["Project Management", "Leadership", "Communication", "Problem Solving", "Strategic Planning", "Data Analysis", "Public Speaking", "Negotiation"];
+        fallbackSkills = [
+          "Project Management",
+          "Leadership",
+          "Communication",
+          "Problem Solving",
+          "Strategic Planning",
+          "Data Analysis",
+          "Public Speaking",
+          "Negotiation",
+        ];
       }
 
       if (loadMore) {
-        mockSkills = mockSkills.map(s => "Advanced " + s); // just to show different ones
-        setAiSkills((prev) => Array.from(new Set([...prev, ...mockSkills])));
+        fallbackSkills = fallbackSkills.map((s) => "Advanced " + s);
+        setAiSkills((prev) =>
+          Array.from(new Set([...prev, ...fallbackSkills])),
+        );
       } else {
-        setAiSkills(mockSkills);
+        setAiSkills(fallbackSkills);
       }
     } catch (e) {
-      console.error(e);
+      console.error("fetchAiSkills error:", e);
     } finally {
       setGeneratingSkills(false);
     }
   };
 
-  
   const extendSummary = async () => {
     if (!data.summary) return;
     setExtendingSummary(true);
     try {
-      const resp = await fetch("/api/ai-assistant", {
+      const resp = await fetchWithCaptcha("/api/ai-assistant", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "X-User-ID": user?.uid || "anonymous",
-          "X-Skip-Credit-Check": "true"
+          "X-Skip-Credit-Check": "true",
         },
         body: JSON.stringify({ action: "enhance", text: data.summary }),
       });
@@ -285,24 +351,37 @@ export function WizardPage() {
   const generateSummary = async () => {
     setGeneratingSummary(true);
     try {
-      // Mock AI Delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      const role = data.experiences?.length > 0 ? data.experiences[0].role : "Professional";
+      const resp = await fetchWithCaptcha("/api/generate-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (resp.ok) {
+        const result = await resp.json();
+        if (result.summary && result.summary.trim().length > 10) {
+          setData((p) => ({ ...p, summary: result.summary.trim() }));
+          return;
+        }
+      }
+
+      const role =
+        data.experiences?.length > 0
+          ? data.experiences[0].role || data.experiences[0].jobTitle
+          : "Professional";
       const exp = data.experienceLevel;
       const skills = (data.skills || []).slice(0, 3).join(", ");
-      
+
       let mockSummary = `Highly motivated and detail-oriented ${role} with a strong foundation in their field. Proven ability to adapt quickly and deliver high-quality results.`;
-      
+
       if (exp === "Senior" || exp === "Executive") {
-        mockSummary = `Accomplished ${role} with extensive experience driving strategic initiatives and leading cross-functional teams. Expert in ${skills || 'industry best practices'}, with a proven track record of optimizing processes and exceeding performance metrics.`;
+        mockSummary = `Accomplished ${role} with extensive experience driving strategic initiatives and leading cross-functional teams. Expert in ${skills || "industry best practices"}, with a proven track record of optimizing processes and exceeding performance metrics.`;
       } else if (exp === "Entry Level" || exp === "Fresher") {
         mockSummary = `Ambitious ${role} eager to leverage strong academic background and foundational knowledge to contribute to a dynamic team. Passionate about learning and growing within the industry.`;
       }
 
       setData((p) => ({ ...p, summary: mockSummary }));
     } catch (e) {
-      console.error(e);
+      console.error("generateSummary error:", e);
     } finally {
       setGeneratingSummary(false);
     }
@@ -313,8 +392,16 @@ export function WizardPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-app-border bg-white/80 dark:bg-slate-950/80 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
         <Link to="/" className="flex items-center gap-2 group">
-          <img src={defaultLogoLight} alt="Resumagic" className="h-8 logo-light" />
-            <img src={defaultLogoDark} alt="Resumagic" className="h-8 logo-dark" />
+          <img
+            src={defaultLogoLight}
+            alt="Resumagic"
+            className="h-8 logo-light"
+          />
+          <img
+            src={defaultLogoDark}
+            alt="Resumagic"
+            className="h-8 logo-dark"
+          />
         </Link>
         <ThemeToggle />
       </header>
@@ -338,22 +425,16 @@ export function WizardPage() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 bg-app-surface rounded-2xl shadow-sm border border-app-border p-6 sm:p-8 mb-8 overflow-hidden flex flex-col relative animate-in fade-in slide-in-from-bottom-4">
+        <div className="flex-1 bg-app-surface rounded-lg shadow-2xs border border-app-border p-6 sm:p-8 mb-8 overflow-hidden flex flex-col relative">
           {isDesigning && (
-            <div className="absolute inset-0 z-[60] bg-white/90 dark:bg-slate-900/90 flex flex-col items-center justify-center p-8 text-center backdrop-blur-sm animate-in fade-in duration-300">
-              <div className="relative mb-8">
-                <div className="w-16 h-16 rounded-full border-4 border-teal-500/20 border-t-teal-500 animate-spin" />
-                <Sparkles
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-teal-500 animate-pulse"
-                  size={24}
-                />
-              </div>
-              <h3 className="text-xl font-bold text-app-text mb-2">
-                Designing Your Dream Resume...
+            <div className="absolute inset-0 z-[60] bg-white/95 dark:bg-slate-900/95 flex flex-col items-center justify-center p-8 text-center backdrop-blur-xs">
+              <Loader2 className="w-8 h-8 text-slate-700 dark:text-slate-300 animate-spin mb-4" />
+              <h3 className="text-base font-bold text-app-text mb-1">
+                Compiling Resume Structure
               </h3>
-              <p className="text-app-text-muted max-w-sm">
-                Our AI Architect is planning your layout, selecting professional
-                typography, and aligning every detail perfectly.
+              <p className="text-xs text-app-text-secondary max-w-sm">
+                Aligning sections, formatting reverse-chronological milestones,
+                and preparing canvas elements.
               </p>
             </div>
           )}
@@ -975,34 +1056,33 @@ export function WizardPage() {
 
               <div className="space-y-4">
                 <div className="flex gap-2">
-                <button
-                  onClick={generateSummary}
-                  disabled={generatingSummary}
-                  className="p-2.5 bg-linear-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 group"
-                  title="AI Rewrite & Expand"
-                >
-                  {generatingSummary ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Sparkles size={18} />
-                  )}
-                  AI Generate Summary
-                </button>
+                  <button
+                    onClick={generateSummary}
+                    disabled={generatingSummary}
+                    className="p-2.5 bg-linear-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 text-white rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95 flex items-center gap-2 group"
+                    title="AI Rewrite & Expand"
+                  >
+                    {generatingSummary ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={18} />
+                    )}
+                    AI Generate Summary
+                  </button>
 
-                <button
-                  onClick={extendSummary}
-                  disabled={extendingSummary || !data.summary}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800/50"
-                >
-                  {extendingSummary ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Sparkles size={18} />
-                  )}
-                  Extend AI
-                </button>
-
-              </div>
+                  <button
+                    onClick={extendSummary}
+                    disabled={extendingSummary || !data.summary}
+                    className="flex items-center gap-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50 border border-indigo-200 dark:border-indigo-800/50"
+                  >
+                    {extendingSummary ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={18} />
+                    )}
+                    Extend AI
+                  </button>
+                </div>
                 <textarea
                   value={data.summary}
                   onChange={(e) =>
@@ -1167,7 +1247,6 @@ export function WizardPage() {
             </div>
           )}
 
-          
           {/* STEP 7: ADDITIONAL */}
           {step === 7 && (
             <div className="space-y-6 animate-in slide-in-from-right">
@@ -1188,7 +1267,7 @@ export function WizardPage() {
                   <p className="text-xs text-app-text-secondary mb-3">
                     Click "Next" to skip if not applicable.
                   </p>
-                  
+
                   {data.additional.languages.map((lang, index) => (
                     <div key={lang.id} className="flex items-center gap-3 mb-3">
                       <input
@@ -1196,7 +1275,13 @@ export function WizardPage() {
                         onChange={(e) => {
                           const newLangs = [...data.additional.languages];
                           newLangs[index].language = e.target.value;
-                          setData((p) => ({ ...p, additional: { ...p.additional, languages: newLangs } }));
+                          setData((p) => ({
+                            ...p,
+                            additional: {
+                              ...p.additional,
+                              languages: newLangs,
+                            },
+                          }));
                         }}
                         className="flex-1 rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white"
                         placeholder="e.g. Spanish"
@@ -1206,7 +1291,13 @@ export function WizardPage() {
                         onChange={(e) => {
                           const newLangs = [...data.additional.languages];
                           newLangs[index].proficiency = e.target.value;
-                          setData((p) => ({ ...p, additional: { ...p.additional, languages: newLangs } }));
+                          setData((p) => ({
+                            ...p,
+                            additional: {
+                              ...p.additional,
+                              languages: newLangs,
+                            },
+                          }));
                         }}
                         className="w-40 rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white"
                       >
@@ -1217,8 +1308,16 @@ export function WizardPage() {
                       </select>
                       <button
                         onClick={() => {
-                          const newLangs = data.additional.languages.filter(l => l.id !== lang.id);
-                          setData((p) => ({ ...p, additional: { ...p.additional, languages: newLangs } }));
+                          const newLangs = data.additional.languages.filter(
+                            (l) => l.id !== lang.id,
+                          );
+                          setData((p) => ({
+                            ...p,
+                            additional: {
+                              ...p.additional,
+                              languages: newLangs,
+                            },
+                          }));
                         }}
                         className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg"
                       >
@@ -1226,15 +1325,22 @@ export function WizardPage() {
                       </button>
                     </div>
                   ))}
-                  
+
                   <button
                     onClick={() => {
                       setData((p) => ({
                         ...p,
                         additional: {
                           ...p.additional,
-                          languages: [...p.additional.languages, { id: generateId(), language: "", proficiency: "Fluent" }]
-                        }
+                          languages: [
+                            ...p.additional.languages,
+                            {
+                              id: generateId(),
+                              language: "",
+                              proficiency: "Fluent",
+                            },
+                          ],
+                        },
                       }));
                     }}
                     className="flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"
@@ -1249,7 +1355,9 @@ export function WizardPage() {
                   </label>
                   <textarea
                     value={data.additional.certificates}
-                    onChange={(e) => updateAdditional("certificates", e.target.value)}
+                    onChange={(e) =>
+                      updateAdditional("certificates", e.target.value)
+                    }
                     className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                     placeholder="e.g. AWS Certified Solutions Architect (2023)"
                   />
@@ -1261,7 +1369,9 @@ export function WizardPage() {
                   </label>
                   <textarea
                     value={data.additional.extracurriculars}
-                    onChange={(e) => updateAdditional("extracurriculars", e.target.value)}
+                    onChange={(e) =>
+                      updateAdditional("extracurriculars", e.target.value)
+                    }
                     className="w-full rounded-lg border border-app-border bg-app-bg p-3 text-sm outline-none focus:border-teal-500 dark:text-white min-h-[80px]"
                   />
                 </div>
@@ -1304,16 +1414,23 @@ export function WizardPage() {
                     }`}
                   >
                     <div className="flex justify-center bg-white dark:bg-slate-700/50 rounded overflow-hidden w-full relative pt-2 border border-slate-200 dark:border-slate-600 mb-3">
-                      <MiniPreview elements={tpl.elements("preview-page", data)} />
+                      <MiniPreview
+                        elements={tpl.elements("preview-page", data)}
+                      />
                     </div>
-                    <h4 className={`text-sm font-semibold ${data.templateId === tpl.id ? "text-teal-600 dark:text-teal-400" : "text-app-text"}`}>{tpl.name}</h4>
-                    <p className="text-xs text-app-text-secondary line-clamp-1">{tpl.category}</p>
+                    <h4
+                      className={`text-sm font-semibold ${data.templateId === tpl.id ? "text-teal-600 dark:text-teal-400" : "text-app-text"}`}
+                    >
+                      {tpl.name}
+                    </h4>
+                    <p className="text-xs text-app-text-secondary line-clamp-1">
+                      {tpl.category}
+                    </p>
                   </button>
                 ))}
               </div>
             </div>
           )}
-
         </div>
 
         {/* Action Buttons */}

@@ -6,14 +6,21 @@ import { useDialog } from "../../context/DialogContext";
 import { Link } from "react-router-dom";
 import { updateProfile } from "firebase/auth";
 import { db } from "../../lib/firebase";
-import { collection, getDocs, query, limit, doc, updateDoc } from "firebase/firestore";
-import { 
-  User, 
-  Palette, 
-  CreditCard, 
-  ShieldAlert, 
-  Moon, 
-  Sun, 
+import {
+  collection,
+  getDocs,
+  query,
+  limit,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import {
+  User,
+  Palette,
+  CreditCard,
+  ShieldAlert,
+  Moon,
+  Sun,
   Monitor,
   CheckCircle2,
   Trash2,
@@ -28,7 +35,7 @@ import {
   Receipt,
   Copy,
   Check,
-  Clock
+  Clock,
 } from "lucide-react";
 
 const CARTOON_AVATARS = [
@@ -59,12 +66,16 @@ export function SettingsView() {
   const { theme, setTheme } = useTheme();
   const { alert, confirm } = useDialog();
 
-  const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "billing" | "security">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "appearance" | "billing" | "security"
+  >("profile");
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.photoURL || "");
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(
+    user?.photoURL || "",
+  );
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleCopyOrderId = (orderId: string) => {
@@ -97,12 +108,18 @@ export function SettingsView() {
 
   const getPlanDisplayName = (planStr: string) => {
     switch (planStr) {
-      case "student": return "Student Plan 🎓";
-      case "starter": return "Starter Plan";
-      case "pro": return "Pro Plan ⭐";
-      case "career_pro": return "Career Pro Plan 🚀";
-      case "lifetime": return "Lifetime Pass 👑";
-      default: return "Free Plan";
+      case "student":
+        return "Student Plan 🎓";
+      case "starter":
+        return "Starter Plan";
+      case "pro":
+        return "Pro Plan ⭐";
+      case "career_pro":
+        return "Career Pro Plan 🚀";
+      case "lifetime":
+        return "Lifetime Pass 👑";
+      default:
+        return "Free Plan";
     }
   };
 
@@ -111,7 +128,8 @@ export function SettingsView() {
     if (!user) return;
     setIsSavingProfile(true);
     try {
-      const trimmedName = displayName.trim() || user.displayName || "Resumagic User";
+      const trimmedName =
+        displayName.trim() || user.displayName || "Resumagic User";
 
       // Update Firebase Auth user profile
       await updateProfile(user, {
@@ -128,10 +146,17 @@ export function SettingsView() {
       }).catch(() => null);
 
       await refreshCredits();
-      alert({ title: "Profile Preferences Saved! ✨", description: "Your display name and profile picture have been updated across your account." });
+      alert({
+        title: "Profile Preferences Saved! ✨",
+        description:
+          "Your display name and profile picture have been updated across your account.",
+      });
     } catch (err: any) {
       console.error("[Settings] Profile update failed:", err);
-      alert({ title: "Update Error", description: err.message || "Failed to update profile." });
+      alert({
+        title: "Update Error",
+        description: err.message || "Failed to update profile.",
+      });
     } finally {
       setIsSavingProfile(false);
     }
@@ -139,28 +164,59 @@ export function SettingsView() {
 
   const handleResetPassword = () => {
     if (user?.email) {
-      alert({ title: "Reset Link Sent", description: `A password reset link has been sent to ${user.email}.` });
+      alert({
+        title: "Reset Link Sent",
+        description: `A password reset link has been sent to ${user.email}.`,
+      });
     } else {
-      alert({ title: "Authentication Required", description: "Please log in with a registered email address." });
+      alert({
+        title: "Authentication Required",
+        description: "Please log in with a registered email address.",
+      });
     }
   };
 
   const handleDeleteAccount = async () => {
     const confirmed = await confirm({
       title: "Delete Account",
-      description: "Are you sure you want to delete your account? All your resumes and AI data will be permanently erased. This cannot be undone.",
+      description:
+        "Are you sure you want to delete your account? All your resumes and AI data will be permanently erased. This cannot be undone.",
       danger: true,
     });
     if (confirmed) {
-      alert({ title: "Deletion Requested", description: "Account deletion requested. Please contact support@resumagic.app to confirm identity and finalize erasure." });
+      alert({
+        title: "Deletion Requested",
+        description:
+          "Account deletion requested. Please contact support@resumagic.app to confirm identity and finalize erasure.",
+      });
     }
   };
 
   const navTabs = [
-    { id: "profile", label: "Profile & Account", icon: User, desc: "Personal info & preferences" },
-    { id: "appearance", label: "Appearance", icon: Palette, desc: "Theme modes & styling" },
-    { id: "billing", label: "Billing & Credits", icon: CreditCard, desc: "AI credits & plan details" },
-    { id: "security", label: "Security & Privacy", icon: ShieldAlert, desc: "Password & danger zone" },
+    {
+      id: "profile",
+      label: "Profile & Account",
+      icon: User,
+      desc: "Personal info & preferences",
+    },
+    {
+      id: "appearance",
+      label: "Appearance",
+      icon: Palette,
+      desc: "Theme modes & styling",
+    },
+    {
+      id: "billing",
+      label: "Billing & Credits",
+      icon: CreditCard,
+      desc: "AI credits & plan details",
+    },
+    {
+      id: "security",
+      label: "Security & Privacy",
+      icon: ShieldAlert,
+      desc: "Password & danger zone",
+    },
   ];
 
   return (
@@ -173,16 +229,21 @@ export function SettingsView() {
               <span className="p-2 rounded-xl bg-brand-primary/10 text-brand-primary">
                 <Sliders className="w-5 h-5" />
               </span>
-              <h2 className="text-2xl font-black tracking-tight text-app-text">Account Settings</h2>
+              <h2 className="text-2xl font-black tracking-tight text-app-text">
+                Account Settings
+              </h2>
             </div>
             <p className="text-xs sm:text-sm text-app-text-muted">
-              Manage your personal profile, visual themes, AI credits, and account security.
+              Manage your personal profile, visual themes, AI credits, and
+              account security.
             </p>
           </div>
 
           <div className="flex items-center gap-2 bg-app-bg p-2 rounded-xl border border-app-border self-start sm:self-auto shrink-0">
             <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span className="text-xs font-bold text-app-text">{credits} AI Credits</span>
+            <span className="text-xs font-bold text-app-text">
+              {credits} AI Credits
+            </span>
           </div>
         </div>
       </div>
@@ -190,7 +251,6 @@ export function SettingsView() {
       {/* Main Container */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8">
-          
           {/* Mobile Horizontal / Desktop Vertical Tab Navigation */}
           <nav className="w-full md:w-64 shrink-0 flex md:flex-col overflow-x-auto scrollbar-none gap-1.5 p-1 bg-app-surface/40 rounded-2xl border border-app-border md:bg-transparent md:border-none md:p-0">
             {navTabs.map((tab) => {
@@ -201,12 +261,14 @@ export function SettingsView() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all text-xs sm:text-sm font-semibold shrink-0 text-left ${
-                    isActive 
-                      ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20" 
+                    isActive
+                      ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
                       : "text-app-text-muted hover:text-app-text hover:bg-app-surface"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-brand-primary"}`} />
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-brand-primary"}`}
+                  />
                   <div className="hidden sm:block md:block">
                     <div className="leading-snug">{tab.label}</div>
                   </div>
@@ -239,38 +301,61 @@ export function SettingsView() {
                       <div className="relative">
                         <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-3xl shadow-lg border-2 border-white/20 overflow-hidden">
                           {selectedAvatar ? (
-                            <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                            <img
+                              src={selectedAvatar}
+                              alt="Avatar"
+                              className="w-full h-full object-cover rounded-2xl"
+                            />
                           ) : user?.photoURL ? (
-                            <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+                            <img
+                              src={user.photoURL}
+                              alt="Avatar"
+                              className="w-full h-full object-cover rounded-2xl"
+                            />
                           ) : (
-                            user?.email?.charAt(0).toUpperCase() || 'U'
+                            user?.email?.charAt(0).toUpperCase() || "U"
                           )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 p-1 rounded-full bg-emerald-500 text-white border-2 border-app-surface" title="Active User">
+                        <span
+                          className="absolute -bottom-1 -right-1 p-1 rounded-full bg-emerald-500 text-white border-2 border-app-surface"
+                          title="Active User"
+                        >
                           <ShieldCheck className="w-3.5 h-3.5" />
                         </span>
                       </div>
 
                       <div className="flex-1 text-center sm:text-left min-w-0">
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                          <h4 className="text-lg font-bold text-app-text truncate">{displayName || user?.displayName || user?.email?.split('@')[0] || "Resumagic User"}</h4>
+                          <h4 className="text-lg font-bold text-app-text truncate">
+                            {displayName ||
+                              user?.displayName ||
+                              user?.email?.split("@")[0] ||
+                              "Resumagic User"}
+                          </h4>
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             Verified Account
                           </span>
                         </div>
-                        <p className="text-xs text-app-text-muted mb-3">{user?.email || "guest@resumagic.app"}</p>
-                        <p className="text-[11px] text-app-text-muted">Managed via Secure Authentication Service.</p>
+                        <p className="text-xs text-app-text-muted mb-3">
+                          {user?.email || "guest@resumagic.app"}
+                        </p>
+                        <p className="text-[11px] text-app-text-muted">
+                          Managed via Secure Authentication Service.
+                        </p>
                       </div>
                     </div>
 
-                    <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
+                    <form
+                      onSubmit={handleSaveProfile}
+                      className="mt-6 space-y-4"
+                    >
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-bold text-app-text-muted uppercase tracking-wider mb-1.5">
                             Display Name
                           </label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Enter your name"
@@ -283,10 +368,10 @@ export function SettingsView() {
                             Primary Email Address
                           </label>
                           <div className="relative">
-                            <input 
-                              type="email" 
-                              value={user?.email || ""} 
-                              disabled 
+                            <input
+                              type="email"
+                              value={user?.email || ""}
+                              disabled
                               className="w-full px-3.5 py-2.5 bg-app-bg/50 border border-app-border rounded-xl text-sm font-semibold text-app-text-muted outline-none cursor-not-allowed pr-10"
                             />
                             <Mail className="w-4 h-4 text-app-text-muted absolute right-3 top-1/2 -translate-y-1/2" />
@@ -313,7 +398,9 @@ export function SettingsView() {
                             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
                               {user?.email?.charAt(0).toUpperCase() || "U"}
                             </div>
-                            <span className="text-[10px] truncate max-w-full">Default Mail</span>
+                            <span className="text-[10px] truncate max-w-full">
+                              Default Mail
+                            </span>
                           </button>
 
                           {CARTOON_AVATARS.map((av) => (
@@ -327,15 +414,21 @@ export function SettingsView() {
                                   : "bg-app-bg border-app-border text-app-text-muted hover:border-app-border/80"
                               }`}
                             >
-                              <img src={av.url} alt={av.name} className="w-10 h-10 rounded-full object-cover shadow-sm" />
-                              <span className="text-[10px] truncate max-w-full font-semibold">{av.name}</span>
+                              <img
+                                src={av.url}
+                                alt={av.name}
+                                className="w-10 h-10 rounded-full object-cover shadow-sm"
+                              />
+                              <span className="text-[10px] truncate max-w-full font-semibold">
+                                {av.name}
+                              </span>
                             </button>
                           ))}
                         </div>
                       </div>
 
                       <div className="flex justify-end pt-2">
-                        <button 
+                        <button
                           type="submit"
                           disabled={isSavingProfile}
                           className="px-5 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white font-bold text-xs rounded-xl shadow-md shadow-brand-primary/20 transition-all active:scale-95 disabled:opacity-50"
@@ -363,13 +456,17 @@ export function SettingsView() {
                       <Palette className="w-4 h-4 text-brand-primary" />
                       Theme Mode
                     </h3>
-                    <p className="text-xs text-app-text-muted mb-6">Choose how the application workspace looks on your screen.</p>
-                    
+                    <p className="text-xs text-app-text-muted mb-6">
+                      Choose how the application workspace looks on your screen.
+                    </p>
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <button 
+                      <button
                         onClick={() => setTheme("light")}
                         className={`group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                          theme === "light" ? "border-brand-primary bg-brand-primary/5 shadow-md" : "border-app-border bg-app-bg hover:border-brand-primary/40"
+                          theme === "light"
+                            ? "border-brand-primary bg-brand-primary/5 shadow-md"
+                            : "border-app-border bg-app-bg hover:border-brand-primary/40"
                         }`}
                       >
                         <div className="w-full aspect-[16/10] rounded-xl bg-slate-100 border border-slate-200 overflow-hidden p-2 flex flex-col gap-1.5 shadow-inner">
@@ -391,10 +488,12 @@ export function SettingsView() {
                         )}
                       </button>
 
-                      <button 
+                      <button
                         onClick={() => setTheme("dark")}
                         className={`group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                          theme === "dark" ? "border-brand-primary bg-brand-primary/5 shadow-md" : "border-app-border bg-app-bg hover:border-brand-primary/40"
+                          theme === "dark"
+                            ? "border-brand-primary bg-brand-primary/5 shadow-md"
+                            : "border-app-border bg-app-bg hover:border-brand-primary/40"
                         }`}
                       >
                         <div className="w-full aspect-[16/10] rounded-xl bg-slate-900 border border-slate-800 overflow-hidden p-2 flex flex-col gap-1.5 shadow-inner">
@@ -416,10 +515,12 @@ export function SettingsView() {
                         )}
                       </button>
 
-                      <button 
+                      <button
                         onClick={() => setTheme("system")}
                         className={`group relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                          theme === "system" ? "border-brand-primary bg-brand-primary/5 shadow-md" : "border-app-border bg-app-bg hover:border-brand-primary/40"
+                          theme === "system"
+                            ? "border-brand-primary bg-brand-primary/5 shadow-md"
+                            : "border-app-border bg-app-bg hover:border-brand-primary/40"
                         }`}
                       >
                         <div className="w-full aspect-[16/10] rounded-xl bg-gradient-to-tr from-slate-100 to-slate-900 border border-app-border overflow-hidden p-2 flex items-center justify-center shadow-inner">
@@ -455,14 +556,17 @@ export function SettingsView() {
                           <span className="px-2.5 py-0.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-wider rounded-full">
                             Active Plan
                           </span>
-                          <h4 className="text-xl font-black text-white">{getPlanDisplayName(userPlan)}</h4>
+                          <h4 className="text-xl font-black text-white">
+                            {getPlanDisplayName(userPlan)}
+                          </h4>
                         </div>
                         <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-                          Access full resume builder tools, custom layouts, PDF exports, and AI generation credits.
+                          Access full resume builder tools, custom layouts, PDF
+                          exports, and AI generation credits.
                         </p>
                       </div>
 
-                      <Link 
+                      <Link
                         to="/pricing"
                         className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-500/25 transition-all hover:-translate-y-0.5 text-center shrink-0"
                       >
@@ -478,28 +582,47 @@ export function SettingsView() {
                           <Sparkles className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-sm text-app-text">AI Generation Credits</h4>
-                          <p className="text-xs text-app-text-muted">Used for AI Resume Builder & STAR Interview Guide</p>
+                          <h4 className="font-bold text-sm text-app-text">
+                            AI Generation Credits
+                          </h4>
+                          <p className="text-xs text-app-text-muted">
+                            Used for AI Resume Builder & STAR Interview Guide
+                          </p>
                         </div>
                       </div>
-                      <span className="text-2xl font-black text-brand-primary">{credits} <span className="text-xs font-normal text-app-text-muted">pts</span></span>
+                      <span className="text-2xl font-black text-brand-primary">
+                        {credits}{" "}
+                        <span className="text-xs font-normal text-app-text-muted">
+                          pts
+                        </span>
+                      </span>
                     </div>
 
                     <div className="w-full h-3 bg-app-bg rounded-full overflow-hidden border border-app-border mb-4">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-teal-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min((credits / 100) * 100, 100)}%` }}
+                        style={{
+                          width: `${Math.min((credits / 100) * 100, 100)}%`,
+                        }}
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       <div className="p-3 rounded-xl bg-app-bg border border-app-border flex items-center justify-between">
-                        <span className="text-xs text-app-text-muted">Cost per AI Resume Generation</span>
-                        <span className="text-xs font-bold text-app-text">10 Credits</span>
+                        <span className="text-xs text-app-text-muted">
+                          Cost per AI Resume Generation
+                        </span>
+                        <span className="text-xs font-bold text-app-text">
+                          10 Credits
+                        </span>
                       </div>
                       <div className="p-3 rounded-xl bg-app-bg border border-app-border flex items-center justify-between">
-                        <span className="text-xs text-app-text-muted">PDF Vector Rendering</span>
-                        <span className="text-xs font-bold text-emerald-500">FREE</span>
+                        <span className="text-xs text-app-text-muted">
+                          PDF Vector Rendering
+                        </span>
+                        <span className="text-xs font-bold text-emerald-500">
+                          FREE
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -513,7 +636,8 @@ export function SettingsView() {
                           Payment & Credit Purchase History
                         </h4>
                         <p className="text-xs text-app-text-muted mt-0.5">
-                          View your payment receipts, transaction order IDs, and credited points.
+                          View your payment receipts, transaction order IDs, and
+                          credited points.
                         </p>
                       </div>
 
@@ -522,7 +646,9 @@ export function SettingsView() {
                         disabled={loadingTx}
                         className="px-3.5 py-2 rounded-xl bg-app-bg border border-app-border hover:border-brand-primary/40 text-xs font-bold text-app-text hover:text-brand-primary transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-2xs disabled:opacity-50"
                       >
-                        <RefreshCw className={`w-3.5 h-3.5 ${loadingTx ? "animate-spin text-brand-primary" : ""}`} />
+                        <RefreshCw
+                          className={`w-3.5 h-3.5 ${loadingTx ? "animate-spin text-brand-primary" : ""}`}
+                        />
                         <span>Sync Balance</span>
                       </button>
                     </div>
@@ -530,8 +656,13 @@ export function SettingsView() {
                     {transactions.length === 0 ? (
                       <div className="text-center py-10 border border-dashed border-app-border rounded-2xl bg-app-bg/50 space-y-2">
                         <Receipt className="w-8 h-8 mx-auto text-app-text-muted opacity-30" />
-                        <p className="text-xs font-bold text-app-text">No payment transactions found yet.</p>
-                        <p className="text-[11px] text-app-text-muted">Completed credit packs and plan purchases will appear here.</p>
+                        <p className="text-xs font-bold text-app-text">
+                          No payment transactions found yet.
+                        </p>
+                        <p className="text-[11px] text-app-text-muted">
+                          Completed credit packs and plan purchases will appear
+                          here.
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -548,16 +679,22 @@ export function SettingsView() {
                               <div className="space-y-1.5 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="uppercase font-mono text-[10px] font-black px-2.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shrink-0">
-                                    {tx.plan_id ? tx.plan_id.replace(/_/g, " ") : "Order"}
+                                    {tx.plan_id
+                                      ? tx.plan_id.replace(/_/g, " ")
+                                      : "Order"}
                                   </span>
 
                                   {/* Order ID + Copy Button */}
                                   {orderId && (
                                     <div className="inline-flex items-center gap-1.5 bg-app-surface px-2.5 py-1 rounded-xl border border-app-border text-[11px] font-mono text-app-text font-medium truncate max-w-full">
-                                      <span className="truncate">{orderId}</span>
+                                      <span className="truncate">
+                                        {orderId}
+                                      </span>
                                       <button
                                         type="button"
-                                        onClick={() => handleCopyOrderId(orderId)}
+                                        onClick={() =>
+                                          handleCopyOrderId(orderId)
+                                        }
                                         title="Copy Order ID"
                                         className="p-1 rounded-md text-app-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition-colors shrink-0 cursor-pointer"
                                       >
@@ -575,7 +712,9 @@ export function SettingsView() {
                                   <Clock className="w-3 h-3 text-app-text-muted/60" />
                                   <span>
                                     {tx.created_at || tx.timestamp
-                                      ? new Date(tx.created_at || tx.timestamp).toLocaleDateString("en-IN", {
+                                      ? new Date(
+                                          tx.created_at || tx.timestamp,
+                                        ).toLocaleDateString("en-IN", {
                                           day: "numeric",
                                           month: "short",
                                           year: "numeric",
@@ -590,7 +729,9 @@ export function SettingsView() {
                               {/* Right Info: Credits Added & Paid Badge */}
                               <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 border-app-border/60 pt-2 sm:pt-0 shrink-0">
                                 <div className="font-black text-emerald-500 text-xs sm:text-sm flex items-center gap-1">
-                                  <span>+{tx.credits_added || 0} AI Credits</span>
+                                  <span>
+                                    +{tx.credits_added || 0} AI Credits
+                                  </span>
                                 </div>
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                                   <CheckCircle2 className="w-3 h-3" />
@@ -624,10 +765,14 @@ export function SettingsView() {
 
                     <div className="flex items-center justify-between p-4 rounded-xl bg-app-bg border border-app-border">
                       <div>
-                        <h4 className="font-bold text-xs text-app-text">Reset Password</h4>
-                        <p className="text-[11px] text-app-text-muted">Send a password reset link to your registered email.</p>
+                        <h4 className="font-bold text-xs text-app-text">
+                          Reset Password
+                        </h4>
+                        <p className="text-[11px] text-app-text-muted">
+                          Send a password reset link to your registered email.
+                        </p>
                       </div>
-                      <button 
+                      <button
                         onClick={handleResetPassword}
                         className="px-4 py-2 bg-app-surface hover:bg-app-bg border border-app-border rounded-xl text-app-text font-bold text-xs transition-colors"
                       >
@@ -644,10 +789,14 @@ export function SettingsView() {
 
                     <div className="flex items-center justify-between p-4 rounded-xl bg-app-surface border border-rose-500/10">
                       <div>
-                        <h4 className="font-bold text-xs text-app-text">Sign Out</h4>
-                        <p className="text-[11px] text-app-text-muted">Safely sign out of your account on this device.</p>
+                        <h4 className="font-bold text-xs text-app-text">
+                          Sign Out
+                        </h4>
+                        <p className="text-[11px] text-app-text-muted">
+                          Safely sign out of your account on this device.
+                        </p>
                       </div>
-                      <button 
+                      <button
                         onClick={logout}
                         className="px-4 py-2 bg-app-bg hover:bg-app-surface border border-app-border rounded-xl text-app-text font-bold text-xs transition-colors flex items-center gap-1.5"
                       >
@@ -658,10 +807,15 @@ export function SettingsView() {
 
                     <div className="flex items-center justify-between p-4 rounded-xl bg-app-surface border border-rose-500/20">
                       <div>
-                        <h4 className="font-bold text-xs text-rose-500">Delete Account</h4>
-                        <p className="text-[11px] text-app-text-muted">Permanently delete your account and remove all saved resumes.</p>
+                        <h4 className="font-bold text-xs text-rose-500">
+                          Delete Account
+                        </h4>
+                        <p className="text-[11px] text-app-text-muted">
+                          Permanently delete your account and remove all saved
+                          resumes.
+                        </p>
                       </div>
-                      <button 
+                      <button
                         onClick={handleDeleteAccount}
                         className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 shadow-md shadow-rose-500/20"
                       >
@@ -674,7 +828,6 @@ export function SettingsView() {
               )}
             </AnimatePresence>
           </div>
-
         </div>
       </div>
     </div>

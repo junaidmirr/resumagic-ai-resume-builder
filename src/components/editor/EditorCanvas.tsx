@@ -69,7 +69,7 @@ export function EditorCanvas({
   // Local state for dragging to prevent full app re-renders
   const [localElements, setLocalElements] = useState<EditorElement[]>(elements);
   const localElementsRef = useRef<EditorElement[]>(elements);
-  
+
   useEffect(() => {
     // Only sync if not actively dragging, to avoid stuttering
     if (!action) {
@@ -90,7 +90,10 @@ export function EditorCanvas({
       const sy = (height - pad) / pageHeight;
 
       // Prevent canvas from shrinking into a tiny box when virtual keyboard opens or on mobile viewports
-      const isMobileOrKeyboard = width < 768 || (height < 520 && height / width < 1.25) || editingTextId !== null;
+      const isMobileOrKeyboard =
+        width < 768 ||
+        (height < 520 && height / width < 1.25) ||
+        editingTextId !== null;
       const targetScale = isMobileOrKeyboard ? sx : Math.min(sx, sy);
       setBaseScale(targetScale);
     };
@@ -113,9 +116,16 @@ export function EditorCanvas({
   const scale = baseScale === null ? null : baseScale * (zoom / 100);
 
   // ── Touch Gesture Engine (Double-Tap & Long-Press for Touch Devices) ──
-  const lastTapRef = useRef<{ id: string; time: number; x: number; y: number } | null>(null);
+  const lastTapRef = useRef<{
+    id: string;
+    time: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartPosRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const touchStartPosRef = useRef<{ id: string; x: number; y: number } | null>(
+    null,
+  );
 
   const clearLongPress = () => {
     if (longPressTimerRef.current) {
@@ -125,11 +135,16 @@ export function EditorCanvas({
     touchStartPosRef.current = null;
   };
 
-  const handleElementPointerDown = (e: ReactPointerEvent, el: EditorElement) => {
+  const handleElementPointerDown = (
+    e: ReactPointerEvent,
+    el: EditorElement,
+  ) => {
     if (el.locked) return;
 
     // Detect touch interaction
-    const isTouch = e.pointerType === "touch" || ("ontouchstart" in window && e.pointerType !== "mouse");
+    const isTouch =
+      e.pointerType === "touch" ||
+      ("ontouchstart" in window && e.pointerType !== "mouse");
     const isAlreadySelected = selectedIds.includes(el.id);
 
     // Mouse pointer OR already selected element: immediate selection & drag
@@ -158,8 +173,14 @@ export function EditorCanvas({
     ) {
       clearLongPress();
       lastTapRef.current = null;
-      if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
-        try { window.navigator.vibrate(35); } catch {}
+      if (
+        typeof window !== "undefined" &&
+        window.navigator &&
+        window.navigator.vibrate
+      ) {
+        try {
+          window.navigator.vibrate(35);
+        } catch {}
       }
       startDrag(e, el);
       return;
@@ -174,8 +195,14 @@ export function EditorCanvas({
 
     longPressTimerRef.current = setTimeout(() => {
       if (touchStartPosRef.current && touchStartPosRef.current.id === el.id) {
-        if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
-          try { window.navigator.vibrate(50); } catch {}
+        if (
+          typeof window !== "undefined" &&
+          window.navigator &&
+          window.navigator.vibrate
+        ) {
+          try {
+            window.navigator.vibrate(50);
+          } catch {}
         }
         setSelectedIds([el.id]);
         clearLongPress();
@@ -295,7 +322,7 @@ export function EditorCanvas({
       let newGuides: { axis: "x" | "y"; coord: number }[] = [];
       if (snapEnabled) {
         const threshold = 5 / scale;
-        
+
         const myX = [nx, nx + nw / 2, nx + nw];
         const myY = [ny, ny + nh / 2, ny + nh];
 
@@ -349,7 +376,10 @@ export function EditorCanvas({
           const nex = orig.x + finalDpx;
           const ney = orig.y + finalDpy;
 
-          if (el.element_type === "shape" && (el.shape_type === "line" || el.shape_type === "arrow")) {
+          if (
+            el.element_type === "shape" &&
+            (el.shape_type === "line" || el.shape_type === "arrow")
+          ) {
             return {
               ...el,
               x: nex,
@@ -376,13 +406,22 @@ export function EditorCanvas({
     }
   };
 
-  const doResize = (o: any, dpx: number, dpy: number, handle: string, shiftKey: boolean = false) => {
+  const doResize = (
+    o: any,
+    dpx: number,
+    dpy: number,
+    handle: string,
+    shiftKey: boolean = false,
+  ) => {
     setLocalElements((prev) => {
       const nextState = prev.map((el) => {
         if (el.id !== o.id) return el;
         const copy = { ...el } as any;
 
-        if (copy.element_type === "shape" && (copy.shape_type === "line" || copy.shape_type === "arrow")) {
+        if (
+          copy.element_type === "shape" &&
+          (copy.shape_type === "line" || copy.shape_type === "arrow")
+        ) {
           if (handle === "start") {
             copy.x = o.x + dpx;
             copy.y = o.y + dpy;
@@ -400,13 +439,13 @@ export function EditorCanvas({
             const angle = Math.atan2(dy, dx);
             const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
             const dist = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (handle === "end") {
-                copy.x2 = copy.x + Math.cos(snapAngle) * dist;
-                copy.y2 = copy.y + Math.sin(snapAngle) * dist;
+              copy.x2 = copy.x + Math.cos(snapAngle) * dist;
+              copy.y2 = copy.y + Math.sin(snapAngle) * dist;
             } else {
-                copy.x = copy.x2 - Math.cos(snapAngle) * dist;
-                copy.y = copy.y2 - Math.sin(snapAngle) * dist;
+              copy.x = copy.x2 - Math.cos(snapAngle) * dist;
+              copy.y = copy.y2 - Math.sin(snapAngle) * dist;
             }
           }
           return copy;
@@ -576,7 +615,10 @@ export function EditorCanvas({
         style={{
           minWidth: "100%",
           minHeight: "100%",
-          width: scale !== null ? Math.max(pageWidth * scale + 48, pageWidth) : "100%",
+          width:
+            scale !== null
+              ? Math.max(pageWidth * scale + 48, pageWidth)
+              : "100%",
         }}
       >
         {scale === null ? (
@@ -584,14 +626,17 @@ export function EditorCanvas({
         ) : (
           pages.map((page) => {
             const isActive = page.id === activePageId;
-            const pageElements = localElements.filter(el => pages.length === 1 || (el.page_id || pages[0].id) === page.id);
-            
+            const pageElements = localElements.filter(
+              (el) =>
+                pages.length === 1 || (el.page_id || pages[0].id) === page.id,
+            );
+
             return (
               <div
                 key={page.id}
                 id={page.id}
                 data-page-id={page.id}
-                className={`bg-white shadow-2xl relative select-none flex-shrink-0 transition-all overflow-hidden ${isActive ? 'ring-2 ring-teal-500 ring-offset-4 ring-offset-[#1e1e1e]' : 'opacity-90 hover:opacity-100'}`}
+                className={`bg-white shadow-2xl relative select-none flex-shrink-0 transition-all overflow-hidden ${isActive ? "ring-2 ring-teal-500 ring-offset-4 ring-offset-[#1e1e1e]" : "opacity-90 hover:opacity-100"}`}
                 onPointerDown={() => {
                   setActivePageId(page.id);
                   setSelectedIds([]);
@@ -616,516 +661,652 @@ export function EditorCanvas({
                   />
                 ) : null}
                 {pageElements.map((el, idx) => {
-              const isSel = selectedIds.includes(el.id);
-              const baseStyle: React.CSSProperties = {
-                position: "absolute",
-                left: el.x * scale,
-                bottom: el.y * scale,
-                width: ((el as any).width || 100) * scale,
-                height: ((el as any).height || 100) * scale,
-                zIndex: el.z_index,
-              };
+                  const isSel = selectedIds.includes(el.id);
+                  const baseStyle: React.CSSProperties = {
+                    position: "absolute",
+                    left: el.x * scale,
+                    bottom: el.y * scale,
+                    width: ((el as any).width || 100) * scale,
+                    height: ((el as any).height || 100) * scale,
+                    zIndex: el.z_index,
+                  };
 
-              // ── TEXT ──────────────────────────────────────
-              if (el.element_type === "text") {
-                const isEditing = editingTextId === el.id;
+                  // ── TEXT ──────────────────────────────────────
+                  if (el.element_type === "text") {
+                    const isEditing = editingTextId === el.id;
 
-                return (
-                  <div
-                    key={el.id ? `${el.id}_${idx}` : `text_${idx}`}
-                    onPointerDown={(e) => {
-                      if (!isEditing) handleElementPointerDown(e, el);
-                    }}
-                    onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                    onDoubleClick={() => setEditingTextId(el.id)}
-                    className={`absolute touch-none ${!isEditing ? "cursor-move" : ""}
-                      ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
-                    style={{
-                      ...baseStyle,
-                      overflow: "visible",
-                      display: "flex",
-                      alignItems: "flex-start",
-                      color: el.text_color || "#000000",
-                      fontSize: (el.font_size || 12) * scale,
-                      fontWeight: el.bold ? "bold" : "normal",
-                      fontStyle: el.italic ? "italic" : "normal",
-                      fontFamily:
-                        el.font_name || "Helvetica, Arial, sans-serif",
-                      textDecorationLine: el.underline ? "underline" : "none",
-                      lineHeight: el.line_height ?? 1.4,
-                      letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
-                      whiteSpace: "normal",
-                      wordBreak: "break-word",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {isEditing ? (
-                      <textarea
-                        autoFocus
-                        defaultValue={el.text}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onBlur={(e) => {
-                          const newText = e.target.value;
-                          if (newText !== el.text) {
-                            onSnapshot();
-                            setElements((prev) =>
-                              prev.map((x) =>
-                                x.id === el.id ? ({ ...x, text: newText } as any) : x
-                              )
-                            );
-                          }
-                          setEditingTextId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setEditingTextId(null);
-                          }
-                        }}
-                        onChange={(e) => {
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${e.target.scrollHeight}px`;
-                        }}
-                        ref={(ref) => {
-                          if (ref) {
-                            ref.style.height = "auto";
-                            ref.style.height = `${ref.scrollHeight}px`;
-                          }
-                        }}
-                        style={{
-                          width: "100%",
-                          minHeight: "100%",
-                          background: "transparent",
-                          border: "none",
-                          outline: "none",
-                          resize: "none",
-                          color: "inherit",
-                          font: "inherit",
-                          padding: 0,
-                          margin: 0,
-                          textAlign: (el as any).align || "left",
-                          lineHeight: el.line_height ?? 1.4,
-                          letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
-                        }}
-                      />
-                    ) : (
+                    return (
                       <div
+                        key={el.id ? `${el.id}_${idx}` : `text_${idx}`}
+                        onPointerDown={(e) => {
+                          if (!isEditing) handleElementPointerDown(e, el);
+                        }}
+                        onContextMenu={(e) => {
+                          e.stopPropagation();
+                          onContextMenu?.(e, el.id);
+                        }}
+                        onDoubleClick={() => setEditingTextId(el.id)}
+                        className={`absolute touch-none ${!isEditing ? "cursor-move" : ""}
+                      ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
                         style={{
-                          width: "100%",
-                          textAlign: (el as any).align || "left",
+                          ...baseStyle,
+                          overflow: "visible",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          color: el.text_color || "#000000",
+                          fontSize: (el.font_size || 12) * scale,
+                          fontWeight: el.bold ? "bold" : "normal",
+                          fontStyle: el.italic ? "italic" : "normal",
+                          fontFamily:
+                            el.font_name || "Helvetica, Arial, sans-serif",
+                          textDecorationLine: el.underline
+                            ? "underline"
+                            : "none",
                           lineHeight: el.line_height ?? 1.4,
                           letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                          overflowWrap: "anywhere",
                         }}
                       >
-                        {el.text}
-                      </div>
-                    )}
-                    {renderHandles(el)}
-                  </div>
-                );
-              }
-
-              // ── SHAPES ────────────────────────────────────
-              if (el.element_type === "shape") {
-                if (el.shape_type === "rectangle") {
-                  return (
-                    <div
-                      key={el.id ? `${el.id}_${idx}` : `rect_${idx}`}
-                      onPointerDown={(e) => handleElementPointerDown(e, el)}
-                      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                      className={`absolute cursor-move touch-none
-                        ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
-                      style={{
-                        ...baseStyle,
-                        backgroundColor: el.fill_color || "#ffffff",
-                        border: `${(el.border_width || 2) * scale}px solid ${el.border_color || "#000000"}`,
-                        borderRadius: (el.border_radius || 0) * scale,
-                      }}
-                    >
-                      {renderHandles(el)}
-                    </div>
-                  );
-                }                if (el.shape_type === "path" || el.shape_type === "polygon") {
-                  return (
-                    <div
-                      key={el.id ? `${el.id}_${idx}` : `path_${idx}`}
-                      className="absolute pointer-events-none touch-none"
-                      style={{
-                        left: 0,
-                        bottom: 0,
-                        width: pageWidth * scale,
-                        height: pageHeight * scale,
-                        zIndex: el.z_index,
-                      }}
-                    >
-                      <svg
-                        className="w-full h-full overflow-visible touch-none"
-                        viewBox={`0 0 ${pageWidth} ${pageHeight}`}
-                        style={{ display: "block" }}
-                      >
-                        <g transform={`scale(1, -1) translate(${el.x || 0}, -${pageHeight - (el.y || 0)})`}>
-                          {el.shape_type === "path" && el.path_d && (
-                            <path
-                              className={`pointer-events-auto cursor-move touch-none ${isSel ? 'stroke-teal-500' : ''}`}
-                              onPointerDown={(e) => handleElementPointerDown(e, el)}
-                              onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                              d={el.path_d}
-                              fill={el.fill_color && el.fill_color !== "none" && el.fill_color !== "transparent" ? el.fill_color : "none"}
-                              stroke={isSel ? "#14b8a6" : (el.border_color || "#000000")}
-                              strokeWidth={isSel ? Math.max((el.border_width || 2) + 2, 3) : (el.border_width || 2)}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeDasharray={el.pen_type === "dashed" ? `${(el.border_width || 2) * 2},${(el.border_width || 2) * 1.5}` : undefined}
-                              opacity={el.pen_type === "highlighter" ? 0.45 : (el.opacity ?? 1)}
-                              style={{
-                                filter: el.pen_type === "neon" ? `drop-shadow(0 0 6px ${el.border_color || "#14b8a6"})` : undefined,
-                                mixBlendMode: el.pen_type === "highlighter" ? "multiply" : "normal",
-                              }}
-                            />
-                          )}
-                          {el.shape_type === "polygon" && el.points && (
-                            <polygon
-                              className={`pointer-events-auto cursor-move touch-none ${isSel ? 'stroke-teal-500' : ''}`}
-                              onPointerDown={(e) => handleElementPointerDown(e, el)}
-                              onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                              points={Array.isArray(el.points) ? el.points.reduce((acc, val, i) => acc + (i % 2 === 0 ? val + "," : val + " "), "") : el.points}
-                              fill={el.fill_color || "transparent"}
-                              stroke={isSel ? "#14b8a6" : (el.border_color || "transparent")}
-                              strokeWidth={isSel ? Math.max((el.border_width || 0) + 2, 2) : (el.border_width || 0)}
-                            />
-                          )}
-                        </g>
-                      </svg>
-                    </div>
-                  );
-                }
-
-                if (el.shape_type === "circle") {
-                  const d = ((el as any).width || 100) * scale;
-                  return (
-                    <div
-                      key={el.id ? `${el.id}_${idx}` : `circle_${idx}`}
-                      onPointerDown={(e) => handleElementPointerDown(e, el)}
-                      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                      className={`absolute cursor-move rounded-full touch-none
-                        ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
-                      style={{
-                        position: "absolute",
-                        left: (el.x - ((el as any).width || 100) / 2) * scale,
-                        bottom: (el.y - ((el as any).width || 100) / 2) * scale,
-                        width: d,
-                        height: d,
-                        backgroundColor: el.fill_color || "#ffffff",
-                        border: `${(el.border_width || 2) * scale}px solid ${el.border_color || "#000000"}`,
-                        zIndex: el.z_index,
-                      }}
-                    >
-                      <div className="relative w-full h-full">
-                        {renderHandles(el)}
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (el.shape_type === "line" || el.shape_type === "arrow") {
-                  const x2 = el.x2 ?? el.x;
-                  const y2 = el.y2 ?? el.y;
-                  const pad = el.shape_type === "arrow" ? 20 : 2;
-                  const minX = Math.min(el.x, x2) - pad;
-                  const minY = Math.min(el.y, y2) - pad;
-                  const maxX = Math.max(el.x, x2) + pad;
-                  const maxY = Math.max(el.y, y2) + pad;
-                  const bw = Math.max(10, maxX - minX);
-                  const bh = Math.max(10, maxY - minY);
-                  const px1 = (el.x - minX) * scale;
-                  const py1 = (el.y - minY) * scale;
-                  const px2 = (x2 - minX) * scale;
-                  const py2 = (y2 - minY) * scale;
-                  const sy1 = bh * scale - py1;
-                  const sy2 = bh * scale - py2;
-
-                  return (
-                    <div
-                      key={el.id ? `${el.id}_${idx}` : `line_${idx}`}
-                      className="absolute touch-none"
-                      onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                      style={{
-                        left: minX * scale,
-                        bottom: minY * scale,
-                        width: bw * scale,
-                        height: bh * scale,
-                        zIndex: el.z_index,
-                      }}
-                    >
-                      <svg
-                        className="w-full h-full overflow-visible touch-none"
-                        style={{ display: "block" }}
-                      >
-                        {el.shape_type === "arrow" && (
-                          <defs>
-                            <marker
-                              id={`ah-${el.id}`}
-                              markerWidth="10"
-                              markerHeight="7"
-                              refX="9"
-                              refY="3.5"
-                              orient="auto"
-                            >
-                              <polygon
-                                points="0 0,10 3.5,0 7"
-                                fill={
-                                  isSel ? "#0d9488" : el.border_color || "#000"
-                                }
-                              />
-                            </marker>
-                          </defs>
-                        )}
-                        {el.control_x !== undefined &&
-                        el.control_y !== undefined ? (
-                          <path
-                            d={`M ${px1} ${sy1} Q ${
-                              ((el.control_x as number) - minX) * scale
-                            } ${
-                              bh * scale - ((el.control_y as number) - minY) * scale
-                            } ${px2} ${sy2}`}
-                            fill="none"
-                            stroke={
-                              isSel ? "#0d9488" : el.border_color || "#000"
-                            }
-                            strokeWidth={(el.border_width || 2) * scale}
-                            strokeLinecap="round"
-                            markerEnd={
-                              el.shape_type === "arrow"
-                                ? `url(#ah-${el.id})`
-                                : undefined
-                            }
-                            className="pointer-events-none"
-                          />
-                        ) : (
-                          <>
-                            <line
-                              x1={px1}
-                              y1={sy1}
-                              x2={px2}
-                              y2={sy2}
-                              stroke="transparent"
-                              strokeWidth={Math.max(16, (el.border_width || 2) * scale * 2)}
-                              className="cursor-pointer pointer-events-auto"
-                              onPointerDown={(e) => handleElementPointerDown(e, el)}
-                            />
-                            <line
-                              x1={px1}
-                              y1={sy1}
-                              x2={px2}
-                              y2={sy2}
-                              stroke={
-                                isSel ? "#0d9488" : el.border_color || "#000"
-                              }
-                              strokeWidth={(el.border_width || 2) * scale}
-                              strokeLinecap="round"
-                              markerEnd={
-                                el.shape_type === "arrow"
-                                  ? `url(#ah-${el.id})`
-                                  : undefined
-                              }
-                              className="pointer-events-none"
-                            />
-                          </>
-                        )}
-                      </svg>
-                      {isSel && (() => {
-                        const dx = (el.x2 ?? el.x) - el.x;
-                        const dy = (el.y2 ?? el.y) - el.y;
-                        const lineAngleRad = Math.atan2(dy, dx);
-                        let lineAngleDeg = Math.round((lineAngleRad * 180) / Math.PI);
-                        if (lineAngleDeg < 0) lineAngleDeg += 360;
-
-                        let bendAngleDeg = 0;
-                        if (el.control_x !== undefined && el.control_y !== undefined) {
-                          const chordLen = Math.sqrt(dx * dx + dy * dy);
-                          if (chordLen > 0) {
-                            const vx = el.control_x - el.x;
-                            const vy = el.control_y - el.y;
-                            const cross = dx * vy - dy * vx;
-                            bendAngleDeg = Math.round((Math.atan2(cross, (chordLen * chordLen) / 2) * 180) / Math.PI);
-                          }
-                        }
-
-                        const handleX = el.control_x !== undefined ? (el.control_x - minX) * scale : (px1 + px2) / 2;
-                        const handleY = el.control_y !== undefined ? bh * scale - (el.control_y - minY) * scale : (sy1 + sy2) / 2;
-
-                        return (
-                          <>
-                            {/* Realtime Angle & Bend Meter Tooltip Badge */}
-                            <div
-                              className="absolute z-50 pointer-events-none px-2.5 py-1 rounded-full bg-slate-900/90 text-white font-mono text-[11px] font-bold shadow-xl border border-teal-500/50 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
-                              style={{
-                                left: handleX,
-                                top: handleY - 36,
-                                transform: "translateX(-50%)",
-                              }}
-                            >
-                              <span className="text-teal-400 font-black">📐 {lineAngleDeg}°</span>
-                              {bendAngleDeg !== 0 && (
-                                <span className="text-amber-400 border-l border-slate-700 pl-1.5 font-bold">
-                                  🌀 Bend: {bendAngleDeg > 0 ? `+${bendAngleDeg}` : bendAngleDeg}°
-                                </span>
-                              )}
-                            </div>
-
-                            <div
-                              onPointerDown={(e) => startResize(e, el, "start")}
-                              className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
-                              style={{
-                                width: HANDLE_SIZE,
-                                height: HANDLE_SIZE,
-                                left: px1 - HANDLE_SIZE / 2,
-                                top: sy1 - HANDLE_SIZE / 2,
-                              }}
-                            />
-                            <div
-                              onPointerDown={(e) => startResize(e, el, "bezier")}
-                              onDoubleClick={(e) => {
-                                e.stopPropagation();
+                        {isEditing ? (
+                          <textarea
+                            autoFocus
+                            defaultValue={el.text}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onBlur={(e) => {
+                              const newText = e.target.value;
+                              if (newText !== el.text) {
+                                onSnapshot();
                                 setElements((prev) =>
                                   prev.map((x) =>
                                     x.id === el.id
-                                      ? { ...x, control_x: undefined, control_y: undefined }
-                                      : x
-                                  )
+                                      ? ({ ...x, text: newText } as any)
+                                      : x,
+                                  ),
                                 );
-                                onSnapshot();
-                              }}
-                              title="Double-click to straighten line"
-                              className="absolute bg-white border-2 border-teal-500 shadow-md z-50 cursor-crosshair rounded-full hover:bg-teal-50 touch-none"
-                              style={{
-                                width: HANDLE_SIZE,
-                                height: HANDLE_SIZE,
-                                left: handleX - HANDLE_SIZE / 2,
-                                top: handleY - HANDLE_SIZE / 2,
-                              }}
-                            />
-                            <div
-                              onPointerDown={(e) => startResize(e, el, "end")}
-                              className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
-                              style={{
-                                width: HANDLE_SIZE,
-                                height: HANDLE_SIZE,
-                                left: px2 - HANDLE_SIZE / 2,
-                                top: sy2 - HANDLE_SIZE / 2,
-                              }}
-                            />
-                          </>
-                        );
-                      })()}
-                    </div>
-                  );
-                }
-              }
-
-              // ── IMAGE ─────────────────────────────────────
-              if (el.element_type === "image") {
-                return (
-                  <div
-                    key={el.id}
-                    onPointerDown={(e) => handleElementPointerDown(e, el)}
-                    onContextMenu={(e) => { e.stopPropagation(); onContextMenu?.(e, el.id); }}
-                    className={`absolute cursor-move touch-none
-                      ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
-                    style={{
-                      ...baseStyle,
-                      opacity: el.opacity ?? 1,
-                      filter: el.shadow ? "drop-shadow(0px 4px 12px rgba(0,0,0,0.35))" : "none",
-                      transform: `rotate(${el.rotation || 0}deg)`,
-                    }}
-                  >
-                    {el.is_icon && el.icon_name ? (
-                      (() => {
-                        const IconComponent = (Lucide as any)[el.icon_name];
-                        return IconComponent ? (
-                          <div
-                            className="w-full h-full flex items-center justify-center p-1"
+                              }
+                              setEditingTextId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                setEditingTextId(null);
+                              }
+                            }}
+                            onChange={(e) => {
+                              e.target.style.height = "auto";
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            ref={(ref) => {
+                              if (ref) {
+                                ref.style.height = "auto";
+                                ref.style.height = `${ref.scrollHeight}px`;
+                              }
+                            }}
                             style={{
-                              color: (el as any).text_color || "#334155",
+                              width: "100%",
+                              minHeight: "100%",
+                              background: "transparent",
+                              border: "none",
+                              outline: "none",
+                              resize: "none",
+                              color: "inherit",
+                              font: "inherit",
+                              padding: 0,
+                              margin: 0,
+                              textAlign: (el as any).align || "left",
+                              lineHeight: el.line_height ?? 1.4,
+                              letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              textAlign: (el as any).align || "left",
+                              lineHeight: el.line_height ?? 1.4,
+                              letterSpacing: `${(el.letter_spacing ?? 0) * scale}px`,
                             }}
                           >
-                            <IconComponent size="100%" />
+                            {el.text}
                           </div>
-                        ) : (
-                          <div className="w-full h-full border border-dashed border-slate-300 rounded flex items-center justify-center text-[10px] text-slate-400">
-                            {el.icon_name}
-                          </div>
-                        );
-                      })()
-                    ) : (
-                      <img
-                        src={el.image_path}
-                        alt=""
-                        className="w-full h-full object-contain pointer-events-none"
-                        style={{
-                          borderRadius: el.border_radius ? `${el.border_radius * scale}px` : undefined,
-                          clipPath:
-                            el.mask_shape === "circle"
-                              ? "circle(50% at 50% 50%)"
-                              : el.mask_shape === "rounded" && !el.border_radius
-                                ? "inset(0 0 0 0 round 15px)"
-                                : el.mask_shape === "heart"
-                                  ? "path('M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.41,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.59,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z')"
-                                  : "none",
-                        }}
-                        draggable={false}
-                      />
-                    )}
+                        )}
+                        {renderHandles(el)}
+                      </div>
+                    );
+                  }
 
-                    {processingIds.includes(el.id) && (
-                      <div className="absolute inset-0 z-50 bg-black/20 flex flex-col items-center justify-center overflow-hidden">
+                  // ── SHAPES ────────────────────────────────────
+                  if (el.element_type === "shape") {
+                    if (el.shape_type === "rectangle") {
+                      return (
                         <div
-                          className="absolute w-full h-[2px] bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]"
-                          style={{
-                            animation: "scan 2s linear infinite",
+                          key={el.id ? `${el.id}_${idx}` : `rect_${idx}`}
+                          onPointerDown={(e) => handleElementPointerDown(e, el)}
+                          onContextMenu={(e) => {
+                            e.stopPropagation();
+                            onContextMenu?.(e, el.id);
                           }}
-                        />
-                        <div className="bg-white/90 backdrop-blur-md p-2.5 rounded-xl flex flex-col items-center gap-1.5 shadow-xl border border-white/50">
-                          <Loader2
-                            className="text-teal-500 animate-spin"
-                            size={18}
-                          />
-                          <div className="flex items-center gap-1 text-teal-600 font-bold text-[8px] uppercase tracking-tighter">
-                            <Sparkles size={10} />
-                            <span>AI Scanning</span>
+                          className={`absolute cursor-move touch-none
+                        ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
+                          style={{
+                            ...baseStyle,
+                            backgroundColor: el.fill_color || "#ffffff",
+                            border: `${(el.border_width || 2) * scale}px solid ${el.border_color || "#000000"}`,
+                            borderRadius: (el.border_radius || 0) * scale,
+                          }}
+                        >
+                          {renderHandles(el)}
+                        </div>
+                      );
+                    }
+                    if (
+                      el.shape_type === "path" ||
+                      el.shape_type === "polygon"
+                    ) {
+                      return (
+                        <div
+                          key={el.id ? `${el.id}_${idx}` : `path_${idx}`}
+                          className="absolute pointer-events-none touch-none"
+                          style={{
+                            left: 0,
+                            bottom: 0,
+                            width: pageWidth * scale,
+                            height: pageHeight * scale,
+                            zIndex: el.z_index,
+                          }}
+                        >
+                          <svg
+                            className="w-full h-full overflow-visible touch-none"
+                            viewBox={`0 0 ${pageWidth} ${pageHeight}`}
+                            style={{ display: "block" }}
+                          >
+                            <g
+                              transform={`scale(1, -1) translate(${el.x || 0}, -${pageHeight - (el.y || 0)})`}
+                            >
+                              {el.shape_type === "path" && el.path_d && (
+                                <path
+                                  className={`pointer-events-auto cursor-move touch-none ${isSel ? "stroke-teal-500" : ""}`}
+                                  onPointerDown={(e) =>
+                                    handleElementPointerDown(e, el)
+                                  }
+                                  onContextMenu={(e) => {
+                                    e.stopPropagation();
+                                    onContextMenu?.(e, el.id);
+                                  }}
+                                  d={el.path_d}
+                                  fill={
+                                    el.fill_color &&
+                                    el.fill_color !== "none" &&
+                                    el.fill_color !== "transparent"
+                                      ? el.fill_color
+                                      : "none"
+                                  }
+                                  stroke={
+                                    isSel
+                                      ? "#14b8a6"
+                                      : el.border_color || "#000000"
+                                  }
+                                  strokeWidth={
+                                    isSel
+                                      ? Math.max((el.border_width || 2) + 2, 3)
+                                      : el.border_width || 2
+                                  }
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeDasharray={
+                                    el.pen_type === "dashed"
+                                      ? `${(el.border_width || 2) * 2},${(el.border_width || 2) * 1.5}`
+                                      : undefined
+                                  }
+                                  opacity={
+                                    el.pen_type === "highlighter"
+                                      ? 0.45
+                                      : (el.opacity ?? 1)
+                                  }
+                                  style={{
+                                    filter:
+                                      el.pen_type === "neon"
+                                        ? `drop-shadow(0 0 6px ${el.border_color || "#14b8a6"})`
+                                        : undefined,
+                                    mixBlendMode:
+                                      el.pen_type === "highlighter"
+                                        ? "multiply"
+                                        : "normal",
+                                  }}
+                                />
+                              )}
+                              {el.shape_type === "polygon" && el.points && (
+                                <polygon
+                                  className={`pointer-events-auto cursor-move touch-none ${isSel ? "stroke-teal-500" : ""}`}
+                                  onPointerDown={(e) =>
+                                    handleElementPointerDown(e, el)
+                                  }
+                                  onContextMenu={(e) => {
+                                    e.stopPropagation();
+                                    onContextMenu?.(e, el.id);
+                                  }}
+                                  points={
+                                    Array.isArray(el.points)
+                                      ? el.points.reduce(
+                                          (acc, val, i) =>
+                                            acc +
+                                            (i % 2 === 0
+                                              ? val + ","
+                                              : val + " "),
+                                          "",
+                                        )
+                                      : el.points
+                                  }
+                                  fill={el.fill_color || "transparent"}
+                                  stroke={
+                                    isSel
+                                      ? "#14b8a6"
+                                      : el.border_color || "transparent"
+                                  }
+                                  strokeWidth={
+                                    isSel
+                                      ? Math.max((el.border_width || 0) + 2, 2)
+                                      : el.border_width || 0
+                                  }
+                                />
+                              )}
+                            </g>
+                          </svg>
+                        </div>
+                      );
+                    }
+
+                    if (el.shape_type === "circle") {
+                      const d = ((el as any).width || 100) * scale;
+                      return (
+                        <div
+                          key={el.id ? `${el.id}_${idx}` : `circle_${idx}`}
+                          onPointerDown={(e) => handleElementPointerDown(e, el)}
+                          onContextMenu={(e) => {
+                            e.stopPropagation();
+                            onContextMenu?.(e, el.id);
+                          }}
+                          className={`absolute cursor-move rounded-full touch-none
+                        ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
+                          style={{
+                            position: "absolute",
+                            left:
+                              (el.x - ((el as any).width || 100) / 2) * scale,
+                            bottom:
+                              (el.y - ((el as any).width || 100) / 2) * scale,
+                            width: d,
+                            height: d,
+                            backgroundColor: el.fill_color || "#ffffff",
+                            border: `${(el.border_width || 2) * scale}px solid ${el.border_color || "#000000"}`,
+                            zIndex: el.z_index,
+                          }}
+                        >
+                          <div className="relative w-full h-full">
+                            {renderHandles(el)}
                           </div>
                         </div>
-                        <style>{`
+                      );
+                    }
+
+                    if (el.shape_type === "line" || el.shape_type === "arrow") {
+                      const x2 = el.x2 ?? el.x;
+                      const y2 = el.y2 ?? el.y;
+                      const pad = el.shape_type === "arrow" ? 20 : 2;
+                      const minX = Math.min(el.x, x2) - pad;
+                      const minY = Math.min(el.y, y2) - pad;
+                      const maxX = Math.max(el.x, x2) + pad;
+                      const maxY = Math.max(el.y, y2) + pad;
+                      const bw = Math.max(10, maxX - minX);
+                      const bh = Math.max(10, maxY - minY);
+                      const px1 = (el.x - minX) * scale;
+                      const py1 = (el.y - minY) * scale;
+                      const px2 = (x2 - minX) * scale;
+                      const py2 = (y2 - minY) * scale;
+                      const sy1 = bh * scale - py1;
+                      const sy2 = bh * scale - py2;
+
+                      return (
+                        <div
+                          key={el.id ? `${el.id}_${idx}` : `line_${idx}`}
+                          className="absolute touch-none"
+                          onContextMenu={(e) => {
+                            e.stopPropagation();
+                            onContextMenu?.(e, el.id);
+                          }}
+                          style={{
+                            left: minX * scale,
+                            bottom: minY * scale,
+                            width: bw * scale,
+                            height: bh * scale,
+                            zIndex: el.z_index,
+                          }}
+                        >
+                          <svg
+                            className="w-full h-full overflow-visible touch-none"
+                            style={{ display: "block" }}
+                          >
+                            {el.shape_type === "arrow" && (
+                              <defs>
+                                <marker
+                                  id={`ah-${el.id}`}
+                                  markerWidth="10"
+                                  markerHeight="7"
+                                  refX="9"
+                                  refY="3.5"
+                                  orient="auto"
+                                >
+                                  <polygon
+                                    points="0 0,10 3.5,0 7"
+                                    fill={
+                                      isSel
+                                        ? "#0d9488"
+                                        : el.border_color || "#000"
+                                    }
+                                  />
+                                </marker>
+                              </defs>
+                            )}
+                            {el.control_x !== undefined &&
+                            el.control_y !== undefined ? (
+                              <path
+                                d={`M ${px1} ${sy1} Q ${
+                                  ((el.control_x as number) - minX) * scale
+                                } ${
+                                  bh * scale -
+                                  ((el.control_y as number) - minY) * scale
+                                } ${px2} ${sy2}`}
+                                fill="none"
+                                stroke={
+                                  isSel ? "#0d9488" : el.border_color || "#000"
+                                }
+                                strokeWidth={(el.border_width || 2) * scale}
+                                strokeLinecap="round"
+                                markerEnd={
+                                  el.shape_type === "arrow"
+                                    ? `url(#ah-${el.id})`
+                                    : undefined
+                                }
+                                className="pointer-events-none"
+                              />
+                            ) : (
+                              <>
+                                <line
+                                  x1={px1}
+                                  y1={sy1}
+                                  x2={px2}
+                                  y2={sy2}
+                                  stroke="transparent"
+                                  strokeWidth={Math.max(
+                                    16,
+                                    (el.border_width || 2) * scale * 2,
+                                  )}
+                                  className="cursor-pointer pointer-events-auto"
+                                  onPointerDown={(e) =>
+                                    handleElementPointerDown(e, el)
+                                  }
+                                />
+                                <line
+                                  x1={px1}
+                                  y1={sy1}
+                                  x2={px2}
+                                  y2={sy2}
+                                  stroke={
+                                    isSel
+                                      ? "#0d9488"
+                                      : el.border_color || "#000"
+                                  }
+                                  strokeWidth={(el.border_width || 2) * scale}
+                                  strokeLinecap="round"
+                                  markerEnd={
+                                    el.shape_type === "arrow"
+                                      ? `url(#ah-${el.id})`
+                                      : undefined
+                                  }
+                                  className="pointer-events-none"
+                                />
+                              </>
+                            )}
+                          </svg>
+                          {isSel &&
+                            (() => {
+                              const dx = (el.x2 ?? el.x) - el.x;
+                              const dy = (el.y2 ?? el.y) - el.y;
+                              const lineAngleRad = Math.atan2(dy, dx);
+                              let lineAngleDeg = Math.round(
+                                (lineAngleRad * 180) / Math.PI,
+                              );
+                              if (lineAngleDeg < 0) lineAngleDeg += 360;
+
+                              let bendAngleDeg = 0;
+                              if (
+                                el.control_x !== undefined &&
+                                el.control_y !== undefined
+                              ) {
+                                const chordLen = Math.sqrt(dx * dx + dy * dy);
+                                if (chordLen > 0) {
+                                  const vx = el.control_x - el.x;
+                                  const vy = el.control_y - el.y;
+                                  const cross = dx * vy - dy * vx;
+                                  bendAngleDeg = Math.round(
+                                    (Math.atan2(
+                                      cross,
+                                      (chordLen * chordLen) / 2,
+                                    ) *
+                                      180) /
+                                      Math.PI,
+                                  );
+                                }
+                              }
+
+                              const handleX =
+                                el.control_x !== undefined
+                                  ? (el.control_x - minX) * scale
+                                  : (px1 + px2) / 2;
+                              const handleY =
+                                el.control_y !== undefined
+                                  ? bh * scale - (el.control_y - minY) * scale
+                                  : (sy1 + sy2) / 2;
+
+                              return (
+                                <>
+                                  {/* Realtime Angle & Bend Meter Tooltip Badge */}
+                                  <div
+                                    className="absolute z-50 pointer-events-none px-2.5 py-1 rounded-full bg-slate-900/90 text-white font-mono text-[11px] font-bold shadow-xl border border-teal-500/50 backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap"
+                                    style={{
+                                      left: handleX,
+                                      top: handleY - 36,
+                                      transform: "translateX(-50%)",
+                                    }}
+                                  >
+                                    <span className="text-teal-400 font-black">
+                                      📐 {lineAngleDeg}°
+                                    </span>
+                                    {bendAngleDeg !== 0 && (
+                                      <span className="text-amber-400 border-l border-slate-700 pl-1.5 font-bold">
+                                        🌀 Bend:{" "}
+                                        {bendAngleDeg > 0
+                                          ? `+${bendAngleDeg}`
+                                          : bendAngleDeg}
+                                        °
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div
+                                    onPointerDown={(e) =>
+                                      startResize(e, el, "start")
+                                    }
+                                    className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
+                                    style={{
+                                      width: HANDLE_SIZE,
+                                      height: HANDLE_SIZE,
+                                      left: px1 - HANDLE_SIZE / 2,
+                                      top: sy1 - HANDLE_SIZE / 2,
+                                    }}
+                                  />
+                                  <div
+                                    onPointerDown={(e) =>
+                                      startResize(e, el, "bezier")
+                                    }
+                                    onDoubleClick={(e) => {
+                                      e.stopPropagation();
+                                      setElements((prev) =>
+                                        prev.map((x) =>
+                                          x.id === el.id
+                                            ? {
+                                                ...x,
+                                                control_x: undefined,
+                                                control_y: undefined,
+                                              }
+                                            : x,
+                                        ),
+                                      );
+                                      onSnapshot();
+                                    }}
+                                    title="Double-click to straighten line"
+                                    className="absolute bg-white border-2 border-teal-500 shadow-md z-50 cursor-crosshair rounded-full hover:bg-teal-50 touch-none"
+                                    style={{
+                                      width: HANDLE_SIZE,
+                                      height: HANDLE_SIZE,
+                                      left: handleX - HANDLE_SIZE / 2,
+                                      top: handleY - HANDLE_SIZE / 2,
+                                    }}
+                                  />
+                                  <div
+                                    onPointerDown={(e) =>
+                                      startResize(e, el, "end")
+                                    }
+                                    className="absolute bg-teal-500 border-2 border-white shadow-md z-50 cursor-crosshair rounded-sm hover:bg-teal-300 touch-none"
+                                    style={{
+                                      width: HANDLE_SIZE,
+                                      height: HANDLE_SIZE,
+                                      left: px2 - HANDLE_SIZE / 2,
+                                      top: sy2 - HANDLE_SIZE / 2,
+                                    }}
+                                  />
+                                </>
+                              );
+                            })()}
+                        </div>
+                      );
+                    }
+                  }
+
+                  // ── IMAGE ─────────────────────────────────────
+                  if (el.element_type === "image") {
+                    return (
+                      <div
+                        key={el.id}
+                        onPointerDown={(e) => handleElementPointerDown(e, el)}
+                        onContextMenu={(e) => {
+                          e.stopPropagation();
+                          onContextMenu?.(e, el.id);
+                        }}
+                        className={`absolute cursor-move touch-none
+                      ${isSel ? "ring-2 ring-teal-500 z-40" : "hover:ring-1 hover:ring-slate-300"}`}
+                        style={{
+                          ...baseStyle,
+                          opacity: el.opacity ?? 1,
+                          filter: el.shadow
+                            ? "drop-shadow(0px 4px 12px rgba(0,0,0,0.35))"
+                            : "none",
+                          transform: `rotate(${el.rotation || 0}deg)`,
+                        }}
+                      >
+                        {el.is_icon && el.icon_name ? (
+                          (() => {
+                            const IconComponent = (Lucide as any)[el.icon_name];
+                            return IconComponent ? (
+                              <div
+                                className="w-full h-full flex items-center justify-center p-1"
+                                style={{
+                                  color: (el as any).text_color || "#334155",
+                                }}
+                              >
+                                <IconComponent size="100%" />
+                              </div>
+                            ) : (
+                              <div className="w-full h-full border border-dashed border-slate-300 rounded flex items-center justify-center text-[10px] text-slate-400">
+                                {el.icon_name}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <img
+                            src={el.image_path}
+                            alt=""
+                            className="w-full h-full object-contain pointer-events-none"
+                            style={{
+                              borderRadius: el.border_radius
+                                ? `${el.border_radius * scale}px`
+                                : undefined,
+                              clipPath:
+                                el.mask_shape === "circle"
+                                  ? "circle(50% at 50% 50%)"
+                                  : el.mask_shape === "rounded" &&
+                                      !el.border_radius
+                                    ? "inset(0 0 0 0 round 15px)"
+                                    : el.mask_shape === "heart"
+                                      ? "path('M12,21.35L10.55,20.03C5.4,15.36 2,12.27 2,8.5C2,5.41 4.41,3 7.5,3C9.24,3 10.91,3.81 12,5.08C13.09,3.81 14.76,3 16.5,3C19.59,3 22,5.41 22,8.5C22,12.27 18.6,15.36 13.45,20.03L12,21.35Z')"
+                                      : "none",
+                            }}
+                            draggable={false}
+                          />
+                        )}
+
+                        {processingIds.includes(el.id) && (
+                          <div className="absolute inset-0 z-50 bg-black/20 flex flex-col items-center justify-center overflow-hidden">
+                            <div
+                              className="absolute w-full h-[2px] bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]"
+                              style={{
+                                animation: "scan 2s linear infinite",
+                              }}
+                            />
+                            <div className="bg-white/90 backdrop-blur-md p-2.5 rounded-xl flex flex-col items-center gap-1.5 shadow-xl border border-white/50">
+                              <Loader2
+                                className="text-teal-500 animate-spin"
+                                size={18}
+                              />
+                              <div className="flex items-center gap-1 text-teal-600 font-bold text-[8px] uppercase tracking-tighter">
+                                <Sparkles size={10} />
+                                <span>AI Scanning</span>
+                              </div>
+                            </div>
+                            <style>{`
                           @keyframes scan {
                             0% { top: -10%; }
                             100% { top: 110%; }
                           }
                         `}</style>
+                          </div>
+                        )}
+
+                        {renderHandles(el)}
                       </div>
-                    )}
+                    );
+                  }
 
-                    {renderHandles(el)}
-                  </div>
-                );
-              }
+                  return null;
+                })}
 
-              return null;
-            })}
-
-            {guides.map((g, i) => (
-              <div
-                key={`guide-${i}`}
-                className="absolute pointer-events-none z-50"
-                style={{
-                  left: g.axis === "x" ? Math.floor(g.coord * scale) : 0,
-                  bottom: g.axis === "y" ? Math.floor(g.coord * scale) : 0,
-                  width: g.axis === "x" ? 0 : "100%",
-                  height: g.axis === "y" ? 0 : "100%",
-                  borderLeft: g.axis === "x" ? "1px dashed #6366f1" : "none",
-                  borderBottom: g.axis === "y" ? "1px dashed #6366f1" : "none",
-                }}
-              />
-            ))}
-          </div>
+                {guides.map((g, i) => (
+                  <div
+                    key={`guide-${i}`}
+                    className="absolute pointer-events-none z-50"
+                    style={{
+                      left: g.axis === "x" ? Math.floor(g.coord * scale) : 0,
+                      bottom: g.axis === "y" ? Math.floor(g.coord * scale) : 0,
+                      width: g.axis === "x" ? 0 : "100%",
+                      height: g.axis === "y" ? 0 : "100%",
+                      borderLeft:
+                        g.axis === "x" ? "1px dashed #6366f1" : "none",
+                      borderBottom:
+                        g.axis === "y" ? "1px dashed #6366f1" : "none",
+                    }}
+                  />
+                ))}
+              </div>
             );
           })
         )}

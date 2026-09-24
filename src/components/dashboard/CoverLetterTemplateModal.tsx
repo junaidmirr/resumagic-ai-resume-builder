@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Check, ArrowRight, Palette, Layers, Lock } from "lucide-react";
+import {
+  X,
+  Sparkles,
+  Check,
+  ArrowRight,
+  Palette,
+  Layers,
+  Lock,
+} from "lucide-react";
 import { COVER_LETTER_TEMPLATES } from "../../lib/coverLetterTemplates";
 import type { CoverLetterTemplate } from "../../lib/coverLetterTemplates";
 import { useAuth } from "../../context/AuthContext";
@@ -13,7 +21,8 @@ interface CoverLetterTemplateModalProps {
   onSelectTemplate: (templateId: string) => void;
 }
 
-type Category = "all" | "executive" | "modern" | "minimal" | "creative" | "academic";
+type Category =
+  "all" | "executive" | "modern" | "minimal" | "creative" | "academic";
 
 export function CoverLetterTemplateModal({
   isOpen,
@@ -22,16 +31,18 @@ export function CoverLetterTemplateModal({
   onSelectTemplate,
 }: CoverLetterTemplateModalProps) {
   const { userPlan } = useAuth();
-  const isProTier = userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
+  const isProTier =
+    userPlan === "pro" || userPlan === "career_pro" || userPlan === "lifetime";
 
   const [selectedCategory, setSelectedCategory] = useState<Category>("all");
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("slate_minimalist");
+  const [selectedTemplateId, setSelectedTemplateId] =
+    useState<string>("slate_minimalist");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   if (!isOpen) return null;
 
   const filteredTemplates = COVER_LETTER_TEMPLATES.filter(
-    (t) => selectedCategory === "all" || t.category === selectedCategory
+    (t) => selectedCategory === "all" || t.category === selectedCategory,
   );
 
   const handleTemplateClick = (tmpl: CoverLetterTemplate) => {
@@ -43,7 +54,9 @@ export function CoverLetterTemplateModal({
   };
 
   const handleConfirm = () => {
-    const selected = COVER_LETTER_TEMPLATES.find((t) => t.id === selectedTemplateId);
+    const selected = COVER_LETTER_TEMPLATES.find(
+      (t) => t.id === selectedTemplateId,
+    );
     if (selected?.isPremium && !isProTier) {
       setShowUpgradeModal(true);
       return;
@@ -72,7 +85,8 @@ export function CoverLetterTemplateModal({
                 Choose Template for "{docTitle || "Cover Letter"}"
               </h3>
               <p className="text-xs text-app-text-muted mt-0.5">
-                Select your favorite layout and color theme to open directly in the Visual Canvas Editor.
+                Select your favorite layout and color theme to open directly in
+                the Visual Canvas Editor.
               </p>
             </div>
 
@@ -122,8 +136,8 @@ export function CoverLetterTemplateModal({
                     isSelected
                       ? "bg-brand-primary/10 border-brand-primary ring-2 ring-brand-primary/40 shadow-md"
                       : isLocked
-                      ? "bg-app-bg/60 border-app-border hover:border-amber-500/50 opacity-90"
-                      : "bg-app-bg border-app-border hover:border-brand-primary/40 shadow-2xs"
+                        ? "bg-app-bg/60 border-app-border hover:border-amber-500/50 opacity-90"
+                        : "bg-app-bg border-app-border hover:border-brand-primary/40 shadow-2xs"
                   }`}
                 >
                   <div>
@@ -138,7 +152,9 @@ export function CoverLetterTemplateModal({
                         style={{ backgroundColor: tmpl.header_bg }}
                       >
                         <span className="truncate">{tmpl.name}</span>
-                        {isLocked && <Lock className="w-3 h-3 text-amber-300 shrink-0 ml-1" />}
+                        {isLocked && (
+                          <Lock className="w-3 h-3 text-amber-300 shrink-0 ml-1" />
+                        )}
                       </div>
 
                       {/* Accent Stripe simulation */}
@@ -149,13 +165,21 @@ export function CoverLetterTemplateModal({
 
                       {/* Paragraph text simulation lines */}
                       <div className="space-y-1">
-                        <div className="h-1 bg-current opacity-30 rounded w-full" style={{ color: tmpl.text_color }} />
-                        <div className="h-1 bg-current opacity-30 rounded w-3/4" style={{ color: tmpl.text_color }} />
+                        <div
+                          className="h-1 bg-current opacity-30 rounded w-full"
+                          style={{ color: tmpl.text_color }}
+                        />
+                        <div
+                          className="h-1 bg-current opacity-30 rounded w-3/4"
+                          style={{ color: tmpl.text_color }}
+                        />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <h4 className={`font-black text-sm ${isSelected ? "text-brand-primary" : "text-app-text"}`}>
+                      <h4
+                        className={`font-black text-sm ${isSelected ? "text-brand-primary" : "text-app-text"}`}
+                      >
                         {tmpl.name}
                       </h4>
 
@@ -165,11 +189,13 @@ export function CoverLetterTemplateModal({
                           PRO
                         </span>
                       ) : (
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                          tmpl.isPremium
-                            ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
-                            : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                        }`}>
+                        <span
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            tmpl.isPremium
+                              ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
+                              : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          }`}
+                        >
                           {tmpl.isPremium ? "PRO" : "FREE"}
                         </span>
                       )}
@@ -181,9 +207,23 @@ export function CoverLetterTemplateModal({
                   </div>
 
                   <div className="pt-2 border-t border-app-border flex items-center justify-between text-xs font-bold">
-                    <span className="text-[10px] text-app-text-muted font-mono">{tmpl.font_family}</span>
-                    <span className={isSelected ? "text-brand-primary" : isLocked ? "text-amber-500 flex items-center gap-1" : "text-app-text-muted"}>
-                      {isSelected ? "✓ Selected" : isLocked ? "🔒 Unlock PRO" : "Select"}
+                    <span className="text-[10px] text-app-text-muted font-mono">
+                      {tmpl.font_family}
+                    </span>
+                    <span
+                      className={
+                        isSelected
+                          ? "text-brand-primary"
+                          : isLocked
+                            ? "text-amber-500 flex items-center gap-1"
+                            : "text-app-text-muted"
+                      }
+                    >
+                      {isSelected
+                        ? "✓ Selected"
+                        : isLocked
+                          ? "🔒 Unlock PRO"
+                          : "Select"}
                     </span>
                   </div>
                 </button>
@@ -194,7 +234,14 @@ export function CoverLetterTemplateModal({
           {/* Modal Footer Controls */}
           <div className="p-4 sm:p-5 border-t border-app-border flex items-center justify-between bg-app-bg/50 shrink-0">
             <div className="text-xs text-app-text-muted hidden sm:block">
-              Selected: <span className="font-bold text-app-text">{COVER_LETTER_TEMPLATES.find((t) => t.id === selectedTemplateId)?.name}</span>
+              Selected:{" "}
+              <span className="font-bold text-app-text">
+                {
+                  COVER_LETTER_TEMPLATES.find(
+                    (t) => t.id === selectedTemplateId,
+                  )?.name
+                }
+              </span>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto justify-end">

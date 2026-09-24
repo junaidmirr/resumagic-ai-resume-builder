@@ -32,7 +32,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-600 text-xs my-2">
           <p className="font-bold">Failed to display this component</p>
-          <p className="font-mono text-[10px] mt-1 opacity-80">{this.state.error?.message}</p>
+          <p className="font-mono text-[10px] mt-1 opacity-80">
+            {this.state.error?.message}
+          </p>
         </div>
       );
     }

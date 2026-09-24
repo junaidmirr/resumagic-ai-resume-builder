@@ -32,7 +32,9 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<DialogOptions | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const [resolveFn, setResolveFn] = useState<((value: any) => void) | null>(null);
+  const [resolveFn, setResolveFn] = useState<((value: any) => void) | null>(
+    null,
+  );
 
   const confirm = (opts: DialogOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -53,7 +55,10 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 
   const alert = (opts: DialogOptions | string) => {
     return new Promise<void>((resolve) => {
-      const finalOpts = typeof opts === "string" ? { title: "Notice", description: opts } : opts;
+      const finalOpts =
+        typeof opts === "string"
+          ? { title: "Notice", description: opts }
+          : opts;
       setOptions({ ...finalOpts, type: "alert" });
       setResolveFn(() => resolve);
       setIsOpen(true);
@@ -73,11 +78,11 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       {children}
       {isOpen && options && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
-          <div 
-            className="bg-app-bg border border-app-border rounded-2xl p-6 max-w-md w-full shadow-2xl mx-4 animate-in fade-in zoom-in duration-200 relative"
-          >
+          <div className="bg-app-bg border border-app-border rounded-2xl p-6 max-w-md w-full shadow-2xl mx-4 animate-in fade-in zoom-in duration-200 relative">
             <button
-              onClick={() => handleClose(options.type === "prompt" ? null : false)}
+              onClick={() =>
+                handleClose(options.type === "prompt" ? null : false)
+              }
               className="absolute top-4 right-4 text-app-text-muted hover:text-app-text transition-colors"
             >
               <X className="w-5 h-5" />
@@ -86,7 +91,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
             <h3 className="text-xl font-bold text-app-text mb-2">
               {options.title}
             </h3>
-            
+
             {options.description && (
               <p className="text-sm text-app-text-secondary mb-6">
                 {options.description}
@@ -112,21 +117,26 @@ export function DialogProvider({ children }: { children: ReactNode }) {
             <div className="flex justify-end gap-3 mt-8">
               {options.type !== "alert" && (
                 <button
-                  onClick={() => handleClose(options.type === "prompt" ? null : false)}
+                  onClick={() =>
+                    handleClose(options.type === "prompt" ? null : false)
+                  }
                   className="px-5 py-2.5 rounded-xl font-medium text-app-text-secondary hover:text-app-text hover:bg-app-surface transition-colors"
                 >
                   {options.cancelText || "Cancel"}
                 </button>
               )}
               <button
-                onClick={() => handleClose(options.type === "prompt" ? inputValue : true)}
+                onClick={() =>
+                  handleClose(options.type === "prompt" ? inputValue : true)
+                }
                 className={`px-5 py-2.5 rounded-xl font-medium text-white transition-all shadow-md hover:shadow-lg ${
-                  options.danger 
-                    ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20" 
+                  options.danger
+                    ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
                     : "bg-teal-600 hover:bg-teal-700 shadow-teal-600/20"
                 }`}
               >
-                {options.confirmText || (options.type === "alert" ? "OK" : "Confirm")}
+                {options.confirmText ||
+                  (options.type === "alert" ? "OK" : "Confirm")}
               </button>
             </div>
           </div>

@@ -1,7 +1,12 @@
 import React from "react";
 
-export const MiniPreview = ({ elements, scale = 0.22 }: { elements?: any[]; scale?: number }) => {
-
+export const MiniPreview = ({
+  elements,
+  scale = 0.22,
+}: {
+  elements?: any[];
+  scale?: number;
+}) => {
   if (!elements || !Array.isArray(elements)) {
     return (
       <div
@@ -12,7 +17,7 @@ export const MiniPreview = ({ elements, scale = 0.22 }: { elements?: any[]; scal
   }
 
   return (
-    <div 
+    <div
       className="relative bg-white shadow-sm overflow-hidden rounded mx-auto pointer-events-none"
       style={{ width: 612 * scale, height: 792 * scale }}
     >
@@ -36,7 +41,9 @@ export const MiniPreview = ({ elements, scale = 0.22 }: { elements?: any[]; scal
                 width: width * scale,
                 height: height * scale,
                 backgroundColor: el.fill_color || "transparent",
-                border: el.border_width ? `${el.border_width * scale}px solid ${el.border_color || "#000"}` : "none",
+                border: el.border_width
+                  ? `${el.border_width * scale}px solid ${el.border_color || "#000"}`
+                  : "none",
                 borderRadius: el.border_radius ? el.border_radius * scale : 0,
                 zIndex,
               }}
@@ -48,7 +55,7 @@ export const MiniPreview = ({ elements, scale = 0.22 }: { elements?: any[]; scal
           const x2 = Number.isNaN(Number(el.x2)) ? x : Number(el.x2);
           const minX = Math.min(x, x2);
           const bw = Math.abs(x2 - x) || 1;
-          const bh = (Number(el.border_width) || 1);
+          const bh = Number(el.border_width) || 1;
 
           return (
             <div
@@ -78,17 +85,24 @@ export const MiniPreview = ({ elements, scale = 0.22 }: { elements?: any[]; scal
                 height: width * scale,
                 backgroundColor: el.fill_color || "transparent",
                 borderRadius: "50%",
-                border: el.border_width ? `${el.border_width * scale}px solid ${el.border_color || "#000"}` : "none",
+                border: el.border_width
+                  ? `${el.border_width * scale}px solid ${el.border_color || "#000"}`
+                  : "none",
                 zIndex,
               }}
             />
           );
         }
 
-        if (el.element_type === "shape" && (el.shape_type === "path" || el.shape_type === "polygon")) {
+        if (
+          el.element_type === "shape" &&
+          (el.shape_type === "path" || el.shape_type === "polygon")
+        ) {
           const pts = Array.isArray(el.points)
             ? el.points.filter((p: any) => !Number.isNaN(Number(p))).join(" ")
-            : (typeof el.points === "string" ? el.points : "");
+            : typeof el.points === "string"
+              ? el.points
+              : "";
 
           return (
             <svg

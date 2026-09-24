@@ -26,6 +26,7 @@ import type {
   AIResponsePayload,
 } from "../../types/editor";
 import { fetchWithCaptcha } from "../../lib/apiWithCaptcha";
+import { trackFeature, trackAiCreditsConsumed } from "../../lib/analytics";
 
 interface AIAssistantSidebarProps {
   elements: EditorElement[];
@@ -267,6 +268,8 @@ export function AIAssistantSidebar({
 
       setResult(data.result || null);
       setFixes(data.fixes || []);
+      void trackFeature("aiAssistant");
+      void trackAiCreditsConsumed(1);
 
       // AUTOMATICALLY APPLY GENERATED ELEMENTS TO CANVAS IF RETURNED
       const returnedEls = (data as any).elements;

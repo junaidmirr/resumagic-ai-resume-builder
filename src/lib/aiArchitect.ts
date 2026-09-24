@@ -30,7 +30,7 @@ function cleanJSONResponse(raw: string): any {
     text = fenceMatch[1].trim();
   }
 
-  const startIdx = text.search(/[\{\[]/);
+  const startIdx = text.search(/[{[]/);
   if (startIdx !== -1) {
     const endChar = text[startIdx] === "{" ? "}" : "]";
     const lastIdx = text.lastIndexOf(endChar);

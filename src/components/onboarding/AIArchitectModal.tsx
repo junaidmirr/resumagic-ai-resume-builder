@@ -24,6 +24,7 @@ import {
   type DesignPlan,
 } from "../../lib/aiArchitect";
 import type { EditorElement } from "../../types/editor";
+import { trackFeature, trackAiCreditsConsumed } from "../../lib/analytics";
 
 interface AIArchitectModalProps {
   isOpen: boolean;
@@ -154,6 +155,9 @@ export function AIArchitectModal({
         await deductCredits(10).catch(console.error);
         refreshCredits();
       }
+
+      void trackFeature("aiArchitect");
+      void trackAiCreditsConsumed(10);
 
       onSuccess(elements, plan.title || "AI Architect Resume");
       onClose();
@@ -316,7 +320,8 @@ export function AIArchitectModal({
               {plan.special_elements && plan.special_elements.length > 0 && (
                 <div className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
                   <span className="text-[11px] font-bold text-indigo-500 block mb-1 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Engine Capabilities Activated:
+                    <Sparkles className="w-3 h-3" /> Engine Capabilities
+                    Activated:
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {plan.special_elements.map((feat, idx) => (

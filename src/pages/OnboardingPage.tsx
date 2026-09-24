@@ -30,6 +30,7 @@ import {
 } from "../lib/aiArchitect";
 import defaultLogoLight from "../assets/default.png";
 import defaultLogoDark from "../assets/default-dark.png";
+import { trackFeature } from "../lib/analytics";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -113,6 +114,7 @@ export function OnboardingPage() {
         title,
         result.elements,
       );
+      void trackFeature("linkedInImport");
       localStorage.setItem("current_resume_id", id);
       navigate("/editor");
     } catch (err: any) {
@@ -155,6 +157,7 @@ export function OnboardingPage() {
         elements,
       );
 
+      void trackFeature("onboarding");
       localStorage.setItem("current_resume_id", id);
       navigate("/editor");
     } catch (err: any) {

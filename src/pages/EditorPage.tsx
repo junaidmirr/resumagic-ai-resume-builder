@@ -28,6 +28,7 @@ import { UpgradeTriggerModal } from "../components/common/UpgradeTriggerModal";
 import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
 import { PagePropertiesPanel } from "../components/editor/PagePropertiesPanel";
 import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
+import { trackPdfDownload, trackFeature } from "../lib/analytics";
 import {
   Trash2,
   RotateCcw,
@@ -1741,6 +1742,7 @@ export function EditorPage() {
         }
 
         setElements((prev) => [...prev, ...newEls]);
+        void trackFeature("linkedInImport");
         alert("LinkedIn profile imported!");
         setLinkedinUrl("");
       }
@@ -2385,6 +2387,8 @@ export function EditorPage() {
           a.click();
           a.remove();
           refreshCredits();
+          void trackPdfDownload();
+          void trackFeature("pdfDownload");
           serverSuccess = true;
         }
       } else if (res && res.status === 402) {
@@ -2455,6 +2459,8 @@ export function EditorPage() {
           );
           pdf.save(`${resumeTitle || "resume"}.pdf`);
           refreshCredits();
+          void trackPdfDownload();
+          void trackFeature("pdfDownload");
           serverSuccess = true;
         } else {
           alert(

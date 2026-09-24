@@ -25,6 +25,7 @@ import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Navbar } from "../components/landing/Navbar";
 import { Footer } from "../components/landing/Footer";
+import { trackFeature } from "../lib/analytics";
 
 const loadCashfreeSDK = (mode: string = "sandbox"): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -207,6 +208,7 @@ export default function PricingPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setAppliedPromo(data);
+        void trackFeature("promoRedeemed");
         await alert({ title: "Coupon Applied!", description: data.message });
       } else {
         await alert({
@@ -387,6 +389,7 @@ export default function PricingPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         await refreshCredits();
+        void trackFeature("referralUsed");
         await alert({
           title: "Referral Claimed!",
           description: data.message,

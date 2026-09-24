@@ -17,6 +17,7 @@ import { COVER_LETTER_TEMPLATES } from "../../lib/coverLetterTemplates";
 import type { CoverLetterTemplate } from "../../lib/coverLetterTemplates";
 import { useAuth } from "../../context/AuthContext";
 import { UpgradeTriggerModal } from "../common/UpgradeTriggerModal";
+import { trackFeature, trackTemplateUse } from "../../lib/analytics";
 
 interface CoverLetterTemplateModalProps {
   isOpen: boolean;
@@ -78,6 +79,8 @@ export function CoverLetterTemplateModal({
       setShowUpgradeModal(true);
       return;
     }
+    void trackFeature("coverLetter");
+    void trackTemplateUse(selectedTemplateId);
     onSelectTemplate(selectedTemplateId);
     onClose();
   };

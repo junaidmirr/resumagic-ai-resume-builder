@@ -38,6 +38,7 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import defaultLogoLight from "../assets/default.png";
 import defaultLogoDark from "../assets/default-dark.png";
+import { trackTemplateUse, trackFeature } from "../lib/analytics";
 import emptyStateImg from "../assets/empty-state.png";
 import { NotificationCenter } from "../components/notifications/NotificationCenter";
 import { TemplatesView } from "../components/dashboard/TemplatesView";
@@ -243,6 +244,8 @@ export function DashboardPage() {
       const elements = template.generateElements();
       localStorage.setItem("designed_resume", JSON.stringify(elements));
       localStorage.removeItem("current_resume_id");
+      void trackTemplateUse(template.id);
+      void trackFeature("resumeTemplate");
       navigate("/editor");
     } catch (err) {
       console.error("Failed to create from template:", err);

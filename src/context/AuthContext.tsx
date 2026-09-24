@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, googleProvider, db } from "../lib/firebase";
+import { trackSignup, trackLogin, trackActiveUser } from "../lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -285,6 +286,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         result.user.displayName,
       );
       await refreshCredits();
+      void trackLogin("google");
+      void trackActiveUser(result.user.uid);
     } catch (error) {
       console.error("Login Error:", error);
       throw error;
@@ -304,6 +307,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("[Auth] User logged in but email is unverified.");
       }
       await refreshCredits();
+      void trackLogin("email");
+      void trackActiveUser(user.uid);
     } catch (error) {
       console.error("Login Error:", error);
       throw error;
@@ -315,6 +320,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       await initUserInDB(result.user.uid, email, name || "");
       await refreshCredits();
+      void trackSignup("email");
+      void trackActiveUser(result.user.uid);
 
       // Trigger official Firebase Email Verification
       try {

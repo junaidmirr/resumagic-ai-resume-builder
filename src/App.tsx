@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./components/theme-provider";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -23,11 +23,12 @@ import { StatusPage } from "./pages/StatusPage";
 import { AboutUsPage } from "./pages/AboutUsPage";
 import { ContactPage } from "./pages/ContactPage";
 
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { AuthModal } from "./components/onboarding/AuthModal";
 import { DialogProvider } from "./context/DialogContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { trackPageVisit } from "./lib/analytics";
 
 // Dynamic Code-Splitting Lazy Imports for Secret Admin Panel (kept out of initial client bundle)
 const AdminLoginPage = lazy(() =>
@@ -54,6 +55,17 @@ function AdminLoadingFallback() {
 
 import { CaptchaProvider } from "./context/CaptchaContext";
 
+/** Fires a page-visit event whenever the URL pathname changes */
+function RouteAnalytics() {
+  const location = useLocation();
+  useEffect(() => {
+    // Remove dynamic segments like /editor?id=xxx → just use pathname
+    const slug = location.pathname.replace(/^\//, "") || "home";
+    void trackPageVisit(slug);
+  }, [location.pathname]);
+  return null;
+}
+
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
@@ -63,6 +75,7 @@ function App() {
             <AuthProvider>
               <NotificationProvider>
                 <BrowserRouter>
+                  <RouteAnalytics />
                   <AuthModal />
                   <Routes>
                     <Route path="/" element={<LandingPage />} />

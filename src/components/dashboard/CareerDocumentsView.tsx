@@ -35,6 +35,11 @@ import {
 } from "../../lib/careerDocGenerator";
 import { CoverLetterTemplateModal } from "./CoverLetterTemplateModal";
 import { buildCoverLetterCanvasElements } from "../../lib/coverLetterTemplates";
+import {
+  trackCareerDocGenerate,
+  trackFeature,
+  trackAiCreditsConsumed,
+} from "../../lib/analytics";
 
 interface SavedDocument {
   id: string;
@@ -260,6 +265,9 @@ export function CareerDocumentsView() {
           data.content,
           selectedType,
         );
+        void trackCareerDocGenerate(selectedType);
+        void trackFeature("careerDoc");
+        void trackAiCreditsConsumed(1);
         await refreshCredits().catch(() => {});
       } else {
         throw new Error(data.error || "Failed to generate document");

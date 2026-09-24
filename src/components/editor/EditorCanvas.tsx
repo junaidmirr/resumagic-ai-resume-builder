@@ -319,7 +319,7 @@ export function EditorCanvas({
       const nw = (primaryOrig as any).width || 100;
       const nh = (primaryOrig as any).height || 100;
 
-      let newGuides: { axis: "x" | "y"; coord: number }[] = [];
+      const newGuides: { axis: "x" | "y"; coord: number }[] = [];
       if (snapEnabled) {
         const threshold = 5 / scale;
 

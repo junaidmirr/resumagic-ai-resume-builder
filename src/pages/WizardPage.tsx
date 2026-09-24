@@ -22,6 +22,7 @@ import { generateWizardElements } from "../lib/wizardGenerator";
 import defaultLogoLight from "../assets/default.png";
 import defaultLogoDark from "../assets/default-dark.png";
 import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
+import { trackFeature, trackTemplateUse } from "../lib/analytics";
 
 // Types
 export interface WizardData {
@@ -198,6 +199,10 @@ export function WizardPage() {
         title,
         elements,
       );
+      void trackFeature("wizardBuild");
+      if (selectedTemplate?.id) {
+        void trackTemplateUse(selectedTemplate.id);
+      }
       localStorage.setItem("current_resume_id", id);
       navigate("/editor");
     } catch (error) {

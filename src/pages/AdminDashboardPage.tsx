@@ -34,8 +34,10 @@ import {
   Copy,
   Check,
   Tag,
+  BarChart3,
 } from "lucide-react";
 import defaultLogoDark from "../assets/default.png";
+import { AnalyticsDashboard } from "../components/admin/AnalyticsDashboard";
 
 interface UserDoc {
   uid: string;
@@ -65,7 +67,7 @@ export function AdminDashboardPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<
-    "users" | "notifications" | "promos"
+    "users" | "notifications" | "promos" | "analytics"
   >("users");
 
   // Notification Dispatcher Form State
@@ -447,6 +449,17 @@ export function AdminDashboardPage() {
             }`}
           >
             <Bell className="w-4 h-4" /> Push Notifications & Rewards
+          </button>
+
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border-2 ${
+              activeTab === "analytics"
+                ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-lg shadow-indigo-500/10"
+                : "border-transparent text-slate-400 hover:text-white hover:bg-slate-900"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" /> Analytics
           </button>
         </div>
 
@@ -904,6 +917,13 @@ export function AdminDashboardPage() {
                 )}
               </button>
             </form>
+          </div>
+        )}
+
+        {/* TAB 4: Analytics */}
+        {activeTab === "analytics" && (
+          <div className="animate-in fade-in slide-in-from-bottom-2">
+            <AnalyticsDashboard />
           </div>
         )}
       </div>

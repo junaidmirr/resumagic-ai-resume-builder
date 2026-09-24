@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { templates, type Template } from "../../lib/templates";
 import { TemplateThumbnailPreview } from "./TemplateThumbnailPreview";
 import { Search, Loader2, Star, Download, Crown, Lock } from "lucide-react";
+import { trackTemplateUse, trackFeature } from "../../lib/analytics";
 
 interface TemplatesViewProps {
   onUseTemplate: (template: Template) => void;
@@ -16,6 +17,13 @@ export function TemplatesView({
   const [filter, setFilter] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  /** Wrap template selection with analytics then call parent handler */
+  const handleUseTemplate = (template: Template) => {
+    void trackTemplateUse(template.id);
+    void trackFeature("resumeTemplate");
+    onUseTemplate(template);
+  };
 
   const categories = [
     "All",
@@ -113,7 +121,7 @@ export function TemplatesView({
                       className={`hidden md:flex absolute inset-0 bg-app-surface/80 backdrop-blur-[2px] items-center justify-center transition-opacity duration-300 ${hoveredId === template.id ? "opacity-100" : "opacity-0"}`}
                     >
                       <button
-                        onClick={() => onUseTemplate(template)}
+                        onClick={() => handleUseTemplate(template)}
                         disabled={isCreating}
                         className="translate-y-4 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 px-6 py-3 rounded-xl font-bold shadow-lg shadow-slate-900/30 dark:shadow-white/10 disabled:opacity-50 cursor-pointer"
                       >
@@ -145,7 +153,7 @@ export function TemplatesView({
 
                     {/* Mobile Touch Use Template Button */}
                     <button
-                      onClick={() => onUseTemplate(template)}
+                      onClick={() => handleUseTemplate(template)}
                       disabled={isCreating}
                       className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl text-xs font-bold md:hidden flex items-center justify-center gap-1.5 shadow-md mt-1 cursor-pointer"
                     >

@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "analytics": {
+      ".read": "auth != null",
+      ".write": true
+    }
+  }
+}

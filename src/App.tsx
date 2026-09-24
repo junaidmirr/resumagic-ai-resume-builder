@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { ThemeProvider } from "./components/theme-provider";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -13,6 +19,7 @@ import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { TermsOfService } from "./pages/TermsOfService";
 import ProfilePage from "./pages/ProfilePage";
 import PricingPage from "./pages/PricingPage";
+import { ErrorPage } from "./pages/ErrorPage";
 
 // Resource & Company Pages
 import { CareerBlogPage } from "./pages/CareerBlogPage";
@@ -55,14 +62,25 @@ function AdminLoadingFallback() {
 
 import { CaptchaProvider } from "./context/CaptchaContext";
 
-/** Fires a page-visit event whenever the URL pathname changes */
+/** Fires a page-visit event whenever the URL pathname changes and monitors offline state */
 function RouteAnalytics() {
   const location = useLocation();
+  const navigate = useNavigate();
+
   useEffect(() => {
     // Remove dynamic segments like /editor?id=xxx → just use pathname
     const slug = location.pathname.replace(/^\//, "") || "home";
     void trackPageVisit(slug);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      navigate("/offline");
+    };
+    window.addEventListener("offline", handleOffline);
+    return () => window.removeEventListener("offline", handleOffline);
+  }, [navigate]);
+
   return null;
 }
 
@@ -187,6 +205,23 @@ function App() {
                     {/* Legal Routes */}
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
+
+                    {/* Dedicated Error Pages */}
+                    <Route path="/404" element={<ErrorPage type="404" />} />
+                    <Route path="/403" element={<ErrorPage type="403" />} />
+                    <Route path="/500" element={<ErrorPage type="500" />} />
+                    <Route path="/503" element={<ErrorPage type="503" />} />
+                    <Route
+                      path="/maintenance"
+                      element={<ErrorPage type="503" />}
+                    />
+                    <Route
+                      path="/offline"
+                      element={<ErrorPage type="offline" />}
+                    />
+
+                    {/* Catch-All Unmatched Route -> 404 */}
+                    <Route path="*" element={<ErrorPage type="404" />} />
                   </Routes>
                 </BrowserRouter>
               </NotificationProvider>

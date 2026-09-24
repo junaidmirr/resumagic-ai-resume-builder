@@ -99,8 +99,10 @@ export function AdminDashboardPage() {
   // Security Protection Guard
   useEffect(() => {
     if (!authLoading) {
-      if (!user || !isAdmin) {
+      if (!user) {
         navigate("/worklabs_adminforresumagic");
+      } else if (!isAdmin) {
+        navigate("/403");
       }
     }
   }, [user, isAdmin, authLoading, navigate]);

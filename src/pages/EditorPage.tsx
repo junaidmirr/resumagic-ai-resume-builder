@@ -2130,7 +2130,6 @@ export function EditorPage() {
         headers: {
           "Content-Type": "application/json",
           "X-User-ID": user.uid,
-          "X-Skip-Credit-Check": "true",
         },
         body: JSON.stringify({ action, text: el.text }),
       });

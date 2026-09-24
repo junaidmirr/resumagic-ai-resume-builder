@@ -338,7 +338,6 @@ export function WizardPage() {
         headers: {
           "Content-Type": "application/json",
           "X-User-ID": user?.uid || "anonymous",
-          "X-Skip-Credit-Check": "true",
         },
         body: JSON.stringify({ action: "enhance", text: data.summary }),
       });

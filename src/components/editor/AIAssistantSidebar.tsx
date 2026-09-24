@@ -225,7 +225,6 @@ export function AIAssistantSidebar({
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         "X-User-ID": user.uid,
-        "X-Skip-Credit-Check": "true",
       };
       if (idToken) {
         headers["Authorization"] = `Bearer ${idToken}`;

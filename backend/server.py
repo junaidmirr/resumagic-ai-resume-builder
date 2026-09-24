@@ -44,6 +44,22 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB Max Body Size Limit
 CORS(app)  # Allow React frontend to ping this API
 perf_engine.init_app(app)  # Initialize Python Performance Engine Middleware
 
+@app.before_request
+def before_request_observability():
+    from backend.observability import observability
+    observability.start_request()
+
+@app.after_request
+def after_request_observability(response):
+    from backend.observability import observability
+    observability.end_request(response.status_code)
+    # Echo Correlation Request ID
+    from flask import g
+    req_id = getattr(g, "request_id", None)
+    if req_id:
+        response.headers["X-Request-ID"] = req_id
+    return response
+
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({"error": "Payload too large. Maximum allowed request size is 10MB."}), 413
@@ -103,37 +119,32 @@ else:
 
 # Global Parser Instance deferred to lazy initialization inside routes
 
-def check_user_has_credits(uid, cost=5):
-    """Verifies user has sufficient credits without deducting."""
-    from flask import request
-    if request.headers.get("X-Skip-Credit-Check") == "true" or not db_admin:
-        return True
-    try:
-        user_ref = db_admin.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if not user_doc.exists:
-            return True
-        credits = user_doc.to_dict().get('credits', 0)
-        return credits >= cost
-    except Exception as e:
-        print(f"❌ Credit check error: {e}")
-        return True
+from backend.credit_manager import CreditManager
+from backend.redis_limiter import DistributedRateLimiter
+from backend.observability import observability
+from backend.schema_validator import DocumentElementValidator
 
-def deduct_user_credits(uid, cost=5):
-    """Deducts credits ONLY after successful operation."""
-    from flask import request
-    if request.headers.get("X-Skip-Credit-Check") == "true" or not db_admin:
-        return True
-    try:
-        user_ref = db_admin.collection('users').document(uid)
-        user_doc = user_ref.get()
-        if user_doc.exists:
-            credits = user_doc.to_dict().get('credits', 0)
-            user_ref.update({'credits': max(0, credits - cost)})
-        return True
-    except Exception as e:
-        print(f"❌ Credit deduction error: {e}")
+credit_manager = CreditManager(db_admin)
+rate_limiter = DistributedRateLimiter()
+
+def check_user_has_credits(uid, cost=5):
+    """Verifies user has sufficient credits using CreditManager."""
+    if not uid:
         return False
+    # If explicitly running in offline test mode without db
+    if os.environ.get("FLASK_ENV") == "test" and not db_admin:
+        return True
+    has_cred, _ = credit_manager.check_credits(uid, cost)
+    return has_cred
+
+def deduct_user_credits(uid, cost=5, idempotency_key=None, description="AI Generation"):
+    """Deducts credits transactionally and idempotently."""
+    if not uid:
+        return False
+    if os.environ.get("FLASK_ENV") == "test" and not db_admin:
+        return True
+    success, _, _ = credit_manager.deduct_credits_transactional(uid, cost, idempotency_key, description)
+    return success
 
 def check_and_deduct_credits(uid, cost=5):
     """Legacy helper for backward compatibility."""
@@ -212,6 +223,14 @@ def get_performance_logs():
     lines = perf_engine.get_recent_log_entries(max_lines=max_lines)
     return jsonify({"logs": lines})
 
+@app.route("/api/performance/observability", methods=["GET"])
+def get_observability_metrics():
+    admin_uid = verify_admin_user(request)
+    if not admin_uid:
+        return jsonify({"error": "Admin authorization required."}), 403
+    from backend.observability import observability
+    return jsonify(observability.get_metrics_summary())
+
 def validate_json_payload(data, required_fields=None, field_types=None, max_string_len=10000):
     """Sanitizes & validates JSON request payload types, required fields, and bounds."""
     if not isinstance(data, dict):
@@ -234,109 +253,8 @@ def validate_json_payload(data, required_fields=None, field_types=None, max_stri
             
     return True, None
 
-# --- Rate Limiting & Anti-Abuse Cloudflare Turnstile Engine ---
-
-class AbuseRateLimiter:
-    """
-    Sliding window rate limiter with Cloudflare Turnstile Captcha verification challenge.
-    Protects PDF rendering and AI endpoints from automated abuse and volumetric floods.
-    """
-    def __init__(self):
-        import threading
-        from collections import defaultdict
-        self._lock = threading.Lock()
-        self._requests = defaultdict(list)
-        self._flagged = defaultdict(bool)
-        
-        # Rate limit configurations: (max_requests, window_seconds)
-        self.limits = {
-            "pdf": (8, 60),      # max 8 PDF exports per 60 seconds
-            "ai": (15, 60),      # max 15 AI operations per 60 seconds
-            "parse": (6, 60),    # max 6 document parses per 60 seconds
-            "auth": (5, 60),     # max 5 auth/otp requests per 60 seconds
-        }
-
-    def _get_client_key(self, req, category: str) -> str:
-        uid = req.headers.get("X-User-ID", "").strip()
-        client_ip = req.headers.get("X-Forwarded-For", req.remote_addr or "127.0.0.1").split(",")[0].strip()
-        identity = client_ip if category == "auth" else (uid if uid else client_ip)
-        return f"{category}:{identity}"
-
-    def check_and_record(self, req, category: str = "ai"):
-        """
-        Returns (allowed: bool, response_tuple_or_None).
-        If not allowed, returns 429 response demanding Cloudflare Turnstile captcha solve.
-        """
-        key = self._get_client_key(req, category)
-        max_reqs, window_sec = self.limits.get(category, (15, 60))
-        now = time.time()
-
-        # Check if Turnstile token is supplied in header or JSON payload
-        turnstile_token = req.headers.get("X-Turnstile-Token", "").strip()
-        if not turnstile_token and req.is_json:
-            try:
-                data = req.get_json(silent=True) or {}
-                turnstile_token = str(data.get("turnstile_token", "")).strip()
-            except Exception:
-                turnstile_token = ""
-
-        # If turnstile token is provided, verify it to reset rate limits
-        if turnstile_token:
-            client_ip = req.headers.get("X-Forwarded-For", req.remote_addr or "127.0.0.1").split(",")[0].strip()
-            if self.verify_turnstile_token(turnstile_token, client_ip):
-                with self._lock:
-                    self._requests[key] = []
-                    self._flagged[key] = False
-                print(f"[RateLimiter] ✅ Solved Cloudflare Turnstile challenge for {key}. Rate limit reset.")
-                return True, None
-
-        with self._lock:
-            # Purge expired timestamps
-            cutoff = now - window_sec
-            self._requests[key] = [ts for ts in self._requests[key] if ts > cutoff]
-
-            # If client exceeded limit or was previously flagged until captcha solve
-            if len(self._requests[key]) >= max_reqs or self._flagged[key]:
-                self._flagged[key] = True
-                print(f"[RateLimiter] 🚨 Rate limit exceeded for {key} ({len(self._requests[key])}/{max_reqs} in {window_sec}s). Requiring Turnstile Captcha.")
-                error_payload = {
-                    "status": "rate_limited",
-                    "error": f"Security verification required: High request volume detected. Please solve the Cloudflare check below to continue.",
-                    "require_captcha": True,
-                    "category": category
-                }
-                return False, (jsonify(error_payload), 429)
-
-            # Record this request timestamp
-            self._requests[key].append(now)
-            return True, None
-
-    def verify_turnstile_token(self, token: str, remote_ip: str) -> bool:
-        if not token:
-            return False
-        secret_key = os.environ.get("CLOUDFLARE_TURNSTILE_SECRET_KEY")
-        if not secret_key or secret_key == "your_secret_key_here":
-            return True  # If unconfigured in local dev, allow
-        try:
-            resp = requests.post(
-                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                data={
-                    "secret": secret_key,
-                    "response": token,
-                    "remoteip": remote_ip
-                },
-                timeout=5
-            )
-            data = resp.json()
-            return data.get("success", False)
-        except Exception as e:
-            print(f"[RateLimiter] Turnstile verification exception: {e}")
-            return False
-
-rate_limiter = AbuseRateLimiter()
-
 def check_rate_limit(req, category: str = "ai"):
-    """Convenience helper to enforce rate limiting on endpoints."""
+    """Convenience helper to enforce distributed rate limiting on endpoints."""
     return rate_limiter.check_and_record(req, category)
 
 # --- Cloudinary Endpoints ---
@@ -773,10 +691,11 @@ def generate_design_route():
             return jsonify({"error": "No data provided"}), 400
             
         parser = AIParserEngine()
-        elements = parser.generate_from_scratch(data)
+        raw_elements = parser.generate_from_scratch(data)
+        elements = DocumentElementValidator.validate_and_normalize_elements(raw_elements)
         
         if uid:
-            deduct_user_credits(uid, 5)
+            deduct_user_credits(uid, 5, description="Generate Resume Design")
             
         return jsonify({"elements": elements})
     except Exception as e:

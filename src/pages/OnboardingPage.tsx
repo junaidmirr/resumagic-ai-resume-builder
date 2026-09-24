@@ -462,7 +462,7 @@ export function OnboardingPage() {
               {enhancementPrompt && (
                 <div className="mt-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                   <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">
-                    ✨ Applying: "{enhancementPrompt.slice(0, 80)}
+                    Applying: "{enhancementPrompt.slice(0, 80)}
                     {enhancementPrompt.length > 80 ? "…" : ""}"
                   </p>
                 </div>

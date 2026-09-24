@@ -99,7 +99,7 @@ const subscriptionPlans = [
   },
   {
     id: "pro",
-    name: "Pro Plan ⭐",
+    name: "Pro Plan",
     monthlyPrice: 199, // Launch promo price (regular ₹299)
     monthlyPriceOriginal: 299,
     yearlyPrice: 2499,
@@ -207,7 +207,7 @@ export default function PricingPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setAppliedPromo(data);
-        await alert({ title: "Coupon Applied! 🎉", description: data.message });
+        await alert({ title: "Coupon Applied!", description: data.message });
       } else {
         await alert({
           title: "Invalid Coupon",
@@ -291,7 +291,7 @@ export default function PricingPage() {
           window.location.pathname,
         );
         await alert({
-          title: "Payment Successful! 🎉",
+          title: "Payment Successful!",
           description:
             data.message ||
             `Payment verified and ${data.credits_added || ""} AI credits added to your account!`,
@@ -388,7 +388,7 @@ export default function PricingPage() {
       if (res.ok && data.success) {
         await refreshCredits();
         await alert({
-          title: "Referral Claimed! 🎁",
+          title: "Referral Claimed!",
           description: data.message,
         });
       } else {
@@ -888,7 +888,7 @@ export default function PricingPage() {
                 <button
                   onClick={() => handlePurchase(pack.id)}
                   disabled={loadingPlan === pack.id}
-                  className="w-full py-2.5 rounded-xl font-bold bg-brand-primary/10 text-brand-primary hover:bg-brand-primary hover:text-white text-xs transition-all"
+                  className="w-full py-2.5 rounded-xl font-bold bg-brand-primary/10 text-brand-primary hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 text-xs transition-all cursor-pointer border border-brand-primary/20 hover:border-transparent"
                 >
                   BUY PACK (₹{getDiscountedPrice(pack.price)})
                 </button>

@@ -226,7 +226,7 @@ export function AIArchitectModal({
                       onClick={() => setPrompt(chip)}
                       className="text-xs px-3 py-1.5 bg-app-surface border border-app-border hover:border-indigo-500/50 text-app-text-muted hover:text-app-text rounded-lg transition-all text-left"
                     >
-                      💡 {chip}
+                      {chip}
                     </button>
                   ))}
                 </div>
@@ -315,8 +315,8 @@ export function AIArchitectModal({
               {/* Special Features */}
               {plan.special_elements && plan.special_elements.length > 0 && (
                 <div className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
-                  <span className="text-[11px] font-bold text-indigo-500 block mb-1">
-                    ✨ Engine Capabilities Activated:
+                  <span className="text-[11px] font-bold text-indigo-500 block mb-1 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Engine Capabilities Activated:
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {plan.special_elements.map((feat, idx) => (
@@ -439,7 +439,7 @@ export function AIArchitectModal({
                   </span>
                 ) : (
                   <>
-                    <ArrowRight className="w-4 h-4" /> Proceed & Build Resume 🚀
+                    <ArrowRight className="w-4 h-4" /> Proceed & Build Resume
                   </>
                 )}
               </button>

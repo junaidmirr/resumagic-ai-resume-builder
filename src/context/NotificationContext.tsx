@@ -104,7 +104,7 @@ export function NotificationProvider({
             localStorage.setItem(`created_verification_${user.uid}`, "true");
             // Auto-create email verification reward notification in Firestore
             addDoc(notifRef, {
-              title: "🎉 Email Verified! Claim 15 Free AI Credits",
+              title: "Email Verified! Claim 15 Free AI Credits",
               message:
                 "Congratulations! Your email address has been verified. Claim your free 15 AI Credits now to start building resumes.",
               type: "verification",

@@ -49,56 +49,48 @@ const mainDocTypes = [
     id: "cover_letter",
     label: "Job Cover Letter",
     icon: FileText,
-    emoji: "💼",
     hint: "Letter for job applications",
   },
   {
     id: "cold_email",
     label: "Recruiter Email",
     icon: Mail,
-    emoji: "✉️",
     hint: "Outreach to HR & managers",
   },
   {
     id: "sop",
     label: "University SOP",
     icon: GraduationCap,
-    emoji: "🎓",
     hint: "Admissions essay",
   },
   {
     id: "thank_you",
     label: "Thank You Email",
     icon: Send,
-    emoji: "🙏",
     hint: "Follow-up after interview",
   },
   {
     id: "resignation",
     label: "Resignation Letter",
     icon: Briefcase,
-    emoji: "📝",
     hint: "Official 2-week notice",
   },
   {
     id: "salary_negotiation",
     label: "Salary Negotiation",
     icon: DollarSign,
-    emoji: "💰",
     hint: "Ask for higher pay",
   },
   {
     id: "linkedin_bio",
     label: "LinkedIn Bio",
     icon: Share2,
-    emoji: "🌐",
     hint: "Profile about section",
   },
   {
     id: "lor",
     label: "Recommendation LOR",
     icon: UserCheck,
-    emoji: "🌟",
     hint: "Reference letter",
   },
 ];
@@ -304,7 +296,8 @@ export function CareerDocumentsView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-app-text flex items-center gap-2">
-            <span>✨</span> What do you need written today?
+            <Sparkles className="w-5 h-5 text-brand-primary shrink-0" />
+            <span>What do you need written today?</span>
           </h2>
           <p className="text-xs text-app-text-muted mt-0.5">
             Select a document type, type your target role & company, and AI does
@@ -366,7 +359,7 @@ export function CareerDocumentsView() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleOpenInCanvas(doc.content, doc.title)}
-                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-brand-primary to-indigo-600 hover:from-indigo-600 hover:to-brand-primary text-white font-bold text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                     >
                       <Palette className="w-3.5 h-3.5" />
                       <span>Design in Canvas</span>
@@ -403,26 +396,33 @@ export function CareerDocumentsView() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {mainDocTypes.map((doc) => {
                 const isSelected = selectedType === doc.id;
+                const DocIcon = doc.icon;
                 return (
                   <button
                     key={doc.id}
                     onClick={() => setSelectedType(doc.id)}
-                    className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
+                    className={`p-3 rounded-2xl text-left transition-all flex items-center gap-2.5 cursor-pointer border-2 ${
                       isSelected
-                        ? "bg-brand-primary text-white border-brand-primary shadow-md"
-                        : "bg-app-bg border-app-border text-app-text hover:border-brand-primary/40"
+                        ? "border-brand-primary dark:border-brand-accent bg-brand-primary/5 dark:bg-brand-accent/5 shadow-xs"
+                        : "border-app-border bg-app-bg text-app-text hover:border-brand-primary/40"
                     }`}
                   >
-                    <span className="text-lg shrink-0">{doc.emoji}</span>
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                        isSelected
+                          ? "bg-brand-primary/15 text-brand-primary dark:bg-brand-accent/20 dark:text-brand-accent"
+                          : "bg-app-surface text-app-text-muted border border-app-border"
+                      }`}
+                    >
+                      <DocIcon className="w-4 h-4 shrink-0" />
+                    </div>
                     <div className="min-w-0">
                       <div
-                        className={`font-black text-xs truncate ${isSelected ? "text-white" : "text-app-text"}`}
+                        className={`font-black text-xs truncate ${isSelected ? "text-brand-primary dark:text-brand-accent" : "text-app-text"}`}
                       >
                         {doc.label}
                       </div>
-                      <div
-                        className={`text-[10px] truncate ${isSelected ? "text-white/80" : "text-app-text-muted"}`}
-                      >
+                      <div className="text-[10px] truncate text-app-text-muted">
                         {doc.hint}
                       </div>
                     </div>
@@ -476,7 +476,7 @@ export function CareerDocumentsView() {
               <button
                 onClick={handleGenerate}
                 disabled={generating}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 rounded-xl font-bold bg-brand-primary hover:bg-brand-secondary text-white text-xs shadow-md transition-all flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-xs shadow-md transition-all flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
               >
                 {generating ? (
                   <>
@@ -501,8 +501,10 @@ export function CareerDocumentsView() {
               className="bg-app-surface border-2 border-brand-primary/40 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4"
             >
               <div className="flex items-center justify-between border-b border-app-border pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">🎉</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
                   <div>
                     <h4 className="font-black text-sm text-app-text">
                       Your Generated {activeDoc.label}
@@ -516,7 +518,7 @@ export function CareerDocumentsView() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => handleOpenInCanvas()}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-brand-primary to-indigo-600 hover:from-indigo-600 hover:to-brand-primary text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-brand-primary/20 active:scale-95 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-indigo-500/20 active:scale-95 cursor-pointer"
                   >
                     <Palette className="w-3.5 h-3.5" />
                     <span>Design in Canvas</span>

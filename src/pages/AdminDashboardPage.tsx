@@ -417,10 +417,10 @@ export function AdminDashboardPage() {
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <button
             onClick={() => setActiveTab("users")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border-2 ${
               activeTab === "users"
-                ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900"
+                ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-lg shadow-indigo-500/10"
+                : "border-transparent text-slate-400 hover:text-white hover:bg-slate-900"
             }`}
           >
             <Users className="w-4 h-4" /> User Management ({totalUsersCount})
@@ -428,10 +428,10 @@ export function AdminDashboardPage() {
 
           <button
             onClick={() => setActiveTab("promos")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border-2 ${
               activeTab === "promos"
-                ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900"
+                ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-lg shadow-indigo-500/10"
+                : "border-transparent text-slate-400 hover:text-white hover:bg-slate-900"
             }`}
           >
             <Gift className="w-4 h-4" /> Promo Code Generator (
@@ -440,10 +440,10 @@ export function AdminDashboardPage() {
 
           <button
             onClick={() => setActiveTab("notifications")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border-2 ${
               activeTab === "notifications"
-                ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900"
+                ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-lg shadow-indigo-500/10"
+                : "border-transparent text-slate-400 hover:text-white hover:bg-slate-900"
             }`}
           >
             <Bell className="w-4 h-4" /> Push Notifications & Rewards
@@ -649,10 +649,10 @@ export function AdminDashboardPage() {
                       <button
                         type="button"
                         onClick={() => setDiscountType("percent")}
-                        className={`py-2 rounded-xl text-xs font-bold border ${
+                        className={`py-2 rounded-xl text-xs font-bold border-2 cursor-pointer transition-all ${
                           discountType === "percent"
-                            ? "bg-brand-primary text-white border-brand-primary"
-                            : "bg-slate-950 text-slate-400 border-slate-800"
+                            ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                            : "bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-600"
                         }`}
                       >
                         Percentage (%)
@@ -660,10 +660,10 @@ export function AdminDashboardPage() {
                       <button
                         type="button"
                         onClick={() => setDiscountType("fixed")}
-                        className={`py-2 rounded-xl text-xs font-bold border ${
+                        className={`py-2 rounded-xl text-xs font-bold border-2 cursor-pointer transition-all ${
                           discountType === "fixed"
-                            ? "bg-brand-primary text-white border-brand-primary"
-                            : "bg-slate-950 text-slate-400 border-slate-800"
+                            ? "bg-indigo-500/20 border-indigo-500 text-indigo-300"
+                            : "bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-600"
                         }`}
                       >
                         Fixed Amount (₹)

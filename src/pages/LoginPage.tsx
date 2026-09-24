@@ -576,9 +576,9 @@ export function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoggingIn || loading}
-                  className="relative w-full bg-brand-primary hover:bg-brand-secondary text-white font-semibold py-3.5 rounded-xl transition-all shadow-md shadow-brand-primary/20 disabled:opacity-70 flex justify-center items-center overflow-hidden group"
+                  className="relative w-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md disabled:opacity-70 flex justify-center items-center overflow-hidden group cursor-pointer"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
                   {isLoggingIn ? (
                     <Loader2 className="w-5 h-5 animate-spin relative z-10" />
                   ) : (
@@ -593,7 +593,7 @@ export function LoginPage() {
                     type="button"
                     onClick={handleSendOTP}
                     disabled={isLoggingIn}
-                    className="w-full bg-brand-primary hover:bg-brand-secondary text-white font-semibold py-3.5 rounded-xl transition-all shadow-md shadow-brand-primary/20 flex justify-center items-center"
+                    className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md flex justify-center items-center cursor-pointer"
                   >
                     {isLoggingIn ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -619,7 +619,7 @@ export function LoginPage() {
                         : handleVerifyAndReset
                     }
                     disabled={isLoggingIn}
-                    className="w-full bg-brand-primary hover:bg-brand-secondary text-white font-semibold py-3.5 rounded-xl transition-all shadow-md shadow-brand-primary/20 flex justify-center items-center"
+                    className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md flex justify-center items-center cursor-pointer"
                   >
                     {isLoggingIn ? (
                       <Loader2 className="w-5 h-5 animate-spin" />

@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Check if user is logged in
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if user owns the document by UID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper: Check if requesting user has admin role in their user document
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('admin', false) == true;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 1. USERS COLLECTION
+    // ─────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Users can read and update their own profile; admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
+
+      // Notifications Subcollection
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+
+      // Transactions Subcollection
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId) || isAdmin();
+        // Writes handled securely by server backend via Firebase Admin SDK
+        allow write: if isOwner(userId) || isAdmin();
+      }
+
+      // Uploaded Assets Subcollection
+      match /assets/{assetId} {
+        allow read, write, delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2. RESUMES COLLECTION
+    // ─────────────────────────────────────────────────────────────
+    match /resumes/{resumeId} {
+      // Users can only read their own resumes
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      // Users can only create resumes tagged with their own UID
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+
+      // Users can only update or delete their own resumes
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 3. PROMO CODES COLLECTION
+    // ─────────────────────────────────────────────────────────────
+    match /promo_codes/{code} {
+      // Any authenticated user can read active promo codes to validate them
+      allow read: if isAuthenticated();
+      // Only admins can create, update, or delete promo codes
+      allow write: if isAdmin();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 4. ORDERS & AUDIT LOGS
+    // ─────────────────────────────────────────────────────────────
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isAdmin()
+      );
+      // Writes typically handled by backend server via Admin SDK
+      allow write: if isAdmin();
+    }
+
+    // Default deny for any unspecified collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

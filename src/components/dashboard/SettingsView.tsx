@@ -41,22 +41,22 @@ import {
 const CARTOON_AVATARS = [
   {
     id: "astro_dev",
-    name: "Astro Dev 🚀",
+    name: "Astro Dev",
     url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%236366f1'/><circle cx='50' cy='40' r='20' fill='%23ffe0b2'/><circle cx='43' cy='38' r='3' fill='%232d3748'/><circle cx='57' cy='38' r='3' fill='%232d3748'/><path d='M44 48 Q50 54 56 48' stroke='%23e53e3e' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M25 80 C25 62 75 62 75 80' fill='%234338ca'/><circle cx='70' cy='30' r='8' fill='%23fbbf24'/></svg>",
   },
   {
     id: "tech_lead",
-    name: "Tech Lead 💻",
+    name: "Tech Lead",
     url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%230d9488'/><circle cx='50' cy='40' r='20' fill='%23fde047'/><circle cx='43' cy='38' r='3' fill='%231e293b'/><circle cx='57' cy='38' r='3' fill='%231e293b'/><path d='M44 48 Q50 53 56 48' stroke='%230f766e' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M20 85 C20 62 80 62 80 85' fill='%23115e59'/><rect x='32' y='22' width='36' height='10' rx='3' fill='%230f766e'/></svg>",
   },
   {
     id: "creative_designer",
-    name: "Designer 🎨",
+    name: "Designer",
     url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23ec4899'/><circle cx='50' cy='40' r='20' fill='%23ffedd5'/><circle cx='43' cy='38' r='3' fill='%23831843'/><circle cx='57' cy='38' r='3' fill='%23831843'/><path d='M45 49 Q50 54 55 49' stroke='%23be185d' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M22 82 C22 62 78 62 78 82' fill='%23be185d'/><path d='M30 25 C40 15 60 15 70 25' fill='%23f43f5e'/></svg>",
   },
   {
     id: "executive_pro",
-    name: "Executive 👔",
+    name: "Executive",
     url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%238b5cf6'/><circle cx='50' cy='40' r='20' fill='%23fed7aa'/><circle cx='43' cy='38' r='3' fill='%234c1d95'/><circle cx='57' cy='38' r='3' fill='%234c1d95'/><path d='M44 48 Q50 53 56 48' stroke='%236d28d9' stroke-width='2.5' fill='none' stroke-linecap='round'/><path d='M22 82 C22 60 78 60 78 82' fill='%235b21b6'/><polygon points='50,55 46,75 50,72 54,75' fill='%23f59e0b'/></svg>",
   },
 ];
@@ -109,15 +109,15 @@ export function SettingsView() {
   const getPlanDisplayName = (planStr: string) => {
     switch (planStr) {
       case "student":
-        return "Student Plan 🎓";
+        return "Student Plan";
       case "starter":
         return "Starter Plan";
       case "pro":
-        return "Pro Plan ⭐";
+        return "Pro Plan";
       case "career_pro":
-        return "Career Pro Plan 🚀";
+        return "Career Pro Plan";
       case "lifetime":
-        return "Lifetime Pass 👑";
+        return "Lifetime Pass";
       default:
         return "Free Plan";
     }
@@ -147,7 +147,7 @@ export function SettingsView() {
 
       await refreshCredits();
       alert({
-        title: "Profile Preferences Saved! ✨",
+        title: "Profile Preferences Saved",
         description:
           "Your display name and profile picture have been updated across your account.",
       });
@@ -260,14 +260,14 @@ export function SettingsView() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all text-xs sm:text-sm font-semibold shrink-0 text-left ${
+                  className={`flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all text-xs sm:text-sm font-semibold shrink-0 text-left border-2 cursor-pointer ${
                     isActive
-                      ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
-                      : "text-app-text-muted hover:text-app-text hover:bg-app-surface"
+                      ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent font-bold shadow-xs"
+                      : "border-transparent text-app-text-muted hover:text-app-text hover:bg-app-surface"
                   }`}
                 >
                   <Icon
-                    className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-brand-primary"}`}
+                    className={`w-4 h-4 shrink-0 ${isActive ? "text-brand-primary dark:text-brand-accent" : "text-app-text-muted"}`}
                   />
                   <div className="hidden sm:block md:block">
                     <div className="leading-snug">{tab.label}</div>
@@ -431,7 +431,7 @@ export function SettingsView() {
                         <button
                           type="submit"
                           disabled={isSavingProfile}
-                          className="px-5 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white font-bold text-xs rounded-xl shadow-md shadow-brand-primary/20 transition-all active:scale-95 disabled:opacity-50"
+                          className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           {isSavingProfile ? "Saving..." : "Save Preferences"}
                         </button>

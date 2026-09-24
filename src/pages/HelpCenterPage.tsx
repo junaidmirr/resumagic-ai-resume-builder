@@ -156,10 +156,10 @@ export function HelpCenterPage() {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap border-2 cursor-pointer ${
                 activeCategory === cat
-                  ? "bg-brand-primary text-white shadow-md"
-                  : "bg-app-surface text-app-text-secondary border border-app-border hover:bg-brand-primary/10"
+                  ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent shadow-xs"
+                  : "bg-app-surface text-app-text-secondary border-transparent hover:bg-brand-primary/10"
               }`}
             >
               {cat}
@@ -207,7 +207,7 @@ export function HelpCenterPage() {
           </p>
           <Link
             to="/contact"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors text-sm shadow-md"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors text-sm shadow-md"
           >
             Contact Support Team
           </Link>

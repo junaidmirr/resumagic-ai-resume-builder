@@ -390,10 +390,10 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
         <div className="grid grid-cols-3 gap-1 p-1 bg-app-bg rounded-xl border border-app-border text-[11px]">
           <button
             onClick={() => setActiveSubTab("icons")}
-            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 border-2 cursor-pointer ${
               activeSubTab === "icons"
-                ? "bg-brand-primary text-white shadow-sm"
-                : "text-app-text-muted hover:text-app-text"
+                ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent"
+                : "border-transparent text-app-text-muted hover:text-app-text"
             }`}
           >
             <Sparkles size={13} />
@@ -401,10 +401,10 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
           </button>
           <button
             onClick={() => setActiveSubTab("photos")}
-            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 border-2 cursor-pointer ${
               activeSubTab === "photos"
-                ? "bg-brand-primary text-white shadow-sm"
-                : "text-app-text-muted hover:text-app-text"
+                ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent"
+                : "border-transparent text-app-text-muted hover:text-app-text"
             }`}
           >
             <Camera size={13} />
@@ -412,10 +412,10 @@ export function AssetsPanel({ onInsert }: AssetsPanelProps) {
           </button>
           <button
             onClick={() => setActiveSubTab("uploads")}
-            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`py-1.5 px-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1 border-2 cursor-pointer ${
               activeSubTab === "uploads"
-                ? "bg-brand-primary text-white shadow-sm"
-                : "text-app-text-muted hover:text-app-text"
+                ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent"
+                : "border-transparent text-app-text-muted hover:text-app-text"
             }`}
           >
             <ImageIcon size={13} />

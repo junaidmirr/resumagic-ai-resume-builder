@@ -697,7 +697,7 @@ export function AIAssistantSidebar({
                 <button
                   onClick={handleFollowUp}
                   disabled={!followUpPrompt.trim()}
-                  className="px-3 py-1.5 bg-brand-primary text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-brand-primary/90 transition-colors"
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-xs font-bold rounded-lg disabled:opacity-50 transition-colors cursor-pointer"
                 >
                   Refine
                 </button>

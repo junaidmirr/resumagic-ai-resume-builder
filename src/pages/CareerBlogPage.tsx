@@ -330,7 +330,7 @@ export function CareerBlogPage() {
               />
               <button
                 type="submit"
-                className="px-6 py-3 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors text-sm whitespace-nowrap shadow-lg shadow-brand-primary/20"
+                className="px-6 py-3 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors text-sm whitespace-nowrap shadow-lg cursor-pointer"
               >
                 Subscribe Free
               </button>

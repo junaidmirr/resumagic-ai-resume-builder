@@ -287,7 +287,7 @@ export function ResumeExamplesPage() {
               <div className="p-4 sm:p-6 pt-0">
                 <button
                   onClick={() => handleUseExample(ex.templatePreset)}
-                  className="w-full py-2.5 sm:py-3 rounded-xl font-bold bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/20"
+                  className="w-full py-2.5 sm:py-3 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg cursor-pointer"
                 >
                   Use This Template{" "}
                   <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

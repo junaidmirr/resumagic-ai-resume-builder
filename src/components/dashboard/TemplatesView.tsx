@@ -65,10 +65,10 @@ export function TemplatesView({
               <button
                 key={category}
                 onClick={() => setFilter(category)}
-                className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap border-2 cursor-pointer ${
                   filter === category
-                    ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
-                    : "bg-app-surface border border-app-border text-app-text-muted hover:text-app-text hover:bg-app-bg"
+                    ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent shadow-xs"
+                    : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text hover:bg-app-bg"
                 }`}
               >
                 {category}
@@ -115,7 +115,7 @@ export function TemplatesView({
                       <button
                         onClick={() => onUseTemplate(template)}
                         disabled={isCreating}
-                        className="translate-y-4 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 bg-brand-primary hover:bg-brand-secondary text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-brand-primary/30 disabled:opacity-50"
+                        className="translate-y-4 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 px-6 py-3 rounded-xl font-bold shadow-lg shadow-slate-900/30 dark:shadow-white/10 disabled:opacity-50 cursor-pointer"
                       >
                         {isCreating && hoveredId === template.id ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
@@ -147,7 +147,7 @@ export function TemplatesView({
                     <button
                       onClick={() => onUseTemplate(template)}
                       disabled={isCreating}
-                      className="w-full py-2 bg-brand-primary text-white rounded-xl text-xs font-bold md:hidden flex items-center justify-center gap-1.5 shadow-md shadow-brand-primary/20 mt-1"
+                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl text-xs font-bold md:hidden flex items-center justify-center gap-1.5 shadow-md mt-1 cursor-pointer"
                     >
                       {isCreating && hoveredId === template.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

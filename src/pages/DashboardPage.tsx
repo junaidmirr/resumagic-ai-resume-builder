@@ -382,7 +382,7 @@ export function DashboardPage() {
           </Link>
           <button
             onClick={handleCreateNew}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-brand-primary/25"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-slate-900/25 dark:hover:shadow-white/10 cursor-pointer"
           >
             <Plus className="w-5 h-5" />
             New Document
@@ -457,7 +457,7 @@ export function DashboardPage() {
                     setIsMobileSidebarOpen(false);
                     handleCreateNew();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-primary text-white rounded-xl font-semibold"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl font-semibold transition-all cursor-pointer"
                 >
                   <Plus className="w-5 h-5" />
                   New Document

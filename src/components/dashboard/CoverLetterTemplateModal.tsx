@@ -8,6 +8,10 @@ import {
   Palette,
   Layers,
   Lock,
+  Briefcase,
+  Zap,
+  FileText,
+  GraduationCap,
 } from "lucide-react";
 import { COVER_LETTER_TEMPLATES } from "../../lib/coverLetterTemplates";
 import type { CoverLetterTemplate } from "../../lib/coverLetterTemplates";
@@ -23,6 +27,19 @@ interface CoverLetterTemplateModalProps {
 
 type Category =
   "all" | "executive" | "modern" | "minimal" | "creative" | "academic";
+
+const CATEGORIES: {
+  id: Category;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: "all", label: "All (15)", icon: Layers },
+  { id: "executive", label: "Executive", icon: Briefcase },
+  { id: "modern", label: "Modern", icon: Zap },
+  { id: "minimal", label: "Minimal", icon: FileText },
+  { id: "creative", label: "Creative", icon: Palette },
+  { id: "academic", label: "Academic", icon: GraduationCap },
+];
 
 export function CoverLetterTemplateModal({
   isOpen,
@@ -100,26 +117,23 @@ export function CoverLetterTemplateModal({
 
           {/* Category Filter Bar */}
           <div className="p-4 border-b border-app-border flex items-center gap-1.5 overflow-x-auto shrink-0 bg-app-surface scrollbar-none">
-            {[
-              { id: "all", label: "✨ All (15)" },
-              { id: "executive", label: "💼 Executive" },
-              { id: "modern", label: "🚀 Modern" },
-              { id: "minimal", label: "📄 Minimal" },
-              { id: "creative", label: "🎨 Creative" },
-              { id: "academic", label: "🎓 Academic" },
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id as Category)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  selectedCategory === cat.id
-                    ? "bg-brand-primary text-white shadow-sm"
-                    : "bg-app-bg text-app-text-muted hover:text-app-text border border-app-border"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+            {CATEGORIES.map((cat) => {
+              const CatIcon = cat.icon;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border-2 ${
+                    selectedCategory === cat.id
+                      ? "bg-brand-primary/10 border-brand-primary dark:border-brand-accent text-brand-primary dark:text-brand-accent shadow-xs"
+                      : "bg-app-bg text-app-text-muted hover:text-app-text border-transparent"
+                  }`}
+                >
+                  <CatIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Template Grid */}
@@ -211,19 +225,27 @@ export function CoverLetterTemplateModal({
                       {tmpl.font_family}
                     </span>
                     <span
-                      className={
+                      className={`flex items-center gap-1 ${
                         isSelected
                           ? "text-brand-primary"
                           : isLocked
-                            ? "text-amber-500 flex items-center gap-1"
+                            ? "text-amber-500"
                             : "text-app-text-muted"
-                      }
+                      }`}
                     >
-                      {isSelected
-                        ? "✓ Selected"
-                        : isLocked
-                          ? "🔒 Unlock PRO"
-                          : "Select"}
+                      {isSelected ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Selected</span>
+                        </>
+                      ) : isLocked ? (
+                        <>
+                          <Lock className="w-3 h-3" />
+                          <span>Unlock PRO</span>
+                        </>
+                      ) : (
+                        <span>Select</span>
+                      )}
                     </span>
                   </div>
                 </button>
@@ -254,7 +276,7 @@ export function CoverLetterTemplateModal({
 
               <button
                 onClick={handleConfirm}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-primary to-indigo-600 hover:from-indigo-600 hover:to-brand-primary text-white text-xs font-black transition-all flex items-center gap-2 shadow-lg shadow-brand-primary/25 active:scale-95 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-black transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/25 active:scale-95 cursor-pointer"
               >
                 <Palette className="w-4 h-4" />
                 <span>Apply & Open in Canvas</span>

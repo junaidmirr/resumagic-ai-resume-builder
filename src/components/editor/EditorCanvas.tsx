@@ -1120,11 +1120,11 @@ export function EditorCanvas({
                                     }}
                                   >
                                     <span className="text-teal-400 font-black">
-                                      📐 {lineAngleDeg}°
+                                      {lineAngleDeg}°
                                     </span>
                                     {bendAngleDeg !== 0 && (
                                       <span className="text-amber-400 border-l border-slate-700 pl-1.5 font-bold">
-                                        🌀 Bend:{" "}
+                                        Bend:{" "}
                                         {bendAngleDeg > 0
                                           ? `+${bendAngleDeg}`
                                           : bendAngleDeg}

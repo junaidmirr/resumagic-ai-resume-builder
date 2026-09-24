@@ -161,7 +161,7 @@ export function AboutUsPage() {
           </p>
           <Link
             to="/build"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors shadow-lg shadow-brand-primary/25"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 transition-colors shadow-lg"
           >
             Start Building Free
           </Link>

@@ -442,7 +442,7 @@ export function Navbar() {
                       <Link
                         to="/dashboard"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center justify-center gap-2 py-2.5 bg-brand-primary text-white rounded-xl text-xs font-bold shadow-md shadow-brand-primary/20"
+                        className="flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 rounded-xl text-xs font-bold shadow-md transition-all"
                       >
                         <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
                       </Link>

@@ -3,6 +3,22 @@
     "analytics": {
       ".read": "auth != null",
       ".write": true
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('admin').val() === true)",
+        "notifications": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null"
+        }
+      }
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null"
+      }
     }
   }
 }

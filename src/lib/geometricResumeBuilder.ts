@@ -6,6 +6,9 @@ export const PAGE_HEIGHT = 792;
 export const MARGIN_X = 40;
 export const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2; // 532 pt
 
+export const DEFAULT_QR_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAYAAAA5ZDbSAAAAAklEQVR4AewaftIAAAOjSURBVO3BW27sOgLAQFLw/rfMOZ+CEMRxT+dxBVXZPxzbGhxbGxxbGxxbGxxbu/iAym+pmKncqXiFyqziHVR+S8VscGxtcGxtcGzt4gsqvovKUxVPqbyDyqziTsV3UfnM4Nja4Nja4Nja4NjaxYtUnqp4qmKlMqu4U7FSuaPyHVSeqnhqcGxtcGxtcGzt4o9TWVXMVFYVM5U7Kncq/ksGx9YGx9YGx9YGx9Yu/riKlcpTFXdU7qjMKv6ywbG1wbG1wbG1ixdV/BUVr1CZVfyUip8wOLY2OLY2OLY2OLZ28QUqv0VlVTFTWVXMVFYVM5VVxUxlVnFH5bcMjq0Njq0Njq3ZP/xhKquKOyp3KnY3OLY2OLY2OLZ28QGVWcVK5U7FTOWpineouKPyVMVKZVZxR2VVMVO5UzEbHFsbHFsbHFsbHFu7+AKVVcVTFXdUZiqvqJiprCruVMxU7lTMVFYVs4pXVHxmcGxtcGxtcGzt4gMVM5WVyqxipTKrWKnMKmYq/3UV71Dx1ODY2uDY2uDY2uDY2sUHVJ5SWVXMVFYVM5VZxR2VV6jMKlYqs4qZyqpiprKqmKncqXhqcGxtcGxtcGzt4gsqViqzipXKrGKlMquYqdypeAeVd1C5ozKrWKnMVO5UzAbH1gbH1gbH1gbH1i4+UHGnYqayqpiprCqeqpipvKLijspMZVaxUnmHijsqnxkcWxscWxscW7v4ApVXqMwqVio/oWKlMqtYVTxVcUfljsqdis8Mjq0Njq0Njq0Njq1dfEBlVvFdKmYqs4rvUnFHZVYxU1lVzFReUXFHZVYxGxxbGxxbGxxbs3/4RSqzijsqdypmKquKmcqqYqbyl1XMBsfWBsfWBsfWLn5ZxWdU7lTcqbhT8VTFK1RmFSuVWcVK5TODY2uDY2uDY2uDY2sXH1D5LRU/ReVOxVMqs4p3UHlqcGxtcGxtcGzt4gsqvovKd1CZVbxC5amKd6j4fw2OrQ2OrQ2OrQ2OrV28SOWpiqcqViozlVXFO1TMVGYq76CyqpiprCo+Mzi2Nji2Nji2dvHHqawqZiqvqHiqYqZyp2KlckfljsqsYjY4tjY4tjY4tjY4tnbxH6Qyq3gHlacqVipPVaxU7lR8ZnBsbXBsbXBs7eJFFT+hYqUyU/kuFZ9RWVV8h4qnBsfWBsfWBsfWBsfWLr5A5beo3KlYqcwqforKUyp3VO5UzAbH1gbH1gbH1uwfjm0Njq0Njq0Njq39DyNVnQ4/1URVAAAAAElFTkSuQmCC";
+
 export interface ParsedCandidateData {
   name: string;
   headline?: string;
@@ -685,46 +688,19 @@ export function buildSidebarModernLayout(data: ParsedCandidateData, palette = {
     z_index: 1,
   } as ShapeElement);
 
-  // QR Mini Matrix Pattern Lines (Aesthetically looks like a real QR code)
+  // Real Scannable QR Code Image
+  const qrInnerSize = qrSize - 12;
   els.push({
     id: gid(),
-    element_type: "shape",
-    shape_type: "rectangle",
+    element_type: "image",
     page_id: pageId,
-    x: Math.round(sidebarW / 2 - qrSize / 2 + 8),
-    y: qrY + 8,
-    width: 16,
-    height: 16,
-    fill_color: "#0F172A",
-    border_width: 0,
+    x: Math.round(sidebarW / 2 - qrInnerSize / 2),
+    y: qrY + 6,
+    width: qrInnerSize,
+    height: qrInnerSize,
+    image_path: DEFAULT_QR_PNG,
     z_index: 2,
-  } as ShapeElement);
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "rectangle",
-    page_id: pageId,
-    x: Math.round(sidebarW / 2 + qrSize / 2 - 24),
-    y: qrY + 8,
-    width: 16,
-    height: 16,
-    fill_color: "#0F172A",
-    border_width: 0,
-    z_index: 2,
-  } as ShapeElement);
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "rectangle",
-    page_id: pageId,
-    x: Math.round(sidebarW / 2 - qrSize / 2 + 8),
-    y: qrY + qrSize - 24,
-    width: 16,
-    height: 16,
-    fill_color: "#0F172A",
-    border_width: 0,
-    z_index: 2,
-  } as ShapeElement);
+  } as ImageElement);
 
   leftTop += qrSize + 4;
   els.push({

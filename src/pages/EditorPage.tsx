@@ -2070,6 +2070,43 @@ export function EditorPage() {
       if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
         try {
           const parsed = JSON.parse(trimmed);
+
+          // 1. Surgical Patch Mode (e.g. adding QR code, chart, signature, or updating colors)
+          if (
+            parsed &&
+            (parsed.mode === "patch" ||
+              parsed.addedElements ||
+              parsed.modifiedElements)
+          ) {
+            const added = Array.isArray(parsed.addedElements)
+              ? parsed.addedElements
+              : [];
+            const modified = Array.isArray(parsed.modifiedElements)
+              ? parsed.modifiedElements
+              : [];
+
+            setElements((prev) => {
+              let updated = [...prev];
+              // Update modified elements in place
+              if (modified.length > 0) {
+                const modMap = new Map(modified.map((m: any) => [m.id, m]));
+                updated = updated.map((el) => modMap.get(el.id) || el);
+              }
+              // Append added elements
+              if (added.length > 0) {
+                const normAdded = normalizeEditorElements(added, activePageId);
+                updated = [...updated, ...normAdded];
+              }
+              return updated;
+            });
+
+            if (added.length > 0) {
+              setSelectedIds(added.map((a: any) => a.id));
+            }
+            return;
+          }
+
+          // 2. Full Replace Mode (Explicit new resume generation)
           const rawEls = Array.isArray(parsed)
             ? parsed
             : parsed && Array.isArray(parsed.elements)

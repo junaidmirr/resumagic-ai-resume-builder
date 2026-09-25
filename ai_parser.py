@@ -1141,12 +1141,20 @@ Return ONLY a JSON object:
     def ai_chat_edit(self, elements:list, prompt:str)->dict:
         """
         The Master Editor Architect. 
-        Two-Stage Design: 
-        1. Planning (Math/Structure) 
-        2. Execution (JSON Generation)
+        Leverages LangChain Tool Calling for surgical canvas modifications and bespoke generation.
         """
         import json
         print(f"[AI-Architect] 🤖 Collaborative Editing: '{prompt}'…")
+
+        # 1. Primary: LangChain Tool-Calling Execution
+        try:
+            from backend.langchain_architect import run_langchain_architect
+            lc_res = run_langchain_architect(prompt, existing_elements=elements)
+            if lc_res and lc_res.get("status") == "success":
+                print(f"[AI-Architect] ✅ LangChain Tool-Calling Executed Successfully! Mode: {lc_res.get('mode')}")
+                return lc_res
+        except Exception as lc_err:
+            print(f"[AI-Architect] LangChain invocation note: {lc_err}. Falling back to standard pipeline...")
 
         # Sanitize elements to prevent giant base64 image strings from choking LLM prompts
         safe_elements = []
@@ -1482,7 +1490,10 @@ Return a JSON array of EditorElements."""
             res = self.ai_chat_edit(curr_elements, text or "Build a clean, high-converting ATS-friendly professional resume")
             return {
                 "status": "success",
-                "result": f"Design execution complete! 🚀 Engineered and applied your ATS-grade resume layout to the canvas based on: '{text}'.",
+                "result": res.get("message") or f"Design execution complete! 🚀 Engineered and applied your ATS-grade resume layout to the canvas based on: '{text}'.",
+                "mode": res.get("mode", "replace"),
+                "added_elements": res.get("added_elements", []),
+                "modified_elements": res.get("modified_elements", []),
                 "elements": res.get("elements", []),
                 "plan": res.get("plan", ""),
                 "fixes": []
@@ -1722,6 +1733,17 @@ DO NOT output conversational text. Output ONLY valid raw JSON."""
         """
         import json
         print(f"[AI-Architect-Build] 🚀 Building full resume for plan: '{plan.get('title')}'...")
+        
+        # 1. Primary: LangChain Tool-Calling Execution
+        try:
+            from backend.langchain_architect import run_langchain_architect
+            combined_prompt = f"{prompt}. Plan: {plan.get('title', '')} {plan.get('theme_summary', '')}"
+            lc_res = run_langchain_architect(combined_prompt, plan=plan)
+            if lc_res and lc_res.get("status") == "success" and len(lc_res.get("elements", [])) >= 25:
+                print(f"[AI-Architect-Build] ✅ LangChain Tool-Calling Success! Produced {len(lc_res.get('elements'))} elements.")
+                return lc_res
+        except Exception as lc_err:
+            print(f"[AI-Architect-Build] LangChain build note: {lc_err}. Falling back to generative pipeline...")
         
         exec_prompt = f"""You are a Master Graphics Engineer.
 Task: Generate ALL EditorElement objects to build a complete, production-ready, 1-page resume based on this DESIGN PLAN.

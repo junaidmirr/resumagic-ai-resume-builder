@@ -7,3 +7,6 @@ Pillow==11.1.0
 requests==2.31.0
 python-dotenv==1.0.1
 cloudinary==1.45.0
+langchain>=1.4.0
+langchain-core>=1.6.0
+qrcode>=8.0

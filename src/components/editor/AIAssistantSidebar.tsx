@@ -272,12 +272,27 @@ export function AIAssistantSidebar({
 
       // AUTOMATICALLY APPLY GENERATED ELEMENTS TO CANVAS IF RETURNED
       const returnedEls = (data as any).elements;
-      if (
-        Array.isArray(returnedEls) &&
-        returnedEls.length > 0 &&
-        onInsertToCanvas
-      ) {
-        onInsertToCanvas(JSON.stringify(returnedEls));
+      const mode = (data as any).mode || "replace";
+      const addedElements = (data as any).added_elements;
+      const modifiedElements = (data as any).modified_elements;
+
+      if (onInsertToCanvas) {
+        if (mode === "patch" || (Array.isArray(addedElements) && addedElements.length > 0)) {
+          onInsertToCanvas(
+            JSON.stringify({
+              mode: "patch",
+              addedElements: addedElements || [],
+              modifiedElements: modifiedElements || [],
+            }),
+          );
+        } else if (Array.isArray(returnedEls) && returnedEls.length > 0) {
+          onInsertToCanvas(
+            JSON.stringify({
+              mode: "replace",
+              elements: returnedEls,
+            }),
+          );
+        }
       }
 
       // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION

@@ -882,12 +882,12 @@ def ai_architect():
                 result = parser.build_architect_resume(plan, prompt)
             else:
                 result = parser.ai_chat_edit(elements, prompt)
-            if uid and isinstance(result, dict) and "elements" in result:
+            if uid and isinstance(result, dict) and ("elements" in result or "added_elements" in result):
                 deduct_user_credits(uid, 10)
             return jsonify(result)
         else:
             result = parser.ai_chat_edit(elements, prompt)
-            if uid and isinstance(result, dict) and "elements" in result:
+            if uid and isinstance(result, dict) and ("elements" in result or "added_elements" in result):
                 deduct_user_credits(uid, 10)
             return jsonify(result)
     except Exception as e:

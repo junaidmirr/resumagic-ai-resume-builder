@@ -478,7 +478,11 @@ export function createFallbackPlan(
   let bg = "#FFFFFF";
   let text = "#1E293B";
 
-  if (p.includes("dark")) {
+  if (p.includes("red") && p.includes("blue")) {
+    primary = "#1E3A8A"; // Deep Navy Blue
+    secondary = "#DC2626"; // Crimson Red
+    accent = "#2563EB";
+  } else if (p.includes("dark")) {
     bg = "#0B132B";
     primary = "#38BDF8";
     secondary = "#90E0EF";
@@ -592,7 +596,32 @@ export function generateFallbackElements(
     },
   ];
 
-  if (p.includes("data") || p.includes("ai") || p.includes("ml") || p.includes("machine learning")) {
+  if (p.includes("analyst") || (p.includes("data") && !p.includes("ml") && !p.includes("machine"))) {
+    role = "Senior Data Analyst";
+    skills = [
+      { name: "SQL & PostgreSQL", level: 0.96 },
+      { name: "Python (Pandas, NumPy)", level: 0.92 },
+      { name: "Tableau & PowerBI", level: 0.90 },
+      { name: "ETL & Data Warehousing", level: 0.88 },
+      { name: "Statistical A/B Testing", level: 0.85 },
+      { name: "Predictive Analytics", level: 0.82 },
+    ];
+    summary =
+      "Analytical Senior Data Analyst with 5+ years of experience transforming complex multi-source telemetry data into actionable executive insights. Expert in SQL, Python, Tableau, and automated ETL pipelines. Proven track record of improving reporting efficiency by 35% and identifying $1.2M in annual cost optimizations.";
+    experiences[0].role = "Senior Data Analyst";
+    experiences[0].company = "Cognitive Insights Tech";
+    experiences[0].bullets = [
+      "Architected automated SQL and Python ETL pipelines ingesting 25M+ daily user interactions, cutting data latency by 45%.",
+      "Designed 14 C-suite executive dashboards in Tableau and PowerBI, tracking $40M+ in annual recurring revenue (ARR).",
+      "Spearheaded predictive customer churn model in Python (Scikit-Learn), directly reducing customer attrition by 18%.",
+    ];
+    experiences[1].role = "Data & BI Analyst";
+    experiences[1].company = "Apex Global Analytics";
+    experiences[1].bullets = [
+      "Conducted rigorous A/B multivariate testing across 1.5M monthly web visitors, boosting checkout funnel conversions by 22%.",
+      "Automated weekly stakeholder reporting via Python scripts, saving 16 engineering hours per sprint.",
+    ];
+  } else if (p.includes("data") || p.includes("ai") || p.includes("ml") || p.includes("machine learning")) {
     role = "Senior Data Scientist & AI/ML Engineer";
     skills = [
       { name: "Python / PyTorch", level: 0.96 },

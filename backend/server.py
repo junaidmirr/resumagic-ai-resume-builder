@@ -19,7 +19,11 @@ except ImportError:
     credentials = None
     auth = None
     firestore = None
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Allow relative imports from root when running in Vercel
 import sys
@@ -30,14 +34,10 @@ from engine import PDFEngine
 from ai_parser import AIParserEngine, locally_blocked
 from perf_engine import perf_engine
 
-from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 import time
-
-# Load environment variables
-load_dotenv()
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB Max Body Size Limit
@@ -182,8 +182,8 @@ def verify_authenticated_user(request_obj):
             except Exception as e:
                 print(f"⚠️ Dev unverified token decode error: {e}")
 
-    # X-User-ID header is strictly ignored when Firebase Admin is active to prevent spoofing/IDOR
-    if not HAS_FIREBASE_ADMIN or os.environ.get("FLASK_ENV") == "development":
+    # Strictly prevent IDOR: X-User-ID header cannot grant authentication without valid token
+    if os.environ.get("FLASK_ENV") == "development" and not app.config.get("TESTING"):
         return request_obj.headers.get("X-User-ID")
     return None
 

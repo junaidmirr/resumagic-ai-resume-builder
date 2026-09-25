@@ -251,6 +251,15 @@ export function DashboardPage() {
         result.elements,
       );
       localStorage.setItem("current_resume_id", id);
+      localStorage.setItem(
+        `resumagic_canvas_cache_${id}`,
+        JSON.stringify({
+          elements: result.elements,
+          pages: [{ id: "page-1", width: 612, height: 792 }],
+          resumeTitle: title,
+          timestamp: Date.now(),
+        }),
+      );
       navigate("/editor");
     } catch (err: any) {
       console.error("[Dashboard] Resume Import Failed:", err);

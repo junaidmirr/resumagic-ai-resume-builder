@@ -92,112 +92,121 @@ def _normalise(raw:list)->list:
 def _align(elements: list, pw: float = 612, ph: float = 792) -> list:
     """
     Diamond-Level Mathematical Layout & De-collision Solver.
-    1. Filter out full-page white background shapes.
-    2. Normalize top-down coordinates to bottom-up (Origin=Bottom-Left).
-    3. Preserves original LLM element sequence order while recalculating exact Y-offsets and line heights.
+    1. Preserves background shapes (sidebars, banners) at z_index: 0 without disrupting text flow.
+    2. Preserves horizontal composite pairs (title on left, date on right) and dual-layer skill loaders.
+    3. Normalizes LLM top-down coordinates to canvas bottom-up (Origin=Bottom-Left, Y=0 at bottom, Y=792 at top).
+    4. De-collides overlapping vertical text blocks while preserving relative section hierarchy.
     """
     if not elements:
         return []
 
-    texts = [e for e in elements if e.get("element_type") == "text"]
-    shapes = [e for e in elements if e.get("element_type") == "shape"]
-    others = [e for e in elements if e.get("element_type") not in ("text", "shape")]
-
-    # Remove full-page white background rects
-    shapes = [s for s in shapes if not (
-        s.get("shape_type") == "rectangle" and
-        s.get("width", 0) > pw * 0.85 and s.get("height", 0) > ph * 0.4 and
-        _white(s.get("fill_color", "#fff"))
-    )]
-
-    all_el = shapes + others + texts
+    elements = [e for e in elements if isinstance(e, dict)]
 
     # Detect Top-Down Y space (y=0 at top) vs Bottom-Up Y space (y=792 at top)
-    avg_y = sum(float(e.get("y", 0)) for e in all_el[:5]) / max(1, len(all_el[:5]))
-    if avg_y < 380:
-        for e in all_el:
-            h = float(e.get("height", 20))
-            e["y"] = max(10.0, min(770.0, ph - float(e.get("y", 0)) - h))
+    text_elements = [e for e in elements if e.get("element_type") == "text"]
+    if len(text_elements) >= 3:
+        avg_y = sum(float(e.get("y", 0)) for e in text_elements[:5]) / min(5, len(text_elements))
+        if avg_y < 350:
+            for e in elements:
+                h = float(e.get("height", 18))
+                e["y"] = max(15.0, min(775.0, ph - float(e.get("y", 0)) - h))
 
-    # Detect 2-Column vs Single-Column Layout
-    is_two_column = any(float(e.get("x", 0)) >= 200 and float(e.get("x", 0)) < 400 and float(e.get("y", 0)) < 650 for e in all_el) and \
-                    any(float(e.get("x", 0)) < 180 and float(e.get("y", 0)) < 650 for e in all_el)
+    # Separate Background Shapes from Content Elements
+    background_shapes = []
+    content_elements = []
 
-    header_els = []
-    left_els = []
-    main_els = []
+    for e in elements:
+        w = float(e.get("width", 0))
+        h = float(e.get("height", 0))
+        y = float(e.get("y", 0))
+        is_full_sidebar = e.get("element_type") == "shape" and w < 250 and h > 600
+        is_top_banner = e.get("element_type") == "shape" and w > 400 and h > 60 and y > 600
+        is_zero_z = int(e.get("z_index", 1)) == 0 and e.get("element_type") == "shape"
 
-    for idx, e in enumerate(all_el):
-        e["_originalIndex"] = idx
-        font_sz = float(e.get("font_size", 11))
-        y_val = float(e.get("y", 0))
-        x_val = float(e.get("x", 0))
-
-        is_header = idx < 3 or font_sz >= 18 or (y_val > 690 and (e.get("element_type") == "image" or e.get("element_type") == "shape" or y_val > 700))
-
-        if is_header:
-            header_els.append(e)
-        elif is_two_column and x_val < 200:
-            left_els.append(e)
+        if is_full_sidebar:
+            e["x"] = 0.0
+            e["y"] = 0.0
+            e["height"] = ph
+            e["z_index"] = 0
+            background_shapes.append(e)
+        elif is_top_banner or is_zero_z:
+            e["z_index"] = 0
+            background_shapes.append(e)
         else:
-            main_els.append(e)
+            content_elements.append(e)
 
-    def solve_top_down_stack(items: list, start_top_y: float, default_width: float):
-        if not items:
-            return start_top_y
-        items.sort(key=lambda x: x["_originalIndex"])
+    # Detect Two-Column vs Single-Column
+    is_two_col = any(float(e.get("x", 0)) < 210 and e.get("element_type") == "text" for e in content_elements) and \
+                 any(float(e.get("x", 0)) >= 210 and e.get("element_type") == "text" for e in content_elements)
 
-        cur_top_y = start_top_y
-        for e in items:
-            font_sz = float(e.get("font_size", 11))
-            w = float(e.get("width", default_width))
-            if e.get("element_type") == "text":
-                if w < 100:
-                    w = default_width
-                    e["width"] = w
-                txt_len = len(str(e.get("text", "")))
-                approx_lines = max(1, math.ceil(txt_len / max(15, int(w / (font_sz * 0.55)))))
-                h = max(float(e.get("height", 18)), approx_lines * font_sz * 1.35)
-                e["height"] = h
+    def de_collide_column(items: list):
+        if len(items) <= 1:
+            return
+
+        # Group elements into horizontal clusters (elements sharing the same baseline within ±4pt)
+        clusters = []
+        sorted_items = sorted(items, key=lambda x: float(x.get("y", 0)), reverse=True)
+
+        for el in sorted_items:
+            el_y = float(el.get("y", 0))
+            matched_cluster = None
+            for c in clusters:
+                c_y = float(c[0].get("y", 0))
+                if abs(c_y - el_y) <= 4.0:
+                    matched_cluster = c
+                    break
+            if matched_cluster is not None:
+                matched_cluster.append(el)
             else:
-                h = float(e.get("height", 20))
+                clusters.append([el])
 
-            # Set bottom coordinate so top edge sits at cur_top_y
-            e["y"] = cur_top_y - h
-            is_bold_heading = e.get("element_type") == "text" and (e.get("bold") or font_sz >= 12)
-            is_sub_heading = e.get("element_type") == "text" and e.get("bold")
-            pad = 14.0 if is_bold_heading else (8.0 if is_sub_heading else 6.0)
+        # Walk clusters top to bottom (descending Y)
+        for i in range(len(clusters) - 1):
+            cur_cluster = clusters[i]
+            next_cluster = clusters[i + 1]
 
-            # Next element's top edge starts below this element's bottom edge
-            cur_top_y = float(e["y"]) - pad
+            cur_min_y = min(float(e.get("y", 0)) for e in cur_cluster)
+            next_max_top = max(float(e.get("y", 0)) + float(e.get("height", 18)) for e in next_cluster)
 
-        return min(float(e["y"]) for e in items)
+            has_heading = any(e.get("bold") and float(e.get("font_size", 10)) >= 11 for e in next_cluster)
+            min_gap = 10.0 if has_heading else 4.0
 
-    header_bottom_y = solve_top_down_stack(header_els, 752.0, 532.0)
-    content_start_top_y = header_bottom_y - 14.0 if header_els else 660.0
+            if next_max_top > cur_min_y - min_gap:
+                shift_y = next_max_top - (cur_min_y - min_gap)
+                for el in next_cluster:
+                    el["y"] = round(float(el.get("y", 0)) - shift_y, 1)
+                    if "y2" in el:
+                        el["y2"] = round(float(el.get("y2", 0)) - shift_y, 1)
 
-    if is_two_column:
-        solve_top_down_stack(left_els, content_start_top_y, 170.0)
-        solve_top_down_stack(main_els, content_start_top_y, 342.0)
+    if is_two_col:
+        left_items = [e for e in content_elements if float(e.get("x", 0)) < 210]
+        main_items = [e for e in content_elements if float(e.get("x", 0)) >= 210]
+        de_collide_column(left_items)
+        de_collide_column(main_items)
     else:
-        solve_top_down_stack(main_els, content_start_top_y, 532.0)
+        de_collide_column(content_elements)
 
-    for e in all_el:
-        e.pop("_originalIndex", None)
+    all_res = background_shapes + content_elements
+    for el in all_res:
+        w = float(el.get("width", 10))
+        h = float(el.get("height", 10))
+        el["x"] = max(0.0, min(pw - w, float(el.get("x", 0))))
+        if h >= 790.0 and el.get("element_type") == "shape":
+            el["y"] = 0.0
+        else:
+            el["y"] = max(15.0, min(775.0, float(el.get("y", 0))))
 
-    # Re-calculate Z-index
+    # Re-calculate clean Z-indexes
     z = 0
-    for s in shapes:
+    for s in background_shapes:
         s["z_index"] = z
         z += 1
-    for o in others:
-        o["z_index"] = z
-        z += 1
-    for t in texts:
-        t["z_index"] = z
+    for c in content_elements:
+        c["z_index"] = z
         z += 1
 
-    print(f"[Align] ✅ Diamond-Level Layout Solver completed for {len(all_el)} elements")
+    print(f"[Align] ✅ Diamond-Level Layout Solver completed for {len(all_res)} elements")
+    return all_res
     return shapes + others + texts
 
 

@@ -1,7 +1,12 @@
 import type { EditorElement } from "../types/editor";
-import { parseResumeTextToWizardData } from "./pdfParser";
+import { parseResumeTextToWizardData, parseResumeTextToCandidateData } from "./pdfParser";
 import { generateWizardElements } from "./wizardGenerator";
 import { fetchWithCaptcha } from "./apiWithCaptcha";
+import {
+  generateGeometricResume,
+  wizardDataToCandidateData,
+  type ParsedCandidateData,
+} from "./geometricResumeBuilder";
 
 export interface DesignPlan {
   title: string;
@@ -42,6 +47,15 @@ function cleanJSONResponse(raw: string): any {
   return JSON.parse(text);
 }
 
+/**
+ * High-Precision Geometric Normalizer & De-collision Engine.
+ * 1. Sanitizes all element types and attributes (id, element_type, coordinates, fonts, z-indices).
+ * 2. Recognizes background shapes (sidebar rectangles, top banners) and locks them at z_index: 0.
+ * 3. Preserves horizontal composite pairs (e.g. Job Title on left + Date on right at the same Y).
+ * 4. Preserves dual-layer skill progress loaders (background gray bar + foreground filled bar at the exact same Y).
+ * 5. Automatically detects top-down coordinate hallucination from LLMs and normalizes to bottom-up (Y=0 at bottom, Y=792 at top).
+ * 6. De-collides overlapping vertical text blocks while preserving relative layout structure.
+ */
 export function normalizeEditorElements(
   rawList: any[],
   targetPageId: string = "page-1",
@@ -74,11 +88,10 @@ export function normalizeEditorElements(
 
     const page_id = item.page_id || targetPageId;
     const x = typeof item.x === "number" && !isNaN(item.x) ? item.x : 40;
-    const rawY =
-      typeof item.y === "number" && !isNaN(item.y) ? item.y : 50 + idx * 22;
+    const rawY = typeof item.y === "number" && !isNaN(item.y) ? item.y : 700 - idx * 24;
 
     const font_size = Number(
-      item.font_size || item.fontSize || item.size || 11,
+      item.font_size || item.fontSize || item.size || 10,
     );
     const font_name = String(
       item.font_name || item.fontFamily || item.font || "Helvetica",
@@ -111,19 +124,23 @@ export function normalizeEditorElements(
     const width = Number(
       item.width ||
         (elementType === "text"
-          ? Math.max(140, Math.min(532, text.length * font_size * 0.55))
+          ? Math.max(120, Math.min(532, text.length * font_size * 0.55))
           : 100),
     );
 
     // Dynamic line wrapping height calculation
-    let calculatedHeight = Number(item.height || 20);
+    let calculatedHeight = Number(item.height || 18);
     if (elementType === "text") {
       const approxCharsPerLine = Math.max(
-        15,
-        Math.floor(width / (font_size * 0.55)),
+        12,
+        Math.floor(width / (font_size * 0.52)),
       );
-      const numLines = Math.max(1, Math.ceil(text.length / approxCharsPerLine));
-      calculatedHeight = Math.max(16, Math.ceil(numLines * font_size * 1.35));
+      const manualLines = text.split("\n");
+      let totalLines = 0;
+      for (const line of manualLines) {
+        totalLines += Math.max(1, Math.ceil(line.length / approxCharsPerLine));
+      }
+      calculatedHeight = Math.max(14, Math.ceil(totalLines * font_size * (item.line_height || 1.35)));
     }
 
     const z_index =
@@ -202,98 +219,140 @@ export function normalizeEditorElements(
     }
   });
 
-  // Step 2: Detect 2-Column vs Single-Column Layout Structure
-  const isTwoColumn =
-    normalized.some((e) => e.x >= 200 && e.x < 400 && e.y < 650) &&
-    normalized.some((e) => e.x < 180 && e.y < 650);
+  // Step 2: Detect if elements were generated in Top-Down coordinate space (y=0 at top)
+  const nonBgTexts = normalized.filter(
+    (e) => e.element_type === "text" && e.y !== undefined,
+  );
+  if (nonBgTexts.length >= 3) {
+    const avgY =
+      nonBgTexts.slice(0, 5).reduce((acc, e) => acc + e.y, 0) /
+      Math.min(5, nonBgTexts.length);
+    // In bottom-up space, top elements should have y > 600. If avgY < 350, LLM used top-down!
+    if (avgY < 350) {
+      normalized.forEach((el) => {
+        const h = el.height || 20;
+        // Convert top-down y to bottom-up y: canvasY = 792 - y - height
+        el.y = Math.max(15, Math.min(775, 792 - el.y - h));
+      });
+    }
+  }
 
-  // Step 3: Categorize Header vs Left vs Main Stream
-  const headerElements: EditorElement[] = [];
-  const leftElements: EditorElement[] = [];
-  const mainElements: EditorElement[] = [];
+  // Step 3: Separate Background Shapes from Content Elements
+  const backgroundShapes: EditorElement[] = [];
+  const contentElements: EditorElement[] = [];
 
-  normalized.forEach((el, index) => {
-    (el as any)._originalIndex = index;
+  normalized.forEach((el) => {
+    const isFullSidebar =
+      el.element_type === "shape" &&
+      el.width &&
+      el.width < 250 &&
+      el.height &&
+      el.height > 600;
+    const isTopBanner =
+      el.element_type === "shape" &&
+      el.width &&
+      el.width > 400 &&
+      el.height &&
+      el.height > 60 &&
+      el.y > 600;
+    const isZeroZIndex = el.z_index === 0 && el.element_type === "shape";
 
-    const isHeaderItem =
-      index < 3 ||
-      (el as any).font_size >= 18 ||
-      (el.y > 690 &&
-        (el.element_type === "image" ||
-          el.element_type === "shape" ||
-          el.y > 700));
-
-    if (isHeaderItem) {
-      headerElements.push(el);
-    } else if (isTwoColumn && el.x < 200) {
-      leftElements.push(el);
+    if (isFullSidebar) {
+      // Guarantee exact sidebar coordinates
+      el.x = 0;
+      el.y = 0;
+      el.height = 792;
+      el.z_index = 0;
+      backgroundShapes.push(el);
+    } else if (isTopBanner) {
+      el.z_index = 0;
+      backgroundShapes.push(el);
+    } else if (isZeroZIndex) {
+      backgroundShapes.push(el);
     } else {
-      mainElements.push(el);
+      contentElements.push(el);
     }
   });
 
-  // Helper: Stacks elements top-down ensuring zero overlap (CSS bottom = topY - height)
-  function solveTopDownStack(
-    elements: EditorElement[],
-    startTopY: number,
-    defaultWidth: number,
-  ) {
-    if (elements.length === 0) return startTopY;
+  // Step 4: Intelligent De-collision per column
+  // Detect if two-column: elements on left (x < 210) vs main (x >= 210)
+  const isTwoCol =
+    contentElements.some((e) => e.x < 210 && e.element_type === "text") &&
+    contentElements.some((e) => e.x >= 210 && e.element_type === "text");
 
-    elements.sort(
-      (a, b) => (a as any)._originalIndex - (b as any)._originalIndex,
-    );
+  function deCollideColumn(elements: EditorElement[]) {
+    if (elements.length <= 1) return;
 
-    let curTopY = startTopY;
-    elements.forEach((el) => {
-      if (el.element_type === "text") {
-        if (!el.width || el.width < 100) el.width = defaultWidth;
-        const approxCharsPerLine = Math.max(
-          15,
-          Math.floor(el.width / (el.font_size * 0.55)),
-        );
-        const numLines = Math.max(
-          1,
-          Math.ceil(el.text.length / approxCharsPerLine),
-        );
-        el.height = Math.max(16, Math.ceil(numLines * el.font_size * 1.35));
+    // Group elements into horizontal clusters (elements sharing the same baseline within ±4pt)
+    // E.g. [Title on left, Date on right] or [Skill bar background, Skill bar fill]
+    const clusters: EditorElement[][] = [];
+    const sorted = [...elements].sort((a, b) => b.y - a.y); // top-to-bottom (descending Y)
+
+    sorted.forEach((el) => {
+      const matchCluster = clusters.find((cluster) => {
+        const clusterY = cluster[0].y;
+        return Math.abs(clusterY - el.y) <= 4;
+      });
+      if (matchCluster) {
+        matchCluster.push(el);
+      } else {
+        clusters.push([el]);
       }
-
-      // Set bottom coordinate so top edge sits at curTopY
-      el.y = curTopY - (el.height || 18);
-
-      const isBoldHeading =
-        el.element_type === "text" &&
-        (el as any).bold &&
-        (el as any).font_size >= 12;
-      const isSubHeading = el.element_type === "text" && (el as any).bold;
-      const padding = isBoldHeading ? 14 : isSubHeading ? 8 : 6;
-
-      // Next element's top edge starts below this element's bottom edge
-      curTopY = el.y - padding;
     });
 
-    return Math.min(...elements.map((e) => e.y));
+    // Walk clusters top to bottom (descending Y). Ensure top edge of next cluster sits below previous cluster's bottom edge.
+    for (let i = 0; i < clusters.length - 1; i++) {
+      const curCluster = clusters[i];
+      const nextCluster = clusters[i + 1];
+
+      // Current cluster bottom edge
+      const curMinY = Math.min(...curCluster.map((e) => e.y));
+      // Next cluster top edge
+      const nextMaxTop = Math.max(
+        ...nextCluster.map((e) => e.y + (e.height || 18)),
+      );
+
+      // Safe required gap between vertical blocks
+      const hasHeading = nextCluster.some(
+        (e) => (e as any).bold && (e as any).font_size >= 11,
+      );
+      const minGap = hasHeading ? 10 : 4;
+
+      if (nextMaxTop > curMinY - minGap) {
+        // Overlap detected! Shift next cluster downward
+        const shiftY = nextMaxTop - (curMinY - minGap);
+        nextCluster.forEach((el) => {
+          el.y = Math.round(el.y - shiftY);
+          if ((el as any).y2 !== undefined) {
+            (el as any).y2 = Math.round((el as any).y2 - shiftY);
+          }
+        });
+      }
+    }
   }
 
-  // Stack Header Elements from Y_top = 752
-  const headerBottomY = solveTopDownStack(headerElements, 752, 532);
-
-  // Content Stream starts below header
-  const contentStartTopY = headerElements.length > 0 ? headerBottomY - 14 : 660;
-
-  // Position Left Column & Main Column
-  if (isTwoColumn) {
-    solveTopDownStack(leftElements, contentStartTopY, 170);
-    solveTopDownStack(mainElements, contentStartTopY, 342);
+  if (isTwoCol) {
+    const leftEls = contentElements.filter((e) => e.x < 210);
+    const mainEls = contentElements.filter((e) => e.x >= 210);
+    deCollideColumn(leftEls);
+    deCollideColumn(mainEls);
   } else {
-    solveTopDownStack(mainElements, contentStartTopY, 532);
+    deCollideColumn(contentElements);
   }
 
-  // Clean up temporary internal field
-  normalized.forEach((el) => delete (el as any)._originalIndex);
+  // Step 5: Clamping bounds
+  const allResult = [...backgroundShapes, ...contentElements];
+  allResult.forEach((el) => {
+    el.x = Math.max(0, Math.min(612 - (el.width || 10), el.x));
+    // Background full-height sidebars stay at y=0
+    if (el.height && el.height >= 790) {
+      el.y = 0;
+    } else {
+      el.y = Math.max(15, Math.min(775, el.y));
+    }
+  });
 
-  return normalized;
+  return allResult;
 }
 
 export async function generateArchitectPlanDirect(
@@ -489,439 +548,161 @@ export function createFallbackPlan(
   };
 }
 
-export function generateFallbackElements(plan: DesignPlan): EditorElement[] {
-  const gid = () => Math.random().toString(36).substring(2, 9);
-  const pageId = "page-1";
+export function generateFallbackElements(
+  plan: DesignPlan,
+  userPrompt: string = "",
+): EditorElement[] {
+  const p = (userPrompt + " " + (plan.title || "")).toLowerCase();
   const palette = plan.color_palette;
-  const els: EditorElement[] = [];
 
-  const sw = 180;
+  // Determine domain/role from user prompt
+  let role = "Senior Software Engineer & Full-Stack Architect";
+  let skills = [
+    { name: "TypeScript / React", level: 0.95 },
+    { name: "Python / FastAPI", level: 0.92 },
+    { name: "AWS Cloud / K8s", level: 0.88 },
+    { name: "PostgreSQL & Redis", level: 0.86 },
+    { name: "GraphQL & REST APIs", level: 0.9 },
+    { name: "Docker / CI/CD", level: 0.85 },
+  ];
+  let summary =
+    "Results-driven Senior Engineer with 6+ years designing scalable microservices, high-throughput cloud architectures, and responsive web applications. Proven track record of boosting system reliability to 99.99% and mentoring engineering teams.";
 
-  // 1. Sidebar Background & Divider
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "rectangle",
-    page_id: pageId,
-    x: 0,
-    y: 0,
-    width: sw,
-    height: 792,
-    fill_color: palette.bg === "#FFFFFF" ? "#0F172A" : "#1E293B",
-    border_width: 0,
-    z_index: 0,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "line",
-    page_id: pageId,
-    x: sw,
-    y: 0,
-    x2: sw,
-    y2: 792,
-    border_color: palette.accent,
-    border_width: 2,
-    z_index: 1,
-  } as any);
-
-  // 2. Header Banner
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "rectangle",
-    page_id: pageId,
-    x: sw,
-    y: 792 - 110,
-    width: 612 - sw,
-    height: 110,
-    fill_color: palette.primary,
-    border_width: 0,
-    z_index: 1,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "ALEX MERCER",
-    x: sw + 20,
-    y: 735,
-    width: 380,
-    height: 28,
-    font_size: 24,
-    font_name: "Helvetica-Bold",
-    text_color: "#FFFFFF",
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "Senior Cloud Architect & Lead Engineer",
-    x: sw + 20,
-    y: 715,
-    width: 380,
-    height: 14,
-    font_size: 11,
-    font_name: "Helvetica",
-    text_color: palette.secondary,
-    z_index: 2,
-  } as any);
-
-  // 3. Sidebar Avatar & Skills
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "circle",
-    page_id: pageId,
-    x: sw / 2 - 30,
-    y: 690,
-    width: 60,
-    height: 60,
-    fill_color: palette.accent,
-    border_width: 2,
-    border_color: "#FFFFFF",
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "AM",
-    x: 0,
-    y: 705,
-    width: sw,
-    height: 30,
-    font_size: 20,
-    font_name: "Helvetica-Bold",
-    text_color: "#FFFFFF",
-    align: "center",
-    bold: true,
-    z_index: 3,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "CORE SKILLS & PROFICIENCY",
-    x: 15,
-    y: 640,
-    width: sw - 30,
-    height: 14,
-    font_size: 9,
-    font_name: "Helvetica-Bold",
-    text_color: palette.secondary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  const skills = [
-    { name: "React / Next.js", pct: 0.95 },
-    { name: "Python / FastAPI", pct: 0.9 },
-    { name: "AWS / Cloud", pct: 0.85 },
-    { name: "PostgreSQL", pct: 0.88 },
-    { name: "Docker / K8s", pct: 0.8 },
+  const experiences = [
+    {
+      role: "Lead Full-Stack Architect",
+      company: "TechScale Systems",
+      duration: "2021 – Present",
+      location: "San Francisco, CA",
+      bullets: [
+        "Architected distributed event-driven microservices processing 15M+ daily requests on AWS EKS.",
+        "Reduced cloud infrastructure costs by 35% ($420k/yr) through Spot instance optimization.",
+        "Mentored a team of 10 software engineers, establishing automated CI/CD and 95%+ test coverage.",
+      ],
+    },
+    {
+      role: "Senior Software Engineer",
+      company: "CloudCore Inc.",
+      duration: "2018 – 2021",
+      location: "Austin, TX",
+      bullets: [
+        "Built responsive real-time analytics dashboards using React, TypeScript, and WebSockets.",
+        "Implemented OAuth2 token rotation and end-to-end encryption complying with SOC2 standards.",
+      ],
+    },
   ];
 
-  let sy = 615;
-  skills.forEach((s) => {
-    els.push({
-      id: gid(),
-      element_type: "text",
-      page_id: pageId,
-      text: `${s.name} (${Math.round(s.pct * 100)}%)`,
-      x: 15,
-      y: sy,
-      width: sw - 30,
-      height: 10,
-      font_size: 7.5,
-      font_name: "Helvetica",
-      text_color: "#CBD5E1",
-      z_index: 2,
-    } as any);
+  if (p.includes("data") || p.includes("ai") || p.includes("ml") || p.includes("machine learning")) {
+    role = "Senior Data Scientist & AI/ML Engineer";
+    skills = [
+      { name: "Python / PyTorch", level: 0.96 },
+      { name: "LLMs / LangChain", level: 0.92 },
+      { name: "SQL & Apache Spark", level: 0.88 },
+      { name: "MLOps & Docker", level: 0.85 },
+      { name: "AWS SageMaker", level: 0.86 },
+      { name: "Data Viz & Tableau", level: 0.9 },
+    ];
+    summary =
+      "Innovative AI/ML Engineer with 6+ years architecting production machine learning models, retrieval-augmented generation (RAG) pipelines, and predictive telemetry platforms.";
+    experiences[0].role = "Lead AI/ML Engineer";
+    experiences[0].company = "DataMind Intelligence";
+    experiences[1].role = "Senior Data Scientist";
+    experiences[1].company = "InsightWorks AI";
+  } else if (p.includes("product") || p.includes("pm") || p.includes("manager")) {
+    role = "Senior Product Manager & Strategy Lead";
+    skills = [
+      { name: "Product Roadmapping", level: 0.95 },
+      { name: "User Research & A/B Testing", level: 0.92 },
+      { name: "Agile & Scrum (CSPO)", level: 0.94 },
+      { name: "Mixpanel & SQL Telemetry", level: 0.88 },
+      { name: "Wireframing (Figma)", level: 0.86 },
+      { name: "GTM Growth Execution", level: 0.9 },
+    ];
+    summary =
+      "Customer-obsessed Product Leader with 6+ years driving enterprise SaaS products from discovery to scale, generating $4.5M+ ARR and reducing user churn by 28%.";
+    experiences[0].role = "Senior Product Manager";
+    experiences[0].company = "ScaleSaaS Technologies";
+    experiences[1].role = "Product Manager";
+    experiences[1].company = "Venture Growth Lab";
+  } else if (p.includes("executive") || p.includes("director") || p.includes("vp")) {
+    role = "VP of Engineering & Technology Strategy";
+    skills = [
+      { name: "Cross-Functional Leadership", level: 0.96 },
+      { name: "Architecture & Scale", level: 0.94 },
+      { name: "Budgeting ($12M ARR)", level: 0.9 },
+      { name: "Talent Acquisition & OKRs", level: 0.92 },
+      { name: "Cloud & Cybersecurity", level: 0.88 },
+      { name: "Board & C-Suite Advisory", level: 0.9 },
+    ];
+  }
 
-    els.push({
-      id: gid(),
-      element_type: "shape",
-      shape_type: "rectangle",
-      page_id: pageId,
-      x: 15,
-      y: sy - 8,
-      width: sw - 30,
-      height: 5,
-      fill_color: "#334155",
-      border_width: 0,
-      border_radius: 3,
-      z_index: 2,
-    } as any);
+  const candidateData: ParsedCandidateData = {
+    name: "ALEXANDER MORGAN",
+    headline: role,
+    email: "alex.morgan@resumagic.ai",
+    phone: "+1 (555) 019-2834",
+    location: "New York, NY",
+    linkedin: "linkedin.com/in/alexmorgan-lead",
+    website: "alexmorgan.dev",
+    summary,
+    experiences,
+    educations: [
+      {
+        degree: "M.S. in Computer Science",
+        school: "Stanford University",
+        year: "2018",
+        gpa: "3.9 GPA",
+      },
+      {
+        degree: "B.S. in Software Engineering",
+        school: "University of Washington",
+        year: "2016",
+      },
+    ],
+    skills,
+    certifications: [
+      "AWS Certified Solutions Architect (Professional)",
+      "Certified Scrum Master (CSM)",
+    ],
+  };
 
-    els.push({
-      id: gid(),
-      element_type: "shape",
-      shape_type: "rectangle",
-      page_id: pageId,
-      x: 15,
-      y: sy - 8,
-      width: (sw - 30) * s.pct,
-      height: 5,
-      fill_color: palette.accent,
-      border_width: 0,
-      border_radius: 3,
-      z_index: 3,
-    } as any);
+  const isExecutiveTheme =
+    plan.layout_type?.includes("single") ||
+    plan.layout_type?.includes("executive") ||
+    p.includes("executive") ||
+    p.includes("ats");
 
-    sy -= 28;
+  if (isExecutiveTheme) {
+    return generateGeometricResume(candidateData, "executive", {
+      primary: palette.primary || "#0F172A",
+      secondary: palette.secondary || "#2563EB",
+      accent: palette.accent || "#CBD5E1",
+      text: palette.text || "#334155",
+      muted: "#64748B",
+    });
+  }
+
+  return generateGeometricResume(candidateData, "sidebar", {
+    sidebarBg: palette.bg === "#FFFFFF" ? "#0F172A" : palette.bg || "#0F172A",
+    sidebarText: "#F8FAFC",
+    sidebarMuted: "#94A3B8",
+    primary: palette.primary || "#1E293B",
+    secondary: palette.secondary || "#2563EB",
+    accent: palette.accent || "#38BDF8",
+    text: palette.text || "#334155",
+    muted: "#64748B",
+    barBg: "#334155",
   });
-
-  // Sidebar QR Code
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "LIVE PORTFOLIO QR",
-    x: 15,
-    y: 380,
-    width: sw - 30,
-    height: 12,
-    font_size: 8.5,
-    font_name: "Helvetica-Bold",
-    text_color: palette.secondary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "rectangle",
-    page_id: pageId,
-    x: sw / 2 - 35,
-    y: 300,
-    width: 70,
-    height: 70,
-    fill_color: "#FFFFFF",
-    border_color: palette.accent,
-    border_width: 2,
-    border_radius: 6,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "SCAN ME",
-    x: 15,
-    y: 282,
-    width: sw - 30,
-    height: 10,
-    font_size: 7.5,
-    font_name: "Helvetica-Bold",
-    text_color: "#94A3B8",
-    align: "center",
-    z_index: 2,
-  } as any);
-
-  // 4. Main Body Content (Right Side)
-  let ry = 640;
-
-  // Summary
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "PROFESSIONAL SUMMARY",
-    x: sw + 20,
-    y: ry,
-    width: 380,
-    height: 14,
-    font_size: 10,
-    font_name: "Helvetica-Bold",
-    text_color: palette.primary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "line",
-    page_id: pageId,
-    x: sw + 20,
-    y: ry - 4,
-    x2: 580,
-    y2: ry - 4,
-    border_color: palette.secondary,
-    border_width: 1,
-    z_index: 2,
-  } as any);
-
-  ry -= 22;
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "Innovative Cloud Architect with 8+ years leading cross-functional teams building high-throughput microservices. Specialized in serverless architectures, cost optimization ($12M saved), and real-time streaming serving 10M+ users.",
-    x: sw + 20,
-    y: ry - 35,
-    width: 380,
-    height: 40,
-    font_size: 8.5,
-    font_name: "Helvetica",
-    text_color: "#334155",
-    line_height: 1.4,
-    z_index: 2,
-  } as any);
-
-  // Experience Section
-  ry -= 65;
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "WORK EXPERIENCE",
-    x: sw + 20,
-    y: ry,
-    width: 380,
-    height: 14,
-    font_size: 10,
-    font_name: "Helvetica-Bold",
-    text_color: palette.primary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "line",
-    page_id: pageId,
-    x: sw + 20,
-    y: ry - 4,
-    x2: 580,
-    y2: ry - 4,
-    border_color: palette.secondary,
-    border_width: 1,
-    z_index: 2,
-  } as any);
-
-  ry -= 25;
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "Principal Cloud Engineer · TechCorp Inc.",
-    x: sw + 20,
-    y: ry,
-    width: 260,
-    height: 12,
-    font_size: 9.5,
-    font_name: "Helvetica-Bold",
-    text_color: palette.primary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "2021 – Present",
-    x: 480,
-    y: ry,
-    width: 100,
-    height: 12,
-    font_size: 8,
-    font_name: "Helvetica",
-    text_color: "#64748B",
-    align: "right",
-    z_index: 2,
-  } as any);
-
-  ry -= 16;
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "• Spearheaded cloud migration of 14 core services to AWS EKS, boosting availability to 99.99%\n• Reduced monthly infrastructure spend by 40% ($350k/mo) through Spot instance orchestration\n• Mentored a high-performing team of 12 software engineers across 3 timezones",
-    x: sw + 25,
-    y: ry - 35,
-    width: 375,
-    height: 40,
-    font_size: 8.2,
-    font_name: "Helvetica",
-    text_color: "#475569",
-    line_height: 1.4,
-    z_index: 2,
-  } as any);
-
-  // Education
-  ry -= 125;
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "EDUCATION & CREDENTIALS",
-    x: sw + 20,
-    y: ry,
-    width: 380,
-    height: 14,
-    font_size: 10,
-    font_name: "Helvetica-Bold",
-    text_color: palette.primary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  els.push({
-    id: gid(),
-    element_type: "shape",
-    shape_type: "line",
-    page_id: pageId,
-    x: sw + 20,
-    y: ry - 4,
-    x2: 580,
-    y2: ry - 4,
-    border_color: palette.secondary,
-    border_width: 1,
-    z_index: 2,
-  } as any);
-
-  ry -= 25;
-  els.push({
-    id: gid(),
-    element_type: "text",
-    page_id: pageId,
-    text: "M.S. Computer Science · Stanford University",
-    x: sw + 20,
-    y: ry,
-    width: 280,
-    height: 12,
-    font_size: 9,
-    font_name: "Helvetica-Bold",
-    text_color: palette.primary,
-    bold: true,
-    z_index: 2,
-  } as any);
-
-  return els;
 }
 
 export async function buildResumeFromImportedText(
   extractedText: string,
   userPrompt: string = "",
 ): Promise<{ elements: EditorElement[]; title: string }> {
-  // 1. Initial local extraction as baseline
-  let wizardData = parseResumeTextToWizardData(extractedText);
+  // 1. Initial high-accuracy semantic text extraction
+  const candidateData = parseResumeTextToCandidateData(extractedText);
 
   // 2. Primary: Distill structured candidate information via Backend Primary AI
-  let distilled = false;
   try {
     const res = await fetchWithCaptcha("/api/ai-architect", {
       method: "POST",
@@ -941,188 +722,58 @@ export async function buildResumeFromImportedText(
         console.log(
           "[AI-Import Engine] ✅ Successfully distilled candidate data via Primary AI Engine!",
         );
-        wizardData = {
-          ...wizardData,
-          contact: {
-            ...wizardData.contact,
-            firstName:
-              rawJson.contact?.firstName || wizardData.contact.firstName,
-            lastName: rawJson.contact?.lastName || wizardData.contact.lastName,
-            email: rawJson.contact?.email || wizardData.contact.email,
-            phone: rawJson.contact?.phone || wizardData.contact.phone,
-            linkedin: rawJson.contact?.linkedin || wizardData.contact.linkedin,
-            country:
-              rawJson.contact?.location ||
-              rawJson.contact?.country ||
-              wizardData.contact.country,
-          },
-          summary: rawJson.summary || wizardData.summary,
-          skills:
-            Array.isArray(rawJson.skills) && rawJson.skills.length > 0
-              ? rawJson.skills
-              : wizardData.skills,
-          experiences:
-            Array.isArray(rawJson.experiences) && rawJson.experiences.length > 0
-              ? rawJson.experiences.map((exp: any, i: number) => ({
-                  id: `exp_${i}`,
-                  jobTitle: exp.jobTitle || exp.title || "Position",
-                  company: exp.company || "",
-                  location: exp.location || "",
-                  startDate: exp.dates || exp.startDate || "",
-                  endDate: "",
-                  current: false,
-                  description: exp.description || exp.desc || "",
-                }))
-              : wizardData.experiences,
-          educations:
-            Array.isArray(rawJson.educations) && rawJson.educations.length > 0
-              ? rawJson.educations.map((edu: any, i: number) => ({
-                  id: `edu_${i}`,
-                  degree: edu.degree || "Degree",
-                  school: edu.school || "",
-                  location: edu.location || "",
-                  startDate: edu.dates || edu.startDate || "",
-                  endDate: "",
-                  current: false,
-                }))
-              : wizardData.educations,
-        };
-        distilled = true;
+        if (rawJson.contact?.firstName) {
+          candidateData.name = `${rawJson.contact.firstName} ${rawJson.contact.lastName || ""}`.trim();
+        }
+        if (rawJson.contact?.email) candidateData.email = rawJson.contact.email;
+        if (rawJson.contact?.phone) candidateData.phone = rawJson.contact.phone;
+        if (rawJson.contact?.linkedin) candidateData.linkedin = rawJson.contact.linkedin;
+        if (rawJson.contact?.location || rawJson.contact?.country) {
+          candidateData.location = rawJson.contact.location || rawJson.contact.country;
+        }
+        if (rawJson.summary) candidateData.summary = rawJson.summary;
+        if (Array.isArray(rawJson.skills) && rawJson.skills.length > 0) {
+          candidateData.skills = rawJson.skills.map((s: string, idx: number) => ({
+            name: s,
+            level: Math.min(0.96, Math.max(0.75, 0.95 - (idx % 6) * 0.04)),
+          }));
+        }
+        if (Array.isArray(rawJson.experiences) && rawJson.experiences.length > 0) {
+          candidateData.experiences = rawJson.experiences.map((exp: any) => ({
+            role: exp.jobTitle || exp.role || exp.title || "Professional",
+            company: exp.company || "",
+            duration: exp.dates || exp.duration || "",
+            location: exp.location || "",
+            bullets: (exp.description || "")
+              .split(/\n|•/)
+              .map((b: string) => b.trim())
+              .filter((b: string) => b.length > 4),
+          }));
+        }
+        if (Array.isArray(rawJson.educations) && rawJson.educations.length > 0) {
+          candidateData.educations = rawJson.educations.map((edu: any) => ({
+            degree: edu.degree || "Degree",
+            school: edu.school || "",
+            year: edu.dates || edu.year || "",
+            gpa: edu.gpa || "",
+            details: edu.description || "",
+          }));
+        }
       }
     }
   } catch (backendErr) {
     console.warn(
-      "[AI-Import Engine] Backend distillation failed, attempting Gemini direct fallback...",
+      "[AI-Import Engine] Backend distillation notice:",
       backendErr,
     );
   }
 
-  // 3. Secondary Fallback: Direct Client Google Gemini
-  if (!distilled && genAI && apiKey && extractedText.trim().length > 10) {
-    const distillationPrompt = `You are a Lead AI Career Data Analyst.
-TASK: Extract ALL structured candidate information from this raw uploaded resume document text.
-
-RAW EXTRACTED TEXT:
-${extractedText.slice(0, 6000)}
-
-${userPrompt ? `USER PROMPT ENHANCEMENT: ${userPrompt}` : ""}
-
-Return ONLY a raw JSON object with this exact schema:
-{
-  "contact": {
-    "firstName": "...",
-    "lastName": "...",
-    "email": "...",
-    "phone": "...",
-    "linkedin": "...",
-    "location": "..."
-  },
-  "summary": "...",
-  "experiences": [
-    {
-      "jobTitle": "...",
-      "company": "...",
-      "dates": "...",
-      "location": "...",
-      "description": "..."
-    }
-  ],
-  "educations": [
-    {
-      "degree": "...",
-      "school": "...",
-      "dates": "...",
-      "location": "..."
-    }
-  ],
-  "skills": ["Skill 1", "Skill 2"]
-}`;
-
-    for (const modelName of GEMINI_MODELS) {
-      try {
-        console.log(
-          `[AI-Import Engine] Distilling with fallback Gemini model ${modelName}...`,
-        );
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(distillationPrompt);
-        const rawJson = cleanJSONResponse(result.response.text());
-        if (
-          rawJson &&
-          (rawJson.contact || rawJson.experiences || rawJson.skills)
-        ) {
-          console.log(
-            `[AI-Import Engine] ✅ Gemini successfully distilled candidate JSON data via ${modelName}!`,
-          );
-          wizardData = {
-            ...wizardData,
-            contact: {
-              ...wizardData.contact,
-              firstName:
-                rawJson.contact?.firstName || wizardData.contact.firstName,
-              lastName:
-                rawJson.contact?.lastName || wizardData.contact.lastName,
-              email: rawJson.contact?.email || wizardData.contact.email,
-              phone: rawJson.contact?.phone || wizardData.contact.phone,
-              linkedin:
-                rawJson.contact?.linkedin || wizardData.contact.linkedin,
-              country: rawJson.contact?.location || wizardData.contact.country,
-            },
-            summary: rawJson.summary || wizardData.summary,
-            skills:
-              Array.isArray(rawJson.skills) && rawJson.skills.length > 0
-                ? rawJson.skills
-                : wizardData.skills,
-            experiences:
-              Array.isArray(rawJson.experiences) &&
-              rawJson.experiences.length > 0
-                ? rawJson.experiences.map((exp: any, i: number) => ({
-                    id: `exp_${i}`,
-                    jobTitle: exp.jobTitle || exp.title || "Position",
-                    company: exp.company || "",
-                    location: exp.location || "",
-                    startDate: exp.dates || exp.startDate || "",
-                    endDate: "",
-                    current: false,
-                    description: exp.description || exp.desc || "",
-                  }))
-                : wizardData.experiences,
-            educations:
-              Array.isArray(rawJson.educations) && rawJson.educations.length > 0
-                ? rawJson.educations.map((edu: any, i: number) => ({
-                    id: `edu_${i}`,
-                    degree: edu.degree || "Degree",
-                    school: edu.school || "",
-                    location: edu.location || "",
-                    startDate: edu.dates || edu.startDate || "",
-                    endDate: "",
-                    description: edu.description || "",
-                  }))
-                : wizardData.educations,
-          };
-          break;
-        }
-      } catch (err: any) {
-        if (!err?.message?.includes("404")) {
-          console.warn(
-            `[AI-Import Engine] Model ${modelName} distillation notice:`,
-            err,
-          );
-        }
-      }
-    }
-  }
-
-  // 3. Build bespoke canvas elements from distilled candidate wizardData
-  const candidateName = (
-    wizardData.contact.firstName +
-    " " +
-    wizardData.contact.lastName
-  ).trim();
+  // 3. Build pristine geometric canvas elements
+  const candidateName = candidateData.name.trim();
   const resumeTitle = candidateName
     ? `${candidateName}'s Resume`
     : "Imported Resume";
 
-  const elements = generateWizardElements(wizardData, "level2");
-  const normalized = normalizeEditorElements(elements, "page-1");
-  return { elements: normalized, title: resumeTitle };
+  const elements = generateGeometricResume(candidateData, "sidebar");
+  return { elements, title: resumeTitle };
 }

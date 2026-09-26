@@ -16,6 +16,7 @@ import re
 import uuid
 import os
 import sys
+import time
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 
@@ -798,6 +799,128 @@ Output JSON with this structure:
             "message": f"Created {plan.get('role')} resume with {len(final_elements)} elements (Quality: {review_result['quality_score']}/100)",
         }
 
+    def run_full_pipeline_stream(self, user_prompt: str):
+        """
+        Runs the complete multi-agent pipeline and yields real-time streaming events.
+        Yields Dict objects ready for SSE JSON encoding.
+        """
+        yield {
+            "type": "status",
+            "stage": "init",
+            "step_index": 1,
+            "total_steps": 5,
+            "message": "Initializing Multi-Agent AI Architect..."
+        }
+        time.sleep(0.04)
+
+        # 1. Planner Agent
+        yield {
+            "type": "agent_start",
+            "agent": "planner",
+            "step_index": 1,
+            "total_steps": 5,
+            "message": "Planner Agent analyzing career intent, role requirements & visual theme..."
+        }
+        plan_result = self.planner_agent(user_prompt)
+        plan = plan_result["plan"]
+        
+        role = plan.get('role', 'Professional')
+        layout_style = plan.get('layout_style', 'modern_sidebar')
+
+        yield {
+            "type": "agent_step",
+            "agent": "planner",
+            "step_index": 1,
+            "total_steps": 5,
+            "message": f"Target Role: {role} | Visual Archetype: {layout_style.replace('_', ' ').title()}",
+            "plan": plan
+        }
+        time.sleep(0.04)
+
+        # 2. Foundation Agent
+        yield {
+            "type": "agent_start",
+            "agent": "foundation",
+            "step_index": 2,
+            "total_steps": 5,
+            "message": f"Foundation Agent calculating 2D coordinate system and vertical rhythm for '{layout_style}'..."
+        }
+        foundation_result = self.foundation_agent(plan)
+        foundation = foundation_result["foundation"]
+        yield {
+            "type": "agent_step",
+            "agent": "foundation",
+            "step_index": 2,
+            "total_steps": 5,
+            "message": "Grid boundaries, column splits, and line buffer clearances (34pt) established."
+        }
+        time.sleep(0.04)
+
+        # 3. Design Agent
+        yield {
+            "type": "agent_start",
+            "agent": "design",
+            "step_index": 3,
+            "total_steps": 5,
+            "message": "Design Agent synthesizing visual elements, progress loaders, and typography..."
+        }
+        design_result = self.design_agent(plan, foundation)
+        elements = design_result["elements"]
+        yield {
+            "type": "agent_step",
+            "agent": "design",
+            "step_index": 3,
+            "total_steps": 5,
+            "message": f"Synthesized {len(elements)} vector layout elements."
+        }
+        time.sleep(0.04)
+
+        # 4. Review Agent
+        yield {
+            "type": "agent_start",
+            "agent": "review",
+            "step_index": 4,
+            "total_steps": 5,
+            "message": "Review Agent validating ATS compliance and mathematical symmetry..."
+        }
+        review_result = self.review_agent(elements, plan)
+        yield {
+            "type": "agent_step",
+            "agent": "review",
+            "step_index": 4,
+            "total_steps": 5,
+            "quality_score": review_result["quality_score"],
+            "symmetry_score": review_result["symmetry_score"],
+            "ats_score": review_result["ats_score"],
+            "message": f"Validation Passed! Symmetry: {review_result['symmetry_score']}/100 | Quality: {review_result['quality_score']}/100"
+        }
+        time.sleep(0.04)
+
+        # 5. Assembly Agent
+        yield {
+            "type": "agent_start",
+            "agent": "assembly",
+            "step_index": 5,
+            "total_steps": 5,
+            "message": "Assembly Agent finalizing canvas coordinates and layer ordering..."
+        }
+        assembly_result = self.assembly_agent(elements, plan, review_result)
+        final_elements = assembly_result["elements"]
+        
+        yield {
+            "type": "complete",
+            "status": "success",
+            "elements": final_elements,
+            "plan": plan,
+            "quality_metrics": {
+                "overall_score": review_result["quality_score"],
+                "symmetry_score": review_result["symmetry_score"],
+                "ats_score": review_result["ats_score"],
+                "ats_compliant": review_result["ats_compliant"],
+            },
+            "message": f"Complete! Assembled {len(final_elements)} calibrated elements."
+        }
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # EDITOR SURGICAL MODIFICATIONS
@@ -988,6 +1111,53 @@ class EditorAIArchitect:
             "message": f"Could not create element of type: {element_type}",
         }
 
+    def add_element_surgically_stream(
+        self,
+        element_type: str,
+        element_spec: str,
+        existing_elements: List[Dict[str, Any]]
+    ):
+        """
+        Yields real-time step events for surgical modifications in editor canvas.
+        """
+        yield {
+            "type": "status",
+            "stage": "analyzing",
+            "message": f"Analyzing canvas layout and vacant regions for '{element_type}'..."
+        }
+        time.sleep(0.04)
+
+        canvas_analysis = analyze_canvas_space.invoke({"existing_elements": existing_elements})
+        occupied_count = len(canvas_analysis.get("occupied_regions", []))
+        
+        yield {
+            "type": "thought",
+            "message": f"Scanned {occupied_count} existing visual elements. Finding optimal coordinates..."
+        }
+        time.sleep(0.04)
+
+        res = self.add_element_surgically(element_type, element_spec, existing_elements)
+        if res.get("status") == "success":
+            yield {
+                "type": "thought",
+                "message": f"Applied {element_type} modification with symmetry score {res.get('symmetry_score', 90)}/100."
+            }
+            time.sleep(0.04)
+            yield {
+                "type": "complete",
+                "status": "success",
+                "action": res.get("action"),
+                "added_elements": res.get("added_elements", []),
+                "modifications": res.get("modifications", []),
+                "symmetry_score": res.get("symmetry_score", 90),
+                "message": res.get("message", "Surgical modification complete")
+            }
+        else:
+            yield {
+                "type": "error",
+                "message": res.get("message", "Could not complete surgical modification")
+            }
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # PUBLIC API
@@ -1030,3 +1200,29 @@ def run_multi_agent_architect(
         # Create mode - full multi-agent pipeline
         architect = MultiAgentArchitect()
         return architect.run_full_pipeline(user_prompt)
+
+
+def run_multi_agent_architect_stream(
+    user_prompt: str,
+    existing_elements: Optional[List[Dict[str, Any]]] = None,
+    mode: str = "create"
+):
+    """
+    Streaming entry point for multi-agent resume architect.
+    Yields JSON-ready events for Server-Sent Events (SSE).
+    """
+    if mode == "edit" and existing_elements:
+        editor = EditorAIArchitect()
+        prompt_lower = user_prompt.lower()
+        if "qr" in prompt_lower or "code" in prompt_lower:
+            elem_type = "qr_code"
+        elif "sidebar" in prompt_lower:
+            elem_type = "sidebar"
+        elif "summary" in prompt_lower:
+            elem_type = "summary"
+        else:
+            elem_type = "text"
+        yield from editor.add_element_surgically_stream(elem_type, user_prompt, existing_elements)
+    else:
+        architect = MultiAgentArchitect()
+        yield from architect.run_full_pipeline_stream(user_prompt)

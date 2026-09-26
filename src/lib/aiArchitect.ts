@@ -389,6 +389,98 @@ export async function buildArchitectResumeDirect(
   return generateFallbackElements(plan, userPrompt);
 }
 
+export interface ArchitectStreamEvent {
+  type: "status" | "agent_start" | "agent_step" | "thought" | "complete" | "error";
+  stage?: string;
+  agent?: string;
+  step_index?: number;
+  total_steps?: number;
+  message?: string;
+  plan?: any;
+  elements?: EditorElement[];
+  quality_metrics?: any;
+  quality_score?: number;
+  symmetry_score?: number;
+  action?: string;
+}
+
+export async function buildArchitectResumeWithStream(
+  plan: DesignPlan,
+  userPrompt: string = "",
+  onEvent?: (event: ArchitectStreamEvent) => void,
+): Promise<EditorElement[]> {
+  console.log(`[AI-Architect] 🚀 Streaming build for: '${plan.title}'...`);
+
+  onEvent?.({
+    type: "status",
+    stage: "connecting",
+    message: "Connecting to Multi-Agent AI stream pipeline...",
+    step_index: 1,
+    total_steps: 5,
+  });
+
+  try {
+    const res = await fetchWithCaptcha("/api/ai-architect/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "build",
+        prompt: userPrompt || plan.title,
+        plan,
+      }),
+    });
+
+    if (res.ok && res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalElements: EditorElement[] | null = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("data:")) {
+            try {
+              const data: ArchitectStreamEvent = JSON.parse(trimmed.slice(5).trim());
+              onEvent?.(data);
+
+              if (data.type === "complete" && Array.isArray(data.elements) && data.elements.length > 0) {
+                finalElements = normalizeEditorElements(data.elements);
+              }
+            } catch (jsonErr) {
+              console.warn("[AI-Architect] SSE JSON parse warning:", jsonErr);
+            }
+          }
+        }
+      }
+
+      if (finalElements && finalElements.length > 0) {
+        return finalElements;
+      }
+    }
+  } catch (err: any) {
+    console.warn("[AI-Architect] Stream error, falling back to direct build:", err);
+  }
+
+  // Fallback to direct build or client layout engine
+  onEvent?.({
+    type: "status",
+    stage: "synthesizing",
+    message: "Synthesizing calibrated layout elements...",
+    step_index: 5,
+    total_steps: 5,
+  });
+
+  return buildArchitectResumeDirect(plan, userPrompt);
+}
+
 export function createFallbackPlan(
   userPrompt: string,
   refinement: string = "",

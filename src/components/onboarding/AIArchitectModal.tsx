@@ -15,12 +15,17 @@ import {
   Sliders,
   Layout,
   FileText,
+  Compass,
+  ShieldCheck,
+  Terminal,
+  Brain,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAuthModal } from "./AuthModalContext";
 import {
   generateArchitectPlanDirect,
   buildArchitectResumeDirect,
+  buildArchitectResumeWithStream,
   type DesignPlan,
 } from "../../lib/aiArchitect";
 import type { EditorElement } from "../../types/editor";
@@ -53,6 +58,13 @@ export function AIArchitectModal({
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<DesignPlan | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+
+  // Live AI Stream state
+  const [streamLogs, setStreamLogs] = useState<{ id: string; time: string; text: string; agent?: string }[]>([]);
+  const [activeAgent, setActiveAgent] = useState<string>("planner");
+  const [activeStep, setActiveStep] = useState<number>(1);
+  const [liveMetrics, setLiveMetrics] = useState<{ quality?: number; symmetry?: number } | null>(null);
+  const [streamMessage, setStreamMessage] = useState<string>("Connecting to Multi-Agent AI Pipeline...");
 
   useEffect(() => {
     if (!loading) {
@@ -146,9 +158,39 @@ export function AIArchitectModal({
     // Instantly start loader & lock UI
     setStep("building");
     setLoading(true);
+    setStreamLogs([]);
+    setActiveStep(1);
+    setActiveAgent("planner");
+    setLiveMetrics(null);
+    setStreamMessage("Connecting to Multi-Agent AI stream pipeline...");
 
     try {
-      const elements = await buildArchitectResumeDirect(plan, prompt);
+      const elements = await buildArchitectResumeWithStream(
+        plan,
+        prompt,
+        (event) => {
+          if (event.agent) setActiveAgent(event.agent);
+          if (event.step_index) setActiveStep(event.step_index);
+          if (event.message) setStreamMessage(event.message);
+          if (event.quality_score) {
+            setLiveMetrics({
+              quality: event.quality_score,
+              symmetry: event.symmetry_score,
+            });
+          }
+          if (event.message) {
+            setStreamLogs((prev) => [
+              ...prev,
+              {
+                id: Math.random().toString(36).substring(2, 9),
+                time: new Date().toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" }),
+                text: event.message || "",
+                agent: event.agent || event.stage,
+              },
+            ]);
+          }
+        },
+      );
 
       // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
       if (user) {
@@ -369,26 +411,123 @@ export function AIArchitectModal({
             </div>
           )}
 
-          {/* STEP 3: BUILDING STAGE */}
+          {/* STEP 3: BUILDING STAGE - LIVE AI DESIGN STREAM */}
           {step === "building" && (
-            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 animate-in fade-in">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/30 animate-pulse">
-                  <Sparkles className="w-8 h-8" />
+            <div className="space-y-4 animate-in fade-in py-1">
+              {/* Header Status Row */}
+              <div className="flex items-center justify-between p-3.5 bg-app-surface border border-app-border rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                      <Sparkles className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <Loader2 className="w-12 h-12 animate-spin text-indigo-500 absolute -top-1 -left-1" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-app-text flex items-center gap-2">
+                      Multi-Agent AI Streaming Engine
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> LIVE
+                      </span>
+                    </h4>
+                    <p className="text-xs text-app-text-muted">
+                      Synthesizing bespoke vector layout & streaming live agent tokens
+                    </p>
+                  </div>
                 </div>
-                <Loader2 className="w-20 h-20 animate-spin text-indigo-500 absolute -top-2 -left-2" />
+
+                <div className="flex items-center gap-2">
+                  {liveMetrics?.symmetry && (
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-xs font-mono font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                      Symmetry: {liveMetrics.symmetry}/100
+                    </span>
+                  )}
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-app-bg border border-app-border text-app-text rounded-lg font-mono text-xs font-bold">
+                    <Clock className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                    {formattedTimer}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-lg text-app-text">
-                  AI Architect is Building Your Resume
-                </h4>
-                <p className="text-xs text-app-text-muted mt-1 max-w-sm mb-3">
-                  Composing custom layout elements, skill progress bar loaders,
-                  typography, and section graphics via AI...
-                </p>
-                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 rounded-full font-mono text-xs font-bold shadow-sm">
-                  <Clock className="w-3.5 h-3.5 animate-pulse" /> Elapsed:{" "}
-                  {formattedTimer}
+
+              {/* Multi-Agent Stepper */}
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                {[
+                  { id: "planner", label: "Planner", stepNum: 1, icon: Brain },
+                  { id: "foundation", label: "Foundation", stepNum: 2, icon: Compass },
+                  { id: "design", label: "Design", stepNum: 3, icon: Palette },
+                  { id: "review", label: "Review", stepNum: 4, icon: ShieldCheck },
+                  { id: "assembly", label: "Assembly", stepNum: 5, icon: Layers },
+                ].map((st) => {
+                  const isDone = activeStep > st.stepNum;
+                  const isCurrent = activeStep === st.stepNum;
+                  return (
+                    <div
+                      key={st.id}
+                      className={`p-2 rounded-xl border text-center transition-all ${
+                        isCurrent
+                          ? "bg-indigo-500/10 border-indigo-500/40 text-indigo-400 shadow-sm"
+                          : isDone
+                            ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-400"
+                            : "bg-app-surface/40 border-app-border/40 text-app-text-muted/60"
+                      }`}
+                    >
+                      <div className="flex items-center justify-center mb-1">
+                        {isDone ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : isCurrent ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                        ) : (
+                          <st.icon className="w-4 h-4 text-app-text-muted/50" />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold block truncate">
+                        {st.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Streaming Terminal Console */}
+              <div className="w-full bg-[#070B14] border border-indigo-500/20 rounded-xl overflow-hidden shadow-2xl text-left">
+                {/* Terminal Window Header */}
+                <div className="flex items-center justify-between px-3.5 py-2 bg-[#0E1526] border-b border-indigo-500/20 text-[11px] font-mono text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                    <span className="ml-2 font-semibold text-slate-300 flex items-center gap-1">
+                      <Terminal className="w-3 h-3 text-indigo-400" />
+                      resumagic_agent_stream.log
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-indigo-300 font-mono">
+                    Agent: <strong className="text-white uppercase">{activeAgent}</strong>
+                  </span>
+                </div>
+
+                {/* Terminal Body */}
+                <div className="p-3.5 font-mono text-[11px] space-y-1.5 max-h-56 overflow-y-auto select-text">
+                  {streamLogs.map((log) => (
+                    <div key={log.id} className="flex items-start gap-2 leading-relaxed">
+                      <span className="text-slate-500 shrink-0 select-none">[{log.time}]</span>
+                      {log.agent && (
+                        <span className="text-indigo-400 font-bold uppercase shrink-0">
+                          [{log.agent}]:
+                        </span>
+                      )}
+                      <span className="text-slate-200">{log.text}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 text-indigo-400 pt-1">
+                    <span className="text-slate-500">
+                      [{new Date().toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" })}]
+                    </span>
+                    <span className="text-indigo-400 font-bold uppercase">[{activeAgent}]:</span>
+                    <span className="text-indigo-300 italic">{streamMessage}</span>
+                    <span className="inline-block w-1.5 h-3.5 bg-indigo-400 animate-pulse ml-0.5" />
+                  </div>
                 </div>
               </div>
             </div>

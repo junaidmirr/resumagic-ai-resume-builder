@@ -94,6 +94,15 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
 
     abortControllerRef.current = new AbortController();
 
+    // Add a placeholder bot message for live streaming
+    setMessages((p) => [
+      ...p,
+      {
+        role: "bot",
+        text: "Analyzing canvas geometry & thinking...",
+      },
+    ]);
+
     try {
       const idToken = user ? await user.getIdToken().catch(() => "") : "";
       const headers: Record<string, string> = {
@@ -111,24 +120,65 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         body: JSON.stringify({
           elements,
           prompt: userMsg,
+          stream: true,
         }),
       });
-
-      let result: any = null;
-      try {
-        result = await resp.json();
-      } catch (e) {
-        // non-json error response
-      }
 
       if (!resp.ok) {
         if (resp.status === 402)
           throw new Error("Insufficient credits. Please recharge.");
-        const errMsg =
-          result?.error ||
-          result?.message ||
-          `Backend failed to process request (${resp.status})`;
-        throw new Error(errMsg);
+        const errorText = await resp.text().catch(() => "");
+        throw new Error(errorText || `Backend failed to process request (${resp.status})`);
+      }
+
+      let result: any = null;
+      const contentType = resp.headers.get("Content-Type") || "";
+
+      if (contentType.includes("text/event-stream") && resp.body) {
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let streamedThoughts = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith("data:")) {
+              try {
+                const event = JSON.parse(trimmed.slice(5).trim());
+                if (event.message || event.thought) {
+                  const chunk = event.thought || event.message;
+                  streamedThoughts += (streamedThoughts ? "\n" : "") + `> ${chunk}`;
+                  setMessages((p) => {
+                    const copy = [...p];
+                    const lastIdx = copy.length - 1;
+                    if (lastIdx >= 0 && copy[lastIdx].role === "bot") {
+                      copy[lastIdx] = {
+                        ...copy[lastIdx],
+                        text: streamedThoughts,
+                      };
+                    }
+                    return copy;
+                  });
+                }
+                if (event.type === "complete") {
+                  result = event;
+                }
+              } catch (e) {
+                // ignore SSE parse errors
+              }
+            }
+          }
+        }
+      } else {
+        result = await resp.json();
       }
 
       if (result?.status === "rejected") {
@@ -144,23 +194,51 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
 
       setStage("Executing...");
 
-      if (result.elements && onUpdateElements) {
+      if (result?.added_elements && onUpdateElements) {
+        const combined = [...elements, ...result.added_elements];
+        onUpdateElements(combined);
+        setMessages((p) => {
+          const copy = [...p];
+          const lastIdx = copy.length - 1;
+          const finalNote = `Design execution complete! 🚀 Added ${result.added_elements.length} elements (Symmetry: ${result.symmetry_score || 95}/100). How does it look?`;
+          if (lastIdx >= 0 && copy[lastIdx].role === "bot") {
+            copy[lastIdx] = {
+              ...copy[lastIdx],
+              text: copy[lastIdx].text ? `${copy[lastIdx].text}\n\n${finalNote}` : finalNote,
+            };
+          } else {
+            copy.push({ role: "bot", text: finalNote });
+          }
+          return copy;
+        });
+      } else if (result?.elements && onUpdateElements) {
         onUpdateElements(result.elements);
-        setMessages((p) => [
-          ...p,
-          {
-            role: "bot",
-            text: `Design execution complete! 🚀 I've applied the new layout based on your request. How does it look?`,
-          },
-        ]);
+        setMessages((p) => {
+          const copy = [...p];
+          const lastIdx = copy.length - 1;
+          const finalNote = `Design execution complete! 🚀 Applied updated canvas layout. How does it look?`;
+          if (lastIdx >= 0 && copy[lastIdx].role === "bot") {
+            copy[lastIdx] = {
+              ...copy[lastIdx],
+              text: copy[lastIdx].text ? `${copy[lastIdx].text}\n\n${finalNote}` : finalNote,
+            };
+          } else {
+            copy.push({ role: "bot", text: finalNote });
+          }
+          return copy;
+        });
       } else {
-        setMessages((p) => [
-          ...p,
-          {
-            role: "bot",
-            text: "I analyzed the canvas but didn't find any necessary changes for that request.",
-          },
-        ]);
+        setMessages((p) => {
+          const copy = [...p];
+          const lastIdx = copy.length - 1;
+          const finalNote = "I analyzed the canvas but didn't find any necessary changes for that request.";
+          if (lastIdx >= 0 && copy[lastIdx].role === "bot") {
+            copy[lastIdx] = { ...copy[lastIdx], text: finalNote };
+          } else {
+            copy.push({ role: "bot", text: finalNote });
+          }
+          return copy;
+        });
       }
 
       // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION

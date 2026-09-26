@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from datetime import datetime, timedelta, timezone
 import base64
@@ -823,6 +823,24 @@ def ai_chat_edit():
                 "error": "Request blocked: Content violates career and resume safety policy."
             }), 400
         
+        if data.get('stream'):
+            from backend.multi_agent_architect import run_multi_agent_architect_stream
+            def generate_chat():
+                try:
+                    for event in run_multi_agent_architect_stream(prompt, existing_elements=elements, mode="edit"):
+                        yield f"data: {json.dumps(event)}\n\n"
+                    if uid:
+                        deduct_user_credits(uid, 10, description="AI Editor Chat")
+                except Exception as stream_err:
+                    yield f"data: {json.dumps({'type': 'error', 'message': str(stream_err)})}\n\n"
+
+            return Response(stream_with_context(generate_chat()), mimetype='text/event-stream', headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+                'Connection': 'keep-alive',
+                'Content-Type': 'text/event-stream'
+            })
+
         parser = AIParserEngine()
         result = parser.ai_chat_edit(elements, prompt)
 
@@ -871,6 +889,52 @@ def ai_assistant():
             deduct_user_credits(uid, 10)
 
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-architect/stream', methods=['POST'])
+def ai_architect_stream():
+    allowed, rate_resp = check_rate_limit(request, "ai")
+    if not allowed:
+        return rate_resp
+    try:
+        uid = verify_authenticated_user(request)
+        if uid and not check_user_has_credits(uid, 10):
+            return jsonify({"error": "Insufficient credits. Please recharge."}), 402
+
+        data = request.get_json(silent=True) or {}
+        prompt = data.get('prompt', '')
+        elements = data.get('elements', [])
+        mode = "edit" if (elements and len(elements) >= 5) else "create"
+
+        if locally_blocked(prompt):
+            return jsonify({
+                "status": "rejected",
+                "error": "Request blocked: Content violates career and resume safety policy."
+            }), 400
+
+        from backend.multi_agent_architect import run_multi_agent_architect_stream
+
+        def generate_architect_events():
+            try:
+                for event in run_multi_agent_architect_stream(prompt, existing_elements=elements if elements else None, mode=mode):
+                    yield f"data: {json.dumps(event)}\n\n"
+                if uid:
+                    deduct_user_credits(uid, 10, description="Streaming Multi-Agent Resume")
+            except Exception as stream_err:
+                err_event = {
+                    "type": "error",
+                    "message": str(stream_err),
+                    "fallback_triggered": True
+                }
+                yield f"data: {json.dumps(err_event)}\n\n"
+
+        return Response(stream_with_context(generate_architect_events()), mimetype='text/event-stream', headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+            'Content-Type': 'text/event-stream'
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -578,6 +578,63 @@ def reorder_resume_sections(
     """
     from backend.semantic_blueprint import compile_blueprint_to_canvas
 
+    role_lower = role.lower()
+    is_data = any(k in role_lower for k in ["data", "analyst", "analytics", "bi", "scientist"])
+
+    summary = (
+        "Analytical Senior Data Analyst with 5+ years experience transforming telemetry into actionable executive insights. Expert in SQL, Python, Tableau, and automated ETL pipelines."
+        if is_data else
+        f"High-performing {role} with 5+ years of demonstrable success delivering high-impact initiatives and driving operational productivity."
+    )
+
+    experiences = [
+        {
+            "role": "Senior Data Analyst" if is_data else f"Lead {role}",
+            "company": "Tech Innovations Inc.",
+            "duration": "2021 – Present",
+            "location": "New York, NY",
+            "bullets": [
+                "Architected automated SQL and Python ETL pipelines ingesting 25M+ daily user interactions.",
+                "Designed 14 C-suite executive dashboards tracking $40M+ in annual recurring revenue.",
+                "Spearheaded predictive analytics directly reducing churn by 18%."
+            ]
+        },
+        {
+            "role": "Data Analyst" if is_data else f"{role} Specialist",
+            "company": "Enterprise Global Corp",
+            "duration": "2019 – 2021",
+            "location": "Boston, MA",
+            "bullets": [
+                "Conducted multivariate testing boosting checkout conversions by 22%.",
+                "Automated weekly stakeholder reporting saving 16 engineering hours per sprint."
+            ]
+        }
+    ]
+
+    skills = [
+        {"name": "SQL & PostgreSQL", "level": 0.96},
+        {"name": "Python & Pandas", "level": 0.92},
+        {"name": "Tableau & PowerBI", "level": 0.90},
+        {"name": "Data Warehousing", "level": 0.88},
+        {"name": "Statistical A/B Testing", "level": 0.85},
+        {"name": "Machine Learning", "level": 0.80},
+    ]
+
+    educations = [
+        {
+            "degree": "B.S. in Computer Science & Analytics",
+            "school": "UC Berkeley",
+            "year": "2015 – 2019",
+            "details": "Magna Cum Laude | GPA: 3.85 / 4.0"
+        }
+    ]
+
+    certifications = [
+        "AWS Certified Data Analytics",
+        "Tableau Certified Professional",
+        "Google Cloud Data Engineer"
+    ]
+
     blueprint = {
         "archetype": "sidebar_left_modern",
         "theme": {
@@ -602,7 +659,12 @@ def reorder_resume_sections(
                 "phone": "+1 (555) 019-2834",
                 "location": "New York, NY",
                 "linkedin": "linkedin.com/in/alexmorgan",
-            }
+            },
+            "summary": summary,
+            "experiences": experiences,
+            "skills": skills,
+            "educations": educations,
+            "certifications": certifications,
         }
     }
 

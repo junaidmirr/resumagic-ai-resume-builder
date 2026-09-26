@@ -419,6 +419,32 @@ export function AIArchitectModal({
                     ))}
                   </div>
                 </div>
+
+                {/* Visual Architecture Badges */}
+                {(plan.header_style || plan.heading_decoration || plan.skills_style || plan.experience_style) && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-app-border">
+                    {plan.header_style && (
+                      <span className="text-[11px] font-medium bg-app-bg text-app-text px-2.5 py-1 rounded-md border border-app-border flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 text-indigo-400" /> Header: <strong className="capitalize">{plan.header_style.replace(/_/g, " ")}</strong>
+                      </span>
+                    )}
+                    {plan.heading_decoration && (
+                      <span className="text-[11px] font-medium bg-app-bg text-app-text px-2.5 py-1 rounded-md border border-app-border flex items-center gap-1.5">
+                        <Compass className="w-3 h-3 text-sky-400" /> Headings: <strong className="capitalize">{plan.heading_decoration.replace(/_/g, " ")}</strong>
+                      </span>
+                    )}
+                    {plan.experience_style && (
+                      <span className="text-[11px] font-medium bg-app-bg text-app-text px-2.5 py-1 rounded-md border border-app-border flex items-center gap-1.5">
+                        <Layers className="w-3 h-3 text-emerald-400" /> Experience: <strong className="capitalize">{plan.experience_style.replace(/_/g, " ")}</strong>
+                      </span>
+                    )}
+                    {plan.skills_style && (
+                      <span className="text-[11px] font-medium bg-app-bg text-app-text px-2.5 py-1 rounded-md border border-app-border flex items-center gap-1.5">
+                        <Sliders className="w-3 h-3 text-purple-400" /> Skills: <strong className="capitalize">{plan.skills_style.replace(/_/g, " ")}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Planned Sections */}

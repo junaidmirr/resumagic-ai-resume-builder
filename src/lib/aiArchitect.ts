@@ -20,6 +20,12 @@ export interface DesignPlan {
     text: string;
     accent: string;
   };
+  header_style?: string;
+  heading_decoration?: string;
+  skills_style?: string;
+  experience_style?: string;
+  sidebar_has_bg?: boolean;
+  sidebar_width_ratio?: number;
   sections: {
     id: string;
     title: string;
@@ -634,6 +640,42 @@ export function createFallbackPlan(
     });
   }
 
+  let header_style = "minimal_left";
+  let heading_decoration = "underline_rule";
+  let skills_style = "pill_tags";
+  let experience_style = "timeline_track";
+  let sidebar_has_bg = false;
+  let sidebar_width_ratio = 0.33;
+
+  if (layout_type === "monarch_classic" || layout_type === "single_column") {
+    header_style = "centered_classic";
+    heading_decoration = "underline_rule";
+    skills_style = "pill_tags";
+    experience_style = "clean_split";
+    sidebar_has_bg = false;
+  } else if (layout_type === "minimalist_grid" || layout_type === "balanced_two_column") {
+    header_style = "minimal_left";
+    heading_decoration = "left_accent_bar";
+    skills_style = "two_column_list";
+    experience_style = "card_blocks";
+    sidebar_has_bg = false;
+    sidebar_width_ratio = 0.5;
+  } else if (layout_type === "cyberpunk_edge" || layout_type === "retro_terminal") {
+    header_style = "banner_bold";
+    heading_decoration = "boxed_header";
+    skills_style = "pill_tags";
+    experience_style = "timeline_track";
+    sidebar_has_bg = true;
+    sidebar_width_ratio = 0.32;
+  } else {
+    header_style = p.includes("banner") ? "banner_bold" : "modern_split";
+    heading_decoration = "pill_badge";
+    skills_style = "progress_bars";
+    experience_style = "timeline_track";
+    sidebar_has_bg = true;
+    sidebar_width_ratio = 0.33;
+  }
+
   const special_elements = [
     "Mathematical layout alignment",
     "Archetype-tailored typography and palette",
@@ -643,10 +685,16 @@ export function createFallbackPlan(
   }
 
   return {
-    title: `AI Architect ${layout_type.replace(/_/g, " ").replace(/\\b\\w/g, (c) => c.toUpperCase())} Resume`,
+    title: `AI Architect ${layout_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} Resume`,
     layout_type,
     theme_summary: `Bespoke mathematical design created for "${userPrompt.slice(0, 40)}..." featuring balanced proportions, archetype styling, and executive typography.`,
     color_palette: { bg, primary, secondary, text, accent },
+    header_style,
+    heading_decoration,
+    skills_style,
+    experience_style,
+    sidebar_has_bg,
+    sidebar_width_ratio,
     sections,
     special_elements,
   };

@@ -969,16 +969,25 @@ def ai_architect():
                 architect = MultiAgentArchitect()
                 plan_res = architect.planner_agent(prompt)
                 plan_data = plan_res.get("plan", {})
+                plan_colors = plan_data.get("colors", {})
                 frontend_plan = {
                     "title": f"{plan_data.get('role', 'Professional')} Resume",
-                    "layout_type": plan_data.get("layout_style", "two_column_left_sidebar"),
-                    "theme_summary": f"Bespoke layout for {plan_data.get('role', 'Professional')} with {plan_data.get('colors', {}).get('primary', '#1e3a8a')} primary and {plan_data.get('colors', {}).get('secondary', '#dc2626')} secondary accents.",
+                    "layout_type": plan_data.get("layout_style", "single_column_classic"),
+                    "header_style": plan_data.get("header_style", "centered_classic"),
+                    "heading_decoration": plan_data.get("heading_decoration", "underline_rule"),
+                    "skills_style": plan_data.get("skills_style", "pill_tags"),
+                    "experience_style": plan_data.get("experience_style", "clean_split"),
+                    "sidebar_has_bg": plan_data.get("sidebar_has_bg", False),
+                    "sidebar_width_ratio": plan_data.get("sidebar_width_ratio", 0.32),
+                    "theme_summary": f"Bespoke layout for {plan_data.get('role', 'Professional')} with {plan_colors.get('primary', '#0F172A')} primary and {plan_colors.get('accent', '#2563EB')} accents.",
                     "color_palette": {
-                        "bg": "#ffffff",
-                        "primary": plan_data.get("colors", {}).get("primary", "#1e3a8a"),
-                        "secondary": plan_data.get("colors", {}).get("secondary", "#dc2626"),
-                        "text": "#0f172a",
-                        "accent": plan_data.get("colors", {}).get("accent", "#2563eb"),
+                        "bg": plan_colors.get("background", "#ffffff"),
+                        "primary": plan_colors.get("primary", "#0F172A"),
+                        "secondary": plan_colors.get("secondary", "#475569"),
+                        "text": plan_colors.get("text", "#0F172A"),
+                        "accent": plan_colors.get("accent", "#2563EB"),
+                        "card_bg": plan_colors.get("card_bg", "#F8FAFC"),
+                        "muted": plan_colors.get("muted", "#64748B"),
                     },
                     "sections": [
                         {"id": f"sec_{idx}", "title": s.title() if isinstance(s, str) else s.get("title", "Section"), "component_type": s if isinstance(s, str) else s.get("component_type", "section"), "description": f"Content for {s}"}

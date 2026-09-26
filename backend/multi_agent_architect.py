@@ -84,6 +84,14 @@ except ImportError:
     )
 
 try:
+    from backend.semantic_blueprint import MathematicalLayoutSolver
+except ImportError:
+    try:
+        from semantic_blueprint import MathematicalLayoutSolver
+    except ImportError:
+        MathematicalLayoutSolver = None
+
+try:
     from langchain_google_genai import ChatGoogleGenerativeAI
 except ImportError:
     ChatGoogleGenerativeAI = None
@@ -486,21 +494,76 @@ USER REQUEST:
 
     def planner_agent(self, user_prompt: str) -> Dict[str, Any]:
         """
-        PLANNER AGENT: Analyzes user requirements and creates detailed plan with rich AI-generated resume content.
+        PLANNER AGENT: Analyzes user requirements and acts as Lead Resume Art Director,
+        designing a bespoke visual template blueprint and generating rich tailored content.
         """
-        system = """You are an elite Lead Resume Architect AI.
+        system = """You are an elite Lead Resume Architect & Creative Graphic Director.
 Analyze the user's request and design a comprehensive, mathematically balanced resume blueprint.
 Generate realistic, high-impact resume content tailored specifically to the target role and user instructions.
+
+You have full creative authority over the resume's visual architecture:
+1. "layout_style": Choose the best grid for the role:
+   - "single_column_classic": Centered classic / Harvard style, full-width elegant dividers, ATS-friendly
+   - "two_column_left_sidebar": Modern sidebar on left with skills and credentials
+   - "two_column_right_sidebar": Asymmetric layout with sidebar on right
+   - "balanced_two_column": Clean 50/50 dual-column Swiss grid without heavy background blocks
+   - "top_banner_split": Bold colored top header banner with 2 columns below
+   - "minimalist_grid": Ultra-clean typography with subtle accent lines and tag pills
+   - "cyberpunk_edge": High-contrast dark tech aesthetic with neon accents
+   - "retro_terminal": Monospace terminal console aesthetic
+
+2. "header_style":
+   - "centered_classic": Centered name, centered role, centered contact line with bullet dots
+   - "modern_split": Name & role on left, contact items as badges on right
+   - "banner_bold": Full-width colored header block across top with contrasting white text
+   - "minimal_left": Clean left-aligned typography with vertical accent bar
+
+3. "heading_decoration":
+   - "underline_rule": Thin accent line below section title
+   - "left_accent_bar": Vertical colored accent pipe next to title
+   - "pill_badge": Rounded colored badge behind title
+   - "boxed_header": Clean rectangular card strip across section width
+   - "numbered_minimal": Numbered section titles like "01 / EXPERIENCE"
+
+4. "skills_style":
+   - "pill_tags": Rounded badge pills wrapping across rows
+   - "progress_bars": Calibrated horizontal level meters with percentage
+   - "two_column_list": Clean dual-column bullet list
+
+5. "experience_style":
+   - "timeline_track": Continuous vertical timeline connecting line with circle milestone dots
+   - "clean_split": Role & company on left, right-aligned date
+   - "card_blocks": Subtle rounded background card per job
+
+6. "colors":
+   Select a harmonious palette fitting the persona and industry (unless user requested specific colors):
+   - "primary": brand / heading color (e.g. #0F172A, #1E293B, #1E3A8A, #064E3B, #881337)
+   - "secondary": supporting / meta color (e.g. #475569, #7C3AED, #059669, #D97706)
+   - "accent": highlight / badge / bar color (e.g. #2563EB, #10B981, #DC2626, #F59E0B)
+   - "background": canvas background (#FFFFFF, or #0B132B for dark)
+   - "card_bg": card / tag background (#F8FAFC, #F1F5F9)
+   - "text": body text color (#1E293B)
+   - "muted": date / location text (#64748B)
 
 You must return valid raw JSON with this exact schema:
 {
   "role": "Target Job Title",
-  "candidate_name": "Full Name from prompt or a realistic professional name (e.g. David Vance, Maya Lin)",
-  "layout_style": "modern_sidebar",
+  "candidate_name": "Full Name from prompt or a realistic professional name",
+  "layout_style": "single_column_classic",
+  "header_style": "centered_classic",
+  "heading_decoration": "underline_rule",
+  "skills_style": "pill_tags",
+  "experience_style": "clean_split",
+  "sidebar_has_bg": false,
+  "sidebar_width_ratio": 0.32,
   "colors": {
-    "primary": "#1e3a8a",
-    "secondary": "#dc2626",
-    "accent": "#2563eb"
+    "primary": "#0F172A",
+    "secondary": "#475569",
+    "accent": "#2563EB",
+    "background": "#FFFFFF",
+    "card_bg": "#F8FAFC",
+    "text": "#1E293B",
+    "muted": "#64748B"
   },
   "summary": "Compelling 2-3 sentence executive professional summary with quantified metrics tailored to the role",
   "experiences": [
@@ -551,9 +614,6 @@ You must return valid raw JSON with this exact schema:
 }
 
 IMPORTANT RULES:
-- Layout choices: 'modern_sidebar', 'cyberpunk_edge', 'retro_terminal', 'single_column_classic', 'minimalist_grid'.
-- If user requests specific colors (e.g. 'red and blue'), set primary to deep blue/navy (#1e3a8a) and secondary to red (#dc2626).
-- If user requests specific aesthetic (e.g. 'cyberpunk', 'retro terminal'), choose matching layout_style and theme colors.
 - ONLY include 'qr_code' in 'special_features' if user explicitly asks for QR code, barcode, or scan. Never include by default.
 - Return ONLY valid raw JSON."""
 
@@ -571,8 +631,11 @@ IMPORTANT RULES:
                         parsed_plan["layout_style"] = "cyberpunk_edge"
                     elif any(w in p_lower for w in ["retro", "terminal", "hacker", "cli", "console", "bash", "linux", "code"]):
                         parsed_plan["layout_style"] = "retro_terminal"
-                    elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "timeline", "harvard", "monarch"]):
+                    elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "harvard", "monarch"]):
                         parsed_plan["layout_style"] = "single_column_classic"
+                        parsed_plan["header_style"] = parsed_plan.get("header_style") or "centered_classic"
+                    elif any(w in p_lower for w in ["timeline", "milestone", "dots"]):
+                        parsed_plan["experience_style"] = "timeline_track"
 
                     special = parsed_plan.get("special_features", [])
                     if not wants_qr:
@@ -591,19 +654,48 @@ IMPORTANT RULES:
         # Intelligent prompt fallback when no LLM provider is active (e.g. testing)
         role = "Senior Professional"
         candidate_name = "Marcus Vance"
+        layout_style = "single_column_classic"
+        header_style = "centered_classic"
+        heading_dec = "underline_rule"
+        skills_style = "pill_tags"
+        exp_style = "clean_split"
+        primary = "#0F172A"
+        secondary = "#475569"
+        accent = "#2563EB"
+
         if "data analyst" in p_lower or "data science" in p_lower:
             role = "Senior Data Analyst"
             candidate_name = "Sarah Chen"
+            layout_style = "balanced_two_column"
+            header_style = "modern_split"
+            heading_dec = "left_accent_bar"
+            skills_style = "pill_tags"
+            exp_style = "timeline_track"
+            primary = "#0F172A"
+            secondary = "#0284C7"
+            accent = "#0284C7"
         elif "software" in p_lower or "engineer" in p_lower:
             role = "Lead Software Engineer"
             candidate_name = "Alexander Morgan"
+            layout_style = "two_column_left_sidebar"
+            header_style = "modern_split"
+            heading_dec = "left_accent_bar"
+            skills_style = "progress_bars"
+            exp_style = "timeline_track"
+            primary = "#1E293B"
+            secondary = "#3B82F6"
+            accent = "#3B82F6"
         elif "product" in p_lower:
             role = "Senior Product Manager"
             candidate_name = "Elena Rostova"
-
-        primary = "#1e3a8a"
-        secondary = "#dc2626"
-        layout_style = "modern_sidebar"
+            layout_style = "single_column_classic"
+            header_style = "centered_classic"
+            heading_dec = "underline_rule"
+            skills_style = "pill_tags"
+            exp_style = "clean_split"
+            primary = "#1E293B"
+            secondary = "#D97706"
+            accent = "#D97706"
 
         if any(w in p_lower for w in ["cyberpunk", "neon", "matrix", "blade runner", "synthwave"]):
             layout_style = "cyberpunk_edge"
@@ -613,16 +705,20 @@ IMPORTANT RULES:
             layout_style = "retro_terminal"
             primary = "#00FF66"
             secondary = "#0C0C0C"
-        elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "timeline", "harvard", "monarch"]):
+        elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "harvard", "monarch"]):
             layout_style = "single_column_classic"
+            header_style = "centered_classic"
+            heading_dec = "underline_rule"
             primary = "#0F172A"
             secondary = "#B45309"
         elif "emerald" in p_lower or "green" in p_lower:
             primary = "#064e3b"
             secondary = "#059669"
+            accent = "#10b981"
         elif "purple" in p_lower:
             primary = "#4c1d95"
             secondary = "#7c3aed"
+            accent = "#8b5cf6"
 
         return {
             "status": "success",
@@ -633,10 +729,20 @@ IMPORTANT RULES:
                 "role": role,
                 "candidate_name": candidate_name,
                 "layout_style": layout_style,
+                "header_style": header_style,
+                "heading_decoration": heading_dec,
+                "skills_style": skills_style,
+                "experience_style": exp_style,
+                "sidebar_has_bg": ("sidebar" in layout_style),
+                "sidebar_width_ratio": 0.32,
                 "colors": {
                     "primary": primary,
                     "secondary": secondary,
-                    "accent": "#2563eb",
+                    "accent": accent,
+                    "background": "#FFFFFF",
+                    "card_bg": "#F8FAFC",
+                    "text": "#1E293B",
+                    "muted": "#64748B",
                 },
                 "sections": ["summary", "experience", "skills", "education"],
                 "special_features": ["qr_code"] if wants_qr else [],
@@ -739,7 +845,75 @@ IMPORTANT RULES:
                 elif isinstance(s, str):
                     formatted_skills.append({"name": s, "level": 0.85})
 
-        # Call the create_complete_resume tool with full AI content
+        # Try full dynamic generative blueprint compiler first
+        if MathematicalLayoutSolver:
+            try:
+                blueprint = {
+                    "design_spec": {
+                        "layout_type": layout_style,
+                        "header_style": plan.get("header_style", "centered_classic" if "single" in layout_style else "modern_split"),
+                        "heading_decoration": plan.get("heading_decoration", "underline_rule" if "single" in layout_style else "left_accent_bar"),
+                        "skills_style": plan.get("skills_style", "pill_tags" if "single" in layout_style or "grid" in layout_style else "progress_bars"),
+                        "experience_style": plan.get("experience_style", "timeline_track" if "single" not in layout_style else "clean_split"),
+                        "sidebar_has_bg": plan.get("sidebar_has_bg", True if "sidebar" in layout_style else False),
+                        "sidebar_width_ratio": plan.get("sidebar_width_ratio", 0.32),
+                        "palette": {
+                            "primary": primary_color,
+                            "secondary": secondary_color,
+                            "accent": accent_color,
+                            "background": colors.get("background", "#FFFFFF"),
+                            "card_bg": colors.get("card_bg", "#F8FAFC"),
+                            "text": colors.get("text", "#1E293B"),
+                            "muted": colors.get("muted", "#64748B"),
+                            "border": colors.get("border", "#E2E8F0"),
+                        }
+                    },
+                    "columns": {
+                        "sidebar": {
+                            "sections": [
+                                {"type": "contact", "title": "Contact Details"},
+                                {"type": "skills", "title": "Core Competencies", "display": plan.get("skills_style", "progress_bars")},
+                                {"type": "certifications", "title": "Certifications"},
+                            ] + ([{"type": "qr_code", "title": "Portfolio QR"}] if ("qr_code" in plan.get("special_features", [])) else [])
+                        },
+                        "main": {
+                            "sections": [
+                                {"type": "summary", "title": "Executive Summary"},
+                                {"type": "experience", "title": "Professional Experience"},
+                                {"type": "education", "title": "Education"},
+                            ]
+                        }
+                    },
+                    "content": {
+                        "candidate": {
+                            "name": candidate_name,
+                            "target_role": role,
+                            "email": plan.get("contact", {}).get("email") or "candidate@resumagic.ai",
+                            "phone": plan.get("contact", {}).get("phone") or "+1 (555) 019-2834",
+                            "location": plan.get("contact", {}).get("location") or "San Francisco, CA",
+                            "linkedin": plan.get("contact", {}).get("linkedin") or "linkedin.com/in/profile",
+                        },
+                        "summary": plan.get("summary", ""),
+                        "experiences": plan.get("experiences"),
+                        "skills": formatted_skills,
+                        "educations": plan.get("education") or plan.get("educations"),
+                        "certifications": plan.get("certifications"),
+                        "qr_url": plan.get("qr_url", "https://linkedin.com"),
+                    }
+                }
+                solver = MathematicalLayoutSolver(blueprint)
+                compiled_elements = solver.compile()
+                if compiled_elements and len(compiled_elements) > 0:
+                    return {
+                        "status": "success",
+                        "agent": "design",
+                        "elements": compiled_elements,
+                        "element_count": len(compiled_elements),
+                    }
+            except Exception as e:
+                print(f"[DesignAgent] Dynamic solver notice: {e}, falling back to legacy")
+
+        # Fallback to legacy create_complete_resume tool if solver unavailable
         result = create_complete_resume.invoke({
             "role": role,
             "candidate_name": candidate_name,

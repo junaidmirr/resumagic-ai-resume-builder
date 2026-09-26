@@ -857,18 +857,60 @@ def ai_architect():
         uid = verify_authenticated_user(request)
         if uid and not check_user_has_credits(uid, 10):
             return jsonify({"error": "Insufficient credits. Please recharge."}), 402
-            
+
         data = request.get_json(silent=True) or {}
         prompt = data.get('prompt', '')
         elements = data.get('elements', [])
         action = data.get('action', 'build')
+        use_multi_agent = data.get('use_multi_agent', True)  # Enable by default
 
         if locally_blocked(prompt):
             return jsonify({
                 "status": "rejected",
                 "error": "Request blocked: Content violates career and resume safety policy."
             }), 400
-        
+
+        # NEW: Multi-Agent Pipeline for full resume creation
+        if use_multi_agent and action in ['build', 'create'] and (not elements or len(elements) < 5):
+            try:
+                from backend.multi_agent_architect import run_multi_agent_architect
+                print("[AI-Architect] 🚀 Using Multi-Agent Pipeline")
+
+                result = run_multi_agent_architect(
+                    user_prompt=prompt,
+                    existing_elements=elements if elements else None,
+                    mode="create"
+                )
+
+                if result.get("status") == "success":
+                    if uid:
+                        deduct_user_credits(uid, 10, description="Multi-Agent Resume Creation")
+                    return jsonify(result)
+            except Exception as e:
+                print(f"[AI-Architect] Multi-agent failed, falling back: {e}")
+                # Fall through to legacy system
+
+        # Editor mode: surgical modifications
+        elif use_multi_agent and elements and len(elements) >= 5:
+            try:
+                from backend.multi_agent_architect import run_multi_agent_architect
+                print("[AI-Architect] 🎯 Using Editor AI Architect")
+
+                result = run_multi_agent_architect(
+                    user_prompt=prompt,
+                    existing_elements=elements,
+                    mode="edit"
+                )
+
+                if result.get("status") == "success":
+                    if uid:
+                        deduct_user_credits(uid, 10, description="AI Editor Modifications")
+                    return jsonify(result)
+            except Exception as e:
+                print(f"[AI-Architect] Editor AI failed, falling back: {e}")
+                # Fall through to legacy system
+
+        # Legacy system fallback
         parser = AIParserEngine()
         if action == 'plan':
             plan_res = parser.generate_architect_plan(prompt)

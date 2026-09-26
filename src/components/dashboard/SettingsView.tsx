@@ -37,6 +37,7 @@ import {
   Check,
   Clock,
 } from "lucide-react";
+import { getFallbackAvatar, handleImageError } from "../../lib/imageHelpers";
 
 const CARTOON_AVATARS = [
   {
@@ -311,6 +312,7 @@ export function SettingsView() {
                               src={user.photoURL}
                               alt="Avatar"
                               className="w-full h-full object-cover rounded-2xl"
+                              onError={(e) => handleImageError(e, getFallbackAvatar(user?.displayName, user?.email))}
                             />
                           ) : (
                             user?.email?.charAt(0).toUpperCase() || "U"

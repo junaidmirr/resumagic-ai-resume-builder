@@ -29,6 +29,7 @@ import { AIArchitectModal } from "../components/onboarding/AIArchitectModal";
 import { PagePropertiesPanel } from "../components/editor/PagePropertiesPanel";
 import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
 import { trackPdfDownload, trackFeature } from "../lib/analytics";
+import { getFallbackAvatar, handleImageError } from "../lib/imageHelpers";
 import {
   Trash2,
   RotateCcw,
@@ -3623,6 +3624,7 @@ export function EditorPage() {
                   src={user.photoURL}
                   alt="User"
                   className="w-full h-full object-cover"
+                  onError={(e) => handleImageError(e, getFallbackAvatar(user?.displayName, user?.email))}
                 />
               ) : (
                 <LucideIcons.User size={14} className="text-app-text-muted" />
@@ -3639,6 +3641,7 @@ export function EditorPage() {
                         src={user.photoURL}
                         alt="User"
                         className="w-full h-full object-cover"
+                        onError={(e) => handleImageError(e, getFallbackAvatar(user?.displayName, user?.email))}
                       />
                     ) : (
                       user?.email?.charAt(0).toUpperCase() || "U"

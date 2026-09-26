@@ -496,520 +496,114 @@ def create_complete_resume(
             ]
 
     # ─────────────────────────────────────────────────────────────────────────
-    # GEOMETRIC CONSTRUCTION (Origin: Bottom-Left: 0,0)
-    # Top banner layout with clean sidebar or full modern executive
+    # COMPILE VIA MATHEMATICAL LAYOUT SOLVER (SEMANTIC BLUEPRINT ENGINE)
     # ─────────────────────────────────────────────────────────────────────────
-    sidebar_w = 175
-    sidebar_x = 0
-    main_x = 195
-    main_w = 380
+    from backend.semantic_blueprint import compile_blueprint_to_canvas
 
-    # 1. Full-Height Sidebar Background (Dark Navy or Primary Tint)
-    elements.append({
-        "id": "bg_sidebar",
-        "element_type": "shape",
-        "shape_type": "rectangle",
-        "page_id": "page-1",
-        "x": sidebar_x,
-        "y": 0,
-        "width": sidebar_w,
-        "height": PAGE_HEIGHT,
-        "fill_color": primary_color,
-        "z_index": 0,
-    })
+    blueprint = {
+        "archetype": layout_style,
+        "theme": {
+            "primary": primary_color,
+            "secondary": "#0f172a",
+            "accent": secondary_color,
+            "background": "#ffffff",
+        },
+        "columns": {
+            "sidebar": {
+                "sections": [
+                    {"type": "contact", "title": "Contact Details"},
+                    {"type": "skills", "title": "Core Competencies", "display": "progress_bars"},
+                    {"type": "certifications", "title": "Certifications"},
+                    {"type": "qr_code", "label": "Portfolio QR", "url": qr_url},
+                ]
+            },
+            "main": {
+                "sections": [
+                    {"type": "summary", "title": "Executive Summary"},
+                    {"type": "experience", "title": "Professional Experience"},
+                    {"type": "education", "title": "Education & Credentials"},
+                    {"type": "metric_highlight", "title": "Key Impact Highlights"},
+                ]
+            }
+        },
+        "content": {
+            "candidate": {
+                "name": candidate_name,
+                "target_role": role,
+                "email": "candidate@resumagic.com",
+                "phone": "+1 (555) 019-2834",
+                "location": "New York, NY",
+                "linkedin": "linkedin.com/in/profile",
+            },
+            "summary": summary,
+            "skills": skills,
+            "experiences": experiences,
+            "educations": educations,
+            "certifications": certifications,
+        },
+    }
 
-    # 2. Top Header Accent Banner across main content
-    banner_h = 95
-    elements.append({
-        "id": "top_banner",
-        "element_type": "shape",
-        "shape_type": "rectangle",
-        "page_id": "page-1",
-        "x": sidebar_w,
-        "y": PAGE_HEIGHT - banner_h,
-        "width": PAGE_WIDTH - sidebar_w,
-        "height": banner_h,
-        "fill_color": "#f8fafc",
-        "border_color": "#e2e8f0",
-        "border_width": 1,
-        "z_index": 1,
-    })
-
-    # 3. Monogram / Avatar in Sidebar
-    avatar_size = 54
-    avatar_x = (sidebar_w - avatar_size) / 2
-    avatar_y = PAGE_HEIGHT - 35 - avatar_size
-    initials = "".join([part[0] for part in candidate_name.split() if part])[:2].upper() or "AM"
-
-    elements.append({
-        "id": "avatar_bg",
-        "element_type": "shape",
-        "shape_type": "circle",
-        "page_id": "page-1",
-        "x": avatar_x,
-        "y": avatar_y,
-        "width": avatar_size,
-        "height": avatar_size,
-        "fill_color": secondary_color,
-        "z_index": 5,
-    })
-    elements.append({
-        "id": "avatar_txt",
-        "element_type": "text",
-        "page_id": "page-1",
-        "text": initials,
-        "x": avatar_x,
-        "y": avatar_y + 14,
-        "width": avatar_size,
-        "height": 24,
-        "font_size": 20,
-        "font_name": "Helvetica-Bold",
-        "text_color": "#ffffff",
-        "align": "center",
-        "bold": True,
-        "z_index": 6,
-    })
-
-    # 4. Header Name & Target Role in Banner
-    elements.append({
-        "id": "hdr_name",
-        "element_type": "text",
-        "page_id": "page-1",
-        "text": candidate_name.upper(),
-        "x": main_x,
-        "y": PAGE_HEIGHT - 45,
-        "width": main_w,
-        "height": 30,
-        "font_size": 22,
-        "font_name": "Helvetica-Bold",
-        "text_color": "#0f172a",
-        "bold": True,
-        "z_index": 3,
-    })
-    elements.append({
-        "id": "hdr_role",
-        "element_type": "text",
-        "page_id": "page-1",
-        "text": role.upper(),
-        "x": main_x,
-        "y": PAGE_HEIGHT - 65,
-        "width": main_w,
-        "height": 16,
-        "font_size": 11,
-        "font_name": "Helvetica-Bold",
-        "text_color": secondary_color,
-        "bold": True,
-        "z_index": 3,
-    })
-    elements.append({
-        "id": "hdr_contact",
-        "element_type": "text",
-        "page_id": "page-1",
-        "text": "candidate@resumagic.com  •  (555) 019-2834  •  linkedin.com/in/profile",
-        "x": main_x,
-        "y": PAGE_HEIGHT - 85,
-        "width": main_w,
-        "height": 14,
-        "font_size": 9,
-        "font_name": "Helvetica",
-        "text_color": "#475569",
-        "z_index": 3,
-    })
-
-    # ── SIDEBAR SECTIONS (Left: X=18, W=139) ──────────────────────────────────
-    sb_x = 18
-    sb_w = 139
-    sb_cursor_top = 110 # Distance from top of page
-
-    def add_sb_header(title: str):
-        nonlocal sb_cursor_top
-        sb_cursor_top += 18
-        y = PAGE_HEIGHT - sb_cursor_top - 16
-        elements.append({
-            "id": f"sb_h_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": title.upper(),
-            "x": sb_x,
-            "y": y,
-            "width": sb_w,
-            "height": 16,
-            "font_size": 10.5,
-            "font_name": "Helvetica-Bold",
-            "text_color": "#ffffff",
-            "bold": True,
-            "z_index": 5,
-        })
-        # Accent rule
-        elements.append({
-            "id": f"sb_rule_{uuid.uuid4().hex[:6]}",
-            "element_type": "shape",
-            "shape_type": "line",
-            "page_id": "page-1",
-            "x": sb_x,
-            "y": y - 4,
-            "width": sb_w,
-            "height": 1.5,
-            "fill_color": secondary_color,
-            "border_color": secondary_color,
-            "border_width": 1.5,
-            "z_index": 5,
-        })
-        sb_cursor_top += 24
-
-    # 1. Sidebar: Contact Details
-    add_sb_header("Contact Details")
-    contact_items = [
-        ("Mail", "analyst@email.com"),
-        ("Phone", "+1 (555) 019-2834"),
-        ("MapPin", "New York, NY"),
-        ("Linkedin", "linkedin.com/in/pro"),
-    ]
-    for icon, txt in contact_items:
-        y = PAGE_HEIGHT - sb_cursor_top - 14
-        elements.append({
-            "id": f"sb_ic_{uuid.uuid4().hex[:6]}",
-            "element_type": "image",
-            "page_id": "page-1",
-            "x": sb_x,
-            "y": y,
-            "width": 12,
-            "height": 12,
-            "is_icon": True,
-            "icon_name": icon,
-            "z_index": 5,
-        })
-        elements.append({
-            "id": f"sb_txt_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": txt,
-            "x": sb_x + 16,
-            "y": y,
-            "width": sb_w - 16,
-            "height": 14,
-            "font_size": 8.5,
-            "font_name": "Helvetica",
-            "text_color": "#e2e8f0",
-            "z_index": 5,
-        })
-        sb_cursor_top += 18
-
-    # 2. Sidebar: Technical Skills with Non-Overlapping Progress Loaders
-    add_sb_header("Core Competencies")
-    for s_idx, s in enumerate(skills[:6]):
-        s_name = s.get("name", "Skill")
-        s_lvl = float(s.get("level", 0.85))
-        
-        # Skill Name
-        y_name = PAGE_HEIGHT - sb_cursor_top - 12
-        elements.append({
-            "id": f"sk_txt_{s_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": s_name,
-            "x": sb_x,
-            "y": y_name,
-            "width": sb_w,
-            "height": 12,
-            "font_size": 8.5,
-            "font_name": "Helvetica-Bold",
-            "text_color": "#ffffff",
-            "bold": True,
-            "z_index": 5,
-        })
-        
-        # Dual-Layer Progress Bar: EXACT 24pt vertical separation between skills
-        y_bar = y_name - 8
-        bar_w = sb_w
-        # Background track
-        elements.append({
-            "id": f"sk_bg_{s_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "shape",
-            "shape_type": "rectangle",
-            "page_id": "page-1",
-            "x": sb_x,
-            "y": y_bar,
-            "width": bar_w,
-            "height": 4.5,
-            "fill_color": "rgba(255,255,255,0.22)",
-            "border_radius": 2,
-            "z_index": 5,
-        })
-        # Filled Progress Track
-        fill_w = max(10.0, bar_w * s_lvl)
-        elements.append({
-            "id": f"sk_fill_{s_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "shape",
-            "shape_type": "rectangle",
-            "page_id": "page-1",
-            "x": sb_x,
-            "y": y_bar,
-            "width": fill_w,
-            "height": 4.5,
-            "fill_color": secondary_color,
-            "border_radius": 2,
-            "z_index": 6,
-        })
-        sb_cursor_top += 25  # Guarantees no squished or overlapping skill bars!
-
-    # 3. Sidebar: Certifications
-    add_sb_header("Certifications")
-    for c_idx, cert in enumerate(certifications[:3]):
-        h_cert = estimate_text_height(cert, sb_w, 8)
-        y = PAGE_HEIGHT - sb_cursor_top - h_cert
-        elements.append({
-            "id": f"cert_{c_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": f"• {cert}",
-            "x": sb_x,
-            "y": y,
-            "width": sb_w,
-            "height": h_cert,
-            "font_size": 8,
-            "font_name": "Helvetica",
-            "text_color": "#cbd5e1",
-            "line_height": 1.3,
-            "z_index": 5,
-        })
-        sb_cursor_top += h_cert + 8
-
-    # 4. Sidebar: Working Scannable QR Code
-    if include_qr_code:
-        qr_size = 54
-        qr_y = 35
-        qr_data_uri = generate_qr_base64_png(qr_url)
-        elements.append({
-            "id": "sb_qr_bg",
-            "element_type": "shape",
-            "shape_type": "rectangle",
-            "page_id": "page-1",
-            "x": (sidebar_w - qr_size) / 2 - 4,
-            "y": qr_y - 4,
-            "width": qr_size + 8,
-            "height": qr_size + 20,
-            "fill_color": "#ffffff",
-            "border_radius": 4,
-            "z_index": 5,
-        })
-        elements.append({
-            "id": "sb_qr_img",
-            "element_type": "image",
-            "page_id": "page-1",
-            "x": (sidebar_w - qr_size) / 2,
-            "y": qr_y + 12,
-            "width": qr_size,
-            "height": qr_size,
-            "image_path": qr_data_uri,
-            "z_index": 6,
-        })
-        elements.append({
-            "id": "sb_qr_txt",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": "SCAN PORTFOLIO",
-            "x": (sidebar_w - qr_size) / 2 - 4,
-            "y": qr_y + 1,
-            "width": qr_size + 8,
-            "height": 10,
-            "font_size": 6.5,
-            "font_name": "Helvetica-Bold",
-            "text_color": "#0f172a",
-            "align": "center",
-            "bold": True,
-            "z_index": 6,
-        })
-
-    # ── MAIN CONTENT AREA (Right: X=main_x, W=main_w) ─────────────────────────
-    main_cursor_top = banner_h + 16
-
-    def add_main_header(title: str):
-        nonlocal main_cursor_top
-        main_cursor_top += 14
-        y = PAGE_HEIGHT - main_cursor_top - 18
-        elements.append({
-            "id": f"main_h_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": title.upper(),
-            "x": main_x,
-            "y": y,
-            "width": main_w,
-            "height": 18,
-            "font_size": 12,
-            "font_name": "Helvetica-Bold",
-            "text_color": primary_color,
-            "bold": True,
-            "z_index": 3,
-        })
-        elements.append({
-            "id": f"main_rule_{uuid.uuid4().hex[:6]}",
-            "element_type": "shape",
-            "shape_type": "line",
-            "page_id": "page-1",
-            "x": main_x,
-            "y": y - 4,
-            "width": main_w,
-            "height": 1.5,
-            "fill_color": secondary_color,
-            "border_color": secondary_color,
-            "border_width": 1.5,
-            "z_index": 3,
-        })
-        main_cursor_top += 24
-
-    # 1. Professional Summary
-    add_main_header("Executive Summary")
-    sum_h = estimate_text_height(summary, main_w, 9.5)
-    elements.append({
-        "id": "sum_txt",
-        "element_type": "text",
-        "page_id": "page-1",
-        "text": summary,
-        "x": main_x,
-        "y": PAGE_HEIGHT - main_cursor_top - sum_h,
-        "width": main_w,
-        "height": sum_h,
-        "font_size": 9.5,
-        "font_name": "Helvetica",
-        "text_color": "#334155",
-        "line_height": 1.4,
-        "z_index": 3,
-    })
-    main_cursor_top += sum_h + 12
-
-    # 2. Professional Experience
-    add_main_header("Professional Experience")
-    for exp_idx, exp in enumerate(experiences):
-        role_txt = exp.get("role", "Role")
-        company_txt = exp.get("company", "Company")
-        duration_txt = exp.get("duration", "2021 – Present")
-        location_txt = exp.get("location", "")
-
-        # Role & Company (Left) + Duration (Right) on exact same baseline
-        y_role = PAGE_HEIGHT - main_cursor_top - 16
-        elements.append({
-            "id": f"exp_title_{exp_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": f"{role_txt}  •  {company_txt}",
-            "x": main_x,
-            "y": y_role,
-            "width": main_w - 95,
-            "height": 16,
-            "font_size": 10.5,
-            "font_name": "Helvetica-Bold",
-            "text_color": "#0f172a",
-            "bold": True,
-            "z_index": 3,
-        })
-        elements.append({
-            "id": f"exp_date_{exp_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": duration_txt,
-            "x": main_x + main_w - 95,
-            "y": y_role,
-            "width": 95,
-            "height": 16,
-            "font_size": 9,
-            "font_name": "Helvetica",
-            "text_color": "#64748b",
-            "align": "right",
-            "z_index": 3,
-        })
-        main_cursor_top += 18
-
-        # Bullets
-        bullets = exp.get("bullets", [])
-        for b_idx, bullet in enumerate(bullets):
-            b_text = bullet if bullet.startswith("•") else f"• {bullet}"
-            b_h = estimate_text_height(b_text, main_w - 8, 9)
-            y_bullet = PAGE_HEIGHT - main_cursor_top - b_h
-            elements.append({
-                "id": f"exp_b_{exp_idx}_{b_idx}_{uuid.uuid4().hex[:6]}",
-                "element_type": "text",
-                "page_id": "page-1",
-                "text": b_text,
-                "x": main_x + 8,
-                "y": y_bullet,
-                "width": main_w - 8,
-                "height": b_h,
-                "font_size": 9,
-                "font_name": "Helvetica",
-                "text_color": "#334155",
-                "line_height": 1.35,
-                "z_index": 3,
-            })
-            main_cursor_top += b_h + 4
-        main_cursor_top += 8
-
-    # 3. Education
-    add_main_header("Education & Credentials")
-    for edu_idx, edu in enumerate(educations):
-        deg = edu.get("degree", "Degree")
-        school = edu.get("school", "University")
-        year = edu.get("year", "")
-        details = edu.get("details", "")
-
-        y_edu = PAGE_HEIGHT - main_cursor_top - 16
-        elements.append({
-            "id": f"edu_title_{edu_idx}_{uuid.uuid4().hex[:6]}",
-            "element_type": "text",
-            "page_id": "page-1",
-            "text": f"{deg}  |  {school}",
-            "x": main_x,
-            "y": y_edu,
-            "width": main_w - 80,
-            "height": 16,
-            "font_size": 10,
-            "font_name": "Helvetica-Bold",
-            "text_color": "#0f172a",
-            "bold": True,
-            "z_index": 3,
-        })
-        if year:
-            elements.append({
-                "id": f"edu_yr_{edu_idx}_{uuid.uuid4().hex[:6]}",
-                "element_type": "text",
-                "page_id": "page-1",
-                "text": year,
-                "x": main_x + main_w - 80,
-                "y": y_edu,
-                "width": 80,
-                "height": 16,
-                "font_size": 9,
-                "font_name": "Helvetica",
-                "text_color": "#64748b",
-                "align": "right",
-                "z_index": 3,
-            })
-        main_cursor_top += 18
-        if details:
-            y_det = PAGE_HEIGHT - main_cursor_top - 14
-            elements.append({
-                "id": f"edu_det_{edu_idx}_{uuid.uuid4().hex[:6]}",
-                "element_type": "text",
-                "page_id": "page-1",
-                "text": details,
-                "x": main_x + 8,
-                "y": y_det,
-                "width": main_w - 8,
-                "height": 14,
-                "font_size": 8.5,
-                "font_name": "Helvetica",
-                "text_color": "#64748b",
-                "z_index": 3,
-            })
-            main_cursor_top += 18
+    elements = compile_blueprint_to_canvas(blueprint)
 
     return {
         "status": "success",
         "action": "create_complete_resume",
         "mode": "replace",
         "elements": elements,
-        "message": f"Created complete {role} resume with {len(elements)} elements."
+        "message": f"Created complete {role} resume with {len(elements)} elements via Mathematical Layout Solver."
+    }
+
+
+@tool
+def reorder_resume_sections(
+    main_section_order: List[str],
+    sidebar_section_order: Optional[List[str]] = None,
+    role: str = "Senior Data Analyst",
+    candidate_name: str = "ALEXANDER MORGAN",
+    primary_color: str = "#1e3a8a",
+    secondary_color: str = "#dc2626",
+) -> Dict[str, Any]:
+    """
+    Reorders sections of the resume according to user layout instructions
+    (e.g., summary on top, skills below summary, experience below skills).
+    """
+    from backend.semantic_blueprint import compile_blueprint_to_canvas
+
+    blueprint = {
+        "archetype": "sidebar_left_modern",
+        "theme": {
+            "primary": primary_color,
+            "secondary": "#0f172a",
+            "accent": secondary_color,
+            "background": "#ffffff",
+        },
+        "columns": {
+            "sidebar": {
+                "sections": [{"type": s, "title": s.replace("_", " ").title()} for s in (sidebar_section_order or ["contact", "skills", "certifications", "qr_code"])]
+            },
+            "main": {
+                "sections": [{"type": s, "title": s.replace("_", " ").title()} for s in main_section_order]
+            }
+        },
+        "content": {
+            "candidate": {
+                "name": candidate_name,
+                "target_role": role,
+                "email": "alex.morgan@email.com",
+                "phone": "+1 (555) 019-2834",
+                "location": "New York, NY",
+                "linkedin": "linkedin.com/in/alexmorgan",
+            }
+        }
+    }
+
+    elements = compile_blueprint_to_canvas(blueprint)
+    return {
+        "status": "success",
+        "action": "reorder_resume_sections",
+        "mode": "replace",
+        "elements": elements,
+        "message": f"Reordered resume sections to: {', '.join(main_section_order)} with mathematical precision."
     }
 
 
@@ -1019,6 +613,7 @@ def create_complete_resume(
 
 AVAILABLE_TOOLS = [
     create_complete_resume,
+    reorder_resume_sections,
     add_qr_code,
     add_metric_chart,
     add_signature,
@@ -1102,6 +697,22 @@ def run_langchain_architect(
                 "existing_elements": existing_elements,
             })
             res["mode"] = "patch"
+            return res
+
+        # 5. Section Reordering / Re-flow request
+        if any(k in prompt_lower for k in ["below", "above", "reorder", "on top", "move", "here or there"]):
+            main_order = ["summary", "experience", "education", "metric_highlight"]
+            if "experience" in prompt_lower and ("top" in prompt_lower or "above" in prompt_lower):
+                main_order = ["experience", "summary", "education", "metric_highlight"]
+            elif "skills" in prompt_lower and "top" in prompt_lower:
+                main_order = ["skills", "summary", "experience", "education"]
+            print(f"[LangChain Architect] 🎯 Tool Calling: reorder_resume_sections -> {main_order}")
+            res = reorder_resume_sections.invoke({
+                "main_section_order": main_order,
+                "role": "Senior Data Analyst",
+                "primary_color": primary_color,
+                "secondary_color": secondary_color,
+            })
             return res
 
     # ── CASE B: Create Complete Resume ─────────────────────────────────────────

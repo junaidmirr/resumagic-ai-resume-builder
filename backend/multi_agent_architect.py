@@ -14,38 +14,78 @@ For Editor: Surgical modifications with canvas analysis and symmetry calculation
 import json
 import re
 import uuid
+import os
+import sys
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
+
+# Ensure backend and root directories are in sys.path
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.dirname(_BACKEND_DIR)
+for p in [_BACKEND_DIR, _ROOT_DIR]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+# Ensure .env is loaded for GEMINI_API_KEY
+if not os.environ.get("GEMINI_API_KEY"):
+    for _env_file in [
+        os.path.join(_ROOT_DIR, ".env"),
+        os.path.join(_BACKEND_DIR, ".env"),
+        ".env",
+    ]:
+        if os.path.exists(_env_file):
+            try:
+                with open(_env_file, "r", encoding="utf-8") as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if _line and not _line.startswith("#") and "=" in _line:
+                            _k, _v = _line.split("=", 1)
+                            _k = _k.strip()
+                            _v = _v.strip().strip('"\'')
+                            if _k not in os.environ:
+                                os.environ[_k] = _v
+            except Exception:
+                pass
+            break
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.tools import tool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import JsonOutputParser
 
-# Import existing tools
-from langchain_architect import (
-    create_complete_resume,
-    add_qr_code,
-    add_metric_chart,
-    add_signature,
-    update_theme_palette,
-    generate_qr_base64_png,
-    estimate_text_height,
-    estimate_text_lines,
-    PAGE_WIDTH,
-    PAGE_HEIGHT,
-)
+try:
+    from backend.langchain_architect import (
+        create_complete_resume,
+        add_qr_code,
+        add_metric_chart,
+        add_signature,
+        update_theme_palette,
+        generate_qr_base64_png,
+        estimate_text_height,
+        estimate_text_lines,
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+    )
+except ImportError:
+    from langchain_architect import (
+        create_complete_resume,
+        add_qr_code,
+        add_metric_chart,
+        add_signature,
+        update_theme_palette,
+        generate_qr_base64_png,
+        estimate_text_height,
+        estimate_text_lines,
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+    )
 
 try:
     from langchain_google_genai import ChatGoogleGenerativeAI
 except ImportError:
     ChatGoogleGenerativeAI = None
 
-import os
-import sys
-
 # Import Swirls AI from ai_parser
-sys.path.insert(0, os.path.dirname(__file__))
 try:
     from ai_parser import ask_swirls, CAREER_AI_SYSTEM_INSTRUCTIONS
     HAS_SWIRLS = True

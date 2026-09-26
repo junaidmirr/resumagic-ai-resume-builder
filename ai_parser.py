@@ -1655,6 +1655,14 @@ CONTEXT: A 612x792 PDF canvas (Origin=BOTTOM-LEFT).
 
 YOUR TASK:
 Analyze the user's prompt (and optional refinement instruction / previous plan) and create a structured DESIGN PLAN.
+Select the layout_type that best matches the user's intent:
+- "cyberpunk_edge": Futuristic dark theme (#0A0A0F), angular neon accents (#FF003C, #00F0FF), tech bracket tags
+- "retro_terminal": Deep terminal black (#0C0C0C), monospace green font (#00FF66), shell command syntax
+- "single_column_classic": Centered executive branding, gold/slate accents, clean ATS single column
+- "minimalist_grid": Clean Swiss architectural grid, modern monochrome palette
+- "two_column_left_sidebar": Classic balanced 30/70 split sidebar
+
+IMPORTANT: Only include a QR code in "special_elements" or "sections" if the user EXPLICITLY requested a QR code or barcode.
 
 Return ONLY raw JSON with this exact schema:
 {
@@ -1677,9 +1685,7 @@ Return ONLY raw JSON with this exact schema:
     }
   ],
   "special_elements": [
-    "Skill progress bars with percentage loaders",
-    "QR Code linking to portfolio",
-    "Visual bar chart for key impact metrics"
+    "Skill progress bars with percentage loaders"
   ]
 }
 
@@ -1690,39 +1696,105 @@ DO NOT output conversational text. Output ONLY valid raw JSON."""
             user_content += f"\nPrevious Plan:\n{json.dumps(previous_plan, indent=2)}\n"
         if refinement_instruction:
             user_content += f"\nRefinement Instruction: {refinement_instruction}\n"
-            
+
+        p_lower = (prompt or "").lower()
+        wants_qr = any(w in p_lower for w in ["qr", "barcode", "scan", "quick response"])
+
         try:
             full_prompt = f"{sys_prompt}\n\n{user_content}"
             response = _generate_with_model_fallback(full_prompt)
             raw = response.text.strip()
             plan = self._extract_json(raw)
+
+            # Enforce layout archetype if user explicitly mentioned styles
+            if any(w in p_lower for w in ["cyberpunk", "neon", "matrix", "blade runner", "synthwave"]):
+                plan["layout_type"] = "cyberpunk_edge"
+            elif any(w in p_lower for w in ["retro", "terminal", "hacker", "cli", "console", "bash", "linux", "code"]):
+                plan["layout_type"] = "retro_terminal"
+            elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "timeline", "harvard"]):
+                plan["layout_type"] = "single_column_classic"
+            elif any(w in p_lower for w in ["minimal", "grid"]):
+                plan["layout_type"] = "minimalist_grid"
+
+            # Filter out unwanted QR codes unless explicitly requested
+            if not wants_qr:
+                if "sections" in plan and isinstance(plan["sections"], list):
+                    plan["sections"] = [s for s in plan["sections"] if s.get("component_type") != "qr_code"]
+                if "special_elements" in plan and isinstance(plan["special_elements"], list):
+                    plan["special_elements"] = [el for el in plan["special_elements"] if "qr" not in str(el).lower()]
+
             print(f"[AI-Architect-Plan] ✅ Plan created: {plan.get('title', 'Resume Plan')}")
             return {"status": "success", "plan": plan}
         except Exception as e:
             print(f"[AI-Architect-Plan] Error: {e}")
+
+            layout_type = "two_column_left_sidebar"
+            bg = "#FFFFFF"
+            primary = "#0F172A"
+            secondary = "#38BDF8"
+            accent = "#6366F1"
+            text = "#1E293B"
+
+            if any(w in p_lower for w in ["cyberpunk", "neon", "matrix", "blade runner", "synthwave"]):
+                layout_type = "cyberpunk_edge"
+                bg = "#0A0A0F"
+                primary = "#FF003C"
+                secondary = "#00F0FF"
+                accent = "#FFE600"
+                text = "#FFFFFF"
+            elif any(w in p_lower for w in ["retro", "terminal", "hacker", "cli", "console", "bash", "linux", "code"]):
+                layout_type = "retro_terminal"
+                bg = "#0C0C0C"
+                primary = "#00FF66"
+                secondary = "#1F2430"
+                accent = "#FFE600"
+                text = "#00FF66"
+            elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "timeline", "harvard"]):
+                layout_type = "single_column_classic"
+                bg = "#FFFFFF"
+                primary = "#0F172A"
+                secondary = "#B45309"
+                accent = "#2563EB"
+                text = "#1E293B"
+            elif any(w in p_lower for w in ["minimal", "grid"]):
+                layout_type = "minimalist_grid"
+                bg = "#FFFFFF"
+                primary = "#18181B"
+                secondary = "#71717A"
+                accent = "#09090B"
+                text = "#27272A"
+            elif "red" in p_lower and "blue" in p_lower:
+                primary = "#1E3A8A"
+                secondary = "#DC2626"
+                accent = "#2563EB"
+
+            fallback_sections = [
+                {"id": "sec_1", "title": "Header & Contact", "component_type": "header", "description": "Bold name, target role, contact info with modern icons"},
+                {"id": "sec_2", "title": "Professional Summary", "component_type": "summary", "description": "Executive career summary and key accomplishments"},
+                {"id": "sec_3", "title": "Professional Experience", "component_type": "timeline", "description": "Action-oriented bullet points with company details and timeline lines"},
+                {"id": "sec_4", "title": "Skills & Proficiencies", "component_type": "skill_loader", "description": "Core technical stack and competencies"},
+                {"id": "sec_5", "title": "Education & Credentials", "component_type": "text_block", "description": "Degrees, university, GPA, and certifications"}
+            ]
+            if wants_qr:
+                fallback_sections.append({"id": "sec_6", "title": "Portfolio QR Code", "component_type": "qr_code", "description": "Scannable QR code block for live portfolio"})
+
+            fallback_specials = ["Skill progress bars with percentage loaders", "Timeline section lines"]
+            if wants_qr:
+                fallback_specials.append("QR Code linking to portfolio")
+
             fallback_plan = {
-                "title": "Bespoke Modern Resume Plan",
-                "layout_type": "two_column_left_sidebar",
-                "theme_summary": "Clean, modern dual-column layout with vibrant accent colors and clear section hierarchy.",
+                "title": f"Bespoke {layout_type.replace('_', ' ').title()} Plan",
+                "layout_type": layout_type,
+                "theme_summary": f"Clean, tailored layout optimized for {prompt[:30]}...",
                 "color_palette": {
-                    "bg": "#FFFFFF",
-                    "primary": "#0F172A",
-                    "secondary": "#38BDF8",
-                    "text": "#1E293B",
-                    "accent": "#6366F1"
+                    "bg": bg,
+                    "primary": primary,
+                    "secondary": secondary,
+                    "text": text,
+                    "accent": accent
                 },
-                "sections": [
-                    {"id": "sec_1", "title": "Header & Contact", "component_type": "header", "description": "Bold name, target role, contact info with modern icons"},
-                    {"id": "sec_2", "title": "Sidebar Skills & Progress Loaders", "component_type": "skill_loader", "description": "Interactive progress bar loaders for core tech stack"},
-                    {"id": "sec_3", "title": "Professional Experience", "component_type": "timeline", "description": "Action-oriented bullet points with company details and timeline lines"},
-                    {"id": "sec_4", "title": "Education & Credentials", "component_type": "text_block", "description": "Degrees, university, GPA, and certifications"},
-                    {"id": "sec_5", "title": "Portfolio QR Code", "component_type": "qr_code", "description": "Scannable QR code block for live portfolio"}
-                ],
-                "special_elements": [
-                    "Skill progress bars with percentage loaders",
-                    "QR Code linking to portfolio",
-                    "Timeline section lines"
-                ]
+                "sections": fallback_sections,
+                "special_elements": fallback_specials
             }
             return {"status": "success", "plan": fallback_plan}
 

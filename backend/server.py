@@ -25,10 +25,36 @@ try:
 except ImportError:
     pass
 
-# Allow relative imports from root when running in Vercel
+# Ensure .env is always loaded even if python-dotenv is missing
+for _env_file in [
+    os.path.join(os.path.dirname(__file__), "..", ".env"),
+    os.path.join(os.path.dirname(__file__), ".env"),
+    ".env",
+]:
+    if os.path.exists(_env_file):
+        try:
+            with open(_env_file, "r", encoding="utf-8") as _f:
+                for _line in _f:
+                    _line = _line.strip()
+                    if _line and not _line.startswith("#") and "=" in _line:
+                        _k, _v = _line.split("=", 1)
+                        _k = _k.strip()
+                        _v = _v.strip().strip('"\'')
+                        if _k not in os.environ:
+                            os.environ[_k] = _v
+        except Exception:
+            pass
+        break
+
+# Allow relative imports from root and backend
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
+_root_path = str(Path(__file__).parent.parent)
+_backend_path = str(Path(__file__).parent)
+if _root_path not in sys.path:
+    sys.path.append(_root_path)
+if _backend_path not in sys.path:
+    sys.path.append(_backend_path)
 
 from engine import PDFEngine
 from ai_parser import AIParserEngine, locally_blocked

@@ -437,7 +437,7 @@ Extract:
 3. Desired style/layout (modern_sidebar, executive, minimalist, etc.)
 4. Color preferences (primary, secondary colors)
 5. Key sections needed (summary, experience, skills, education, certifications)
-6. Special requirements (QR code, metrics chart, signature, etc.)
+6. Special requirements (QR code, metrics chart, signature, etc.) ONLY if explicitly requested by user in prompt
 
 Output JSON with this structure:
 {
@@ -450,12 +450,14 @@ Output JSON with this structure:
     "accent": "#2563eb"
   },
   "sections": ["summary", "experience", "skills", "education", "certifications"],
-  "special_features": ["qr_code", "metrics_chart"],
+  "special_features": [],
   "ats_compliant": true,
   "priority": "high"
 }"""
 
         response = self._create_llm_call(system, user_prompt)
+        p_lower = (user_prompt or "").lower()
+        wants_qr = any(w in p_lower for w in ["qr", "barcode", "quick response", "scan me", "scannable"])
 
         try:
             # Parse JSON from response
@@ -463,6 +465,18 @@ Output JSON with this structure:
             if json_match:
                 parsed_plan = json.loads(json_match.group())
                 if isinstance(parsed_plan, dict) and "role" in parsed_plan:
+                    if any(w in p_lower for w in ["cyberpunk", "neon", "matrix", "blade runner", "synthwave"]):
+                        parsed_plan["layout_style"] = "cyberpunk_edge"
+                    elif any(w in p_lower for w in ["retro", "terminal", "hacker", "cli", "console", "bash", "linux", "code"]):
+                        parsed_plan["layout_style"] = "retro_terminal"
+                    elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "timeline", "harvard", "monarch"]):
+                        parsed_plan["layout_style"] = "single_column_classic"
+
+                    special = parsed_plan.get("special_features", [])
+                    if not wants_qr:
+                        special = [f for f in special if f != "qr_code"]
+                    parsed_plan["special_features"] = special
+
                     return {
                         "status": "success",
                         "agent": "planner",
@@ -472,7 +486,6 @@ Output JSON with this structure:
             print(f"[Planner] Parse error: {e}")
 
         # Intelligent prompt fallback when no LLM provider is active (e.g. testing)
-        p_lower = (user_prompt or "").lower()
         role = "Senior Professional"
         if "data analyst" in p_lower:
             role = "Senior Data Analyst"
@@ -483,7 +496,21 @@ Output JSON with this structure:
 
         primary = "#1e3a8a"
         secondary = "#dc2626"
-        if "emerald" in p_lower or "green" in p_lower:
+        layout_style = "modern_sidebar"
+
+        if any(w in p_lower for w in ["cyberpunk", "neon", "matrix", "blade runner", "synthwave"]):
+            layout_style = "cyberpunk_edge"
+            primary = "#FF003C"
+            secondary = "#00F0FF"
+        elif any(w in p_lower for w in ["retro", "terminal", "hacker", "cli", "console", "bash", "linux", "code"]):
+            layout_style = "retro_terminal"
+            primary = "#00FF66"
+            secondary = "#0C0C0C"
+        elif any(w in p_lower for w in ["classic", "executive", "single column", "ats", "traditional", "timeline", "harvard", "monarch"]):
+            layout_style = "single_column_classic"
+            primary = "#0F172A"
+            secondary = "#B45309"
+        elif "emerald" in p_lower or "green" in p_lower:
             primary = "#064e3b"
             secondary = "#059669"
         elif "purple" in p_lower:
@@ -496,14 +523,14 @@ Output JSON with this structure:
             "plan": {
                 "role": role,
                 "candidate_name": "ALEXANDER MORGAN",
-                "layout_style": "modern_sidebar",
+                "layout_style": layout_style,
                 "colors": {
                     "primary": primary,
                     "secondary": secondary,
                     "accent": "#2563eb",
                 },
                 "sections": ["summary", "experience", "skills", "education"],
-                "special_features": ["qr_code"],
+                "special_features": ["qr_code"] if wants_qr else [],
                 "ats_compliant": True,
             },
         }

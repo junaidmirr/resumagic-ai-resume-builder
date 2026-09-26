@@ -7,6 +7,7 @@ import {
   wizardDataToCandidateData,
   type ParsedCandidateData,
 } from "./geometricResumeBuilder";
+import { RESUME_TEMPLATES as TEMPLATES } from "../utils/templates";
 
 export interface DesignPlan {
   title: string;
@@ -385,7 +386,7 @@ export async function buildArchitectResumeDirect(
   }
 
   // 2. Client-Side High-Precision Element Engine Fallback
-  return generateFallbackElements(plan);
+  return generateFallbackElements(plan, userPrompt);
 }
 
 export function createFallbackPlan(
@@ -399,8 +400,62 @@ export function createFallbackPlan(
   let accent = "#6366F1";
   let bg = "#FFFFFF";
   let text = "#1E293B";
+  let layout_type = "two_column_left_sidebar";
 
-  if (p.includes("red") && p.includes("blue")) {
+  const wantsQr =
+    p.includes("qr") ||
+    p.includes("barcode") ||
+    p.includes("quick response") ||
+    p.includes("scan");
+
+  if (
+    p.includes("cyberpunk") ||
+    p.includes("neon") ||
+    p.includes("synthwave") ||
+    p.includes("matrix")
+  ) {
+    layout_type = "cyberpunk_edge";
+    bg = "#0A0A0F";
+    primary = "#FF003C";
+    secondary = "#00F0FF";
+    accent = "#FFE600";
+    text = "#FFFFFF";
+  } else if (
+    p.includes("terminal") ||
+    p.includes("retro") ||
+    p.includes("hacker") ||
+    p.includes("cli") ||
+    p.includes("console") ||
+    p.includes("bash") ||
+    p.includes("linux")
+  ) {
+    layout_type = "retro_terminal";
+    bg = "#0C0C0C";
+    primary = "#00FF66";
+    secondary = "#1F2430";
+    accent = "#FFE600";
+    text = "#00FF66";
+  } else if (
+    p.includes("classic") ||
+    p.includes("harvard") ||
+    p.includes("monarch") ||
+    p.includes("single") ||
+    p.includes("executive")
+  ) {
+    layout_type = "monarch_classic";
+    bg = "#FFFFFF";
+    primary = "#0F172A";
+    secondary = "#B45309";
+    accent = "#2563EB";
+    text = "#1E293B";
+  } else if (p.includes("minimal") || p.includes("grid")) {
+    layout_type = "minimalist_grid";
+    bg = "#FFFFFF";
+    primary = "#18181B";
+    secondary = "#71717A";
+    accent = "#09090B";
+    text = "#27272A";
+  } else if (p.includes("red") && p.includes("blue")) {
     primary = "#1E3A8A"; // Deep Navy Blue
     secondary = "#DC2626"; // Crimson Red
     accent = "#2563EB";
@@ -415,7 +470,6 @@ export function createFallbackPlan(
     secondary = "#059669";
     accent = "#10B981";
   } else if (
-    p.includes("executive") ||
     p.includes("crimson") ||
     p.includes("red")
   ) {
@@ -424,53 +478,69 @@ export function createFallbackPlan(
     accent = "#DC2626";
   }
 
+  const sections = [
+    {
+      id: "sec_1",
+      title: "Header & Personal Branding",
+      component_type: "header",
+      description:
+        "Bold target role, contact badges with modern icons and styled banner",
+    },
+    {
+      id: "sec_2",
+      title: "Professional Summary",
+      component_type: "summary",
+      description:
+        "Executive career highlights and technical accomplishments",
+    },
+    {
+      id: "sec_3",
+      title: "Professional Work Experience",
+      component_type: "timeline",
+      description:
+        "Structured timeline entries with company role, dates, and impact bullets",
+    },
+    {
+      id: "sec_4",
+      title: "Skills & Technical Competencies",
+      component_type: "skill_loader",
+      description:
+        "Core skills, tools, and technical proficiency metrics",
+    },
+    {
+      id: "sec_5",
+      title: "Education & Credentials",
+      component_type: "text_block",
+      description:
+        "Degree specialization, university honors, and certifications",
+    },
+  ];
+
+  if (wantsQr) {
+    sections.push({
+      id: "sec_6",
+      title: "Portfolio QR Code",
+      component_type: "qr_code",
+      description:
+        "Scannable QR code block linking to live GitHub / Portfolio",
+    });
+  }
+
+  const special_elements = [
+    "Mathematical layout alignment",
+    "Archetype-tailored typography and palette",
+  ];
+  if (wantsQr) {
+    special_elements.push("Scannable Portfolio QR Code block");
+  }
+
   return {
-    title: "AI Architect Bespoke Resume",
-    layout_type: "two_column_left_sidebar",
-    theme_summary: `Bespoke mathematical design created for "${userPrompt.slice(0, 40)}..." featuring balanced proportions, skill progress loaders, and executive typography.`,
+    title: `AI Architect ${layout_type.replace(/_/g, " ").replace(/\\b\\w/g, (c) => c.toUpperCase())} Resume`,
+    layout_type,
+    theme_summary: `Bespoke mathematical design created for "${userPrompt.slice(0, 40)}..." featuring balanced proportions, archetype styling, and executive typography.`,
     color_palette: { bg, primary, secondary, text, accent },
-    sections: [
-      {
-        id: "sec_1",
-        title: "Header & Personal Branding",
-        component_type: "header",
-        description:
-          "Bold target role, contact badges with modern icons and styled banner",
-      },
-      {
-        id: "sec_2",
-        title: "Sidebar Skills & Progress Loaders",
-        component_type: "skill_loader",
-        description:
-          "Dual-layer skill progress loaders showing technical proficiency percentages",
-      },
-      {
-        id: "sec_3",
-        title: "Professional Work Experience",
-        component_type: "timeline",
-        description:
-          "Structured timeline entries with company role, dates, and impact bullets",
-      },
-      {
-        id: "sec_4",
-        title: "Education & Credentials",
-        component_type: "text_block",
-        description:
-          "Degree specialization, university honors, and certifications",
-      },
-      {
-        id: "sec_5",
-        title: "Portfolio QR Code",
-        component_type: "qr_code",
-        description:
-          "Scannable QR code block linking to live GitHub / Portfolio",
-      },
-    ],
-    special_elements: [
-      "Skill progress loaders with percentage bars",
-      "Scannable Portfolio QR Code block",
-      "Executive timeline section dividers",
-    ],
+    sections,
+    special_elements,
   };
 }
 
@@ -616,6 +686,70 @@ export function generateFallbackElements(
       "Certified Scrum Master (CSM)",
     ],
   };
+
+  // Check if any bespoke archetype template matches
+  let matchedTemplate = TEMPLATES.find((t) => t.id === plan.layout_type);
+  if (!matchedTemplate) {
+    if (
+      p.includes("cyberpunk") ||
+      p.includes("neon") ||
+      p.includes("synthwave") ||
+      p.includes("matrix")
+    ) {
+      matchedTemplate = TEMPLATES.find((t) => t.id === "cyberpunk_edge");
+    } else if (
+      p.includes("terminal") ||
+      p.includes("retro") ||
+      p.includes("hacker") ||
+      p.includes("cli") ||
+      p.includes("console") ||
+      p.includes("bash") ||
+      p.includes("linux")
+    ) {
+      matchedTemplate = TEMPLATES.find((t) => t.id === "retro_terminal");
+    } else if (
+      p.includes("classic") ||
+      p.includes("harvard") ||
+      p.includes("monarch")
+    ) {
+      matchedTemplate = TEMPLATES.find((t) => t.id === "monarch_classic");
+    } else if (p.includes("minimal") || p.includes("grid")) {
+      matchedTemplate = TEMPLATES.find((t) => t.id === "minimalist_grid");
+    }
+  }
+
+  if (matchedTemplate) {
+    const firstName = candidateData.name.split(" ")[0] || "ALEX";
+    const lastName = candidateData.name.split(" ").slice(1).join(" ") || "MORGAN";
+    const wizardData = {
+      contact: {
+        firstName,
+        lastName,
+        email: candidateData.email,
+        phone: candidateData.phone,
+        city: candidateData.location,
+        linkedin: candidateData.linkedin,
+      },
+      targetRole: candidateData.headline,
+      summary: candidateData.summary,
+      experiences: candidateData.experiences.map((exp) => ({
+        role: exp.role,
+        company: exp.company,
+        duration: exp.duration,
+        description: exp.bullets.map((b) => `• ${b}`).join("\n"),
+      })),
+      educations: candidateData.educations.map((edu) => ({
+        degree: edu.degree,
+        school: edu.school,
+        startDate: edu.year ? edu.year.split("–")[0]?.trim() || "2018" : "2018",
+        endDate: edu.year ? edu.year.split("–")[1]?.trim() || "2022" : "2022",
+      })),
+      skills: candidateData.skills.map((s) => s.name),
+    };
+
+    const rawTemplateElements = matchedTemplate.elements("page-1", wizardData);
+    return normalizeEditorElements(rawTemplateElements as any[], "page-1");
+  }
 
   const isExecutiveTheme =
     plan.layout_type?.includes("single") ||

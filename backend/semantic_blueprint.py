@@ -67,11 +67,15 @@ class MathematicalLayoutSolver:
     def compile(self) -> List[Dict[str, Any]]:
         self.elements = []
         arch = (self.archetype or "sidebar_left_modern").lower()
-        if "right" in arch:
+        if "cyberpunk" in arch or "neon" in arch or "synth" in arch:
+            self._compile_cyberpunk_layout()
+        elif "terminal" in arch or "retro" in arch or "hacker" in arch or "cli" in arch or "console" in arch:
+            self._compile_retro_terminal_layout()
+        elif "right" in arch:
             self._compile_sidebar_layout(sidebar_on_left=False)
         elif "grid" in arch or "two_column" in arch:
             self._compile_two_column_grid()
-        elif "classic" in arch or "single" in arch:
+        elif "classic" in arch or "single" in arch or "executive" in arch:
             self._compile_single_column_classic()
         else: # Default modern sidebar
             self._compile_sidebar_layout(sidebar_on_left=True)
@@ -215,12 +219,15 @@ class MathematicalLayoutSolver:
 
         # ── COMPILE SIDEBAR SECTIONS ACCORDING TO BLUEPRINT ORDERING ──────────
         sidebar_config = self.blueprint.get("columns", {}).get("sidebar", {})
-        sidebar_sections = sidebar_config.get("sections", [
+        include_qr = bool(self.blueprint.get("include_qr_code", False))
+        default_sb_sections = [
             {"type": "contact", "title": "Contact Details"},
             {"type": "skills", "title": "Core Competencies", "display": "progress_bars"},
             {"type": "certifications", "title": "Certifications"},
-            {"type": "qr_code", "label": "Portfolio QR", "url": "https://linkedin.com"},
-        ])
+        ]
+        if include_qr:
+            default_sb_sections.append({"type": "qr_code", "label": "Portfolio QR", "url": "https://linkedin.com"})
+        sidebar_sections = sidebar_config.get("sections", default_sb_sections)
 
         sb_cursor_top = 110.0
         for sec in sidebar_sections:
@@ -233,7 +240,7 @@ class MathematicalLayoutSolver:
                 sb_cursor_top = self._render_sb_skills(sb_content_x, sb_content_w, sb_cursor_top, sec_title)
             elif sec_type == "certifications":
                 sb_cursor_top = self._render_sb_certs(sb_content_x, sb_content_w, sb_cursor_top, sec_title)
-            elif sec_type == "qr_code":
+            elif sec_type == "qr_code" and include_qr:
                 self._render_sb_qr_code(sb_x, sidebar_w, sec.get("url", "https://linkedin.com"), sec.get("label", "SCAN PORTFOLIO"))
 
         # ── COMPILE MAIN SECTIONS ACCORDING TO BLUEPRINT ORDERING ─────────────
@@ -293,9 +300,9 @@ class MathematicalLayoutSolver:
             "shape_type": "line",
             "page_id": "page-1",
             "x": x,
-            "y": y - 4,
+            "y": y - 5,
             "x2": x + w,
-            "y2": y - 4,
+            "y2": y - 5,
             "width": w,
             "height": 1.5,
             "fill_color": self.accent_color,
@@ -303,7 +310,7 @@ class MathematicalLayoutSolver:
             "border_width": 1.5,
             "z_index": 5,
         })
-        return cursor_top + 22
+        return cursor_top + 30
 
     def _render_sb_contact(self, x: float, w: float, cursor_top: float, title: str) -> float:
         cursor_top = self._add_sb_header(x, w, cursor_top, title or "Contact Details")
@@ -419,7 +426,8 @@ class MathematicalLayoutSolver:
             "Google Professional Data Engineer"
         ])
         for c_idx, cert in enumerate(certs[:3]):
-            h_cert = estimate_text_height(cert, w, 8)
+            lines = max(1, (len(cert) + 20) // 22)
+            h_cert = max(14.0, lines * 11.5)
             y = PAGE_HEIGHT - cursor_top - h_cert
             self.elements.append({
                 "id": f"cert_{c_idx}_{uuid.uuid4().hex[:6]}",
@@ -436,7 +444,7 @@ class MathematicalLayoutSolver:
                 "line_height": 1.3,
                 "z_index": 5,
             })
-            cursor_top += h_cert + 6
+            cursor_top += h_cert + 8
         return cursor_top + 6
 
     def _render_sb_qr_code(self, sb_x: float, sidebar_w: float, url: str, label: str):
@@ -511,9 +519,9 @@ class MathematicalLayoutSolver:
             "shape_type": "line",
             "page_id": "page-1",
             "x": x,
-            "y": y - 4,
+            "y": y - 6,
             "x2": x + w,
-            "y2": y - 4,
+            "y2": y - 6,
             "width": w,
             "height": 1.5,
             "fill_color": self.accent_color,
@@ -521,7 +529,7 @@ class MathematicalLayoutSolver:
             "border_width": 1.5,
             "z_index": 3,
         })
-        return cursor_top + 22
+        return cursor_top + 34
 
     def _render_main_summary(self, x: float, w: float, cursor_top: float, title: str, gap: float) -> float:
         cursor_top = self._add_main_header(x, w, cursor_top, title or "Executive Summary")
@@ -855,8 +863,619 @@ class MathematicalLayoutSolver:
     def _compile_two_column_grid(self):
         cx = 40.0
         cw = (PAGE_WIDTH - cx * 2 - 20) / 2
-        # Use left column for summary & skills, right column for experience & education
         self._compile_sidebar_layout(sidebar_on_left=True)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 4. Cyberpunk Edge Layout Solver
+    # ─────────────────────────────────────────────────────────────────────────
+    def _compile_cyberpunk_layout(self):
+        cand_name = self.candidate.get("name", "ALEX MERCER")
+        target_role = self.candidate.get("target_role", "CYBERPUNK TECH PROFESSIONAL")
+
+        # Dark background
+        self.elements.append({
+            "id": "bg_dark",
+            "element_type": "shape",
+            "shape_type": "rectangle",
+            "page_id": "page-1",
+            "x": 0,
+            "y": 0,
+            "width": PAGE_WIDTH,
+            "height": PAGE_HEIGHT,
+            "fill_color": "#0a0a0f",
+            "border_width": 0,
+            "z_index": 0,
+        })
+        # Cyberpunk angular slashes
+        self.elements.append({
+            "id": "slash_red",
+            "element_type": "shape",
+            "shape_type": "path",
+            "page_id": "page-1",
+            "path_d": "M 0 792 L 612 660 L 612 792 Z",
+            "fill_color": "#FF003C",
+            "border_width": 0,
+            "x": 0,
+            "y": 0,
+            "z_index": 1,
+        })
+        self.elements.append({
+            "id": "slash_cyan",
+            "element_type": "shape",
+            "shape_type": "path",
+            "page_id": "page-1",
+            "path_d": "M 0 792 L 612 685 L 612 792 Z",
+            "fill_color": "#00F0FF",
+            "border_width": 0,
+            "x": 0,
+            "y": 0,
+            "z_index": 2,
+        })
+
+        # Name in Neon Yellow
+        self.elements.append({
+            "id": "cyber_name",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": cand_name.upper(),
+            "x": 35,
+            "y": PAGE_HEIGHT - 95,
+            "width": 380,
+            "height": 34,
+            "font_size": 26,
+            "font_name": "Helvetica-Bold",
+            "text_color": "#FEE715",
+            "bold": True,
+            "z_index": 4,
+        })
+
+        # Target Role Pill Badge
+        role_w = min(220, max(120, len(target_role) * 7.5 + 20))
+        self.elements.append({
+            "id": "cyber_role_bg",
+            "element_type": "shape",
+            "shape_type": "rectangle",
+            "page_id": "page-1",
+            "x": 35,
+            "y": PAGE_HEIGHT - 122,
+            "width": role_w,
+            "height": 20,
+            "fill_color": "#00F0FF",
+            "border_radius": 2,
+            "border_width": 0,
+            "z_index": 4,
+        })
+        self.elements.append({
+            "id": "cyber_role_txt",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": target_role.upper(),
+            "x": 35,
+            "y": PAGE_HEIGHT - 120,
+            "width": role_w,
+            "height": 16,
+            "font_size": 9,
+            "font_name": "Helvetica-Bold",
+            "text_color": "#000000",
+            "align": "center",
+            "bold": True,
+            "z_index": 5,
+        })
+
+        # Left Column: Contact
+        contact_items = [
+            f"> {self.candidate.get('email', 'alex@mercer.dev')}",
+            f"> {self.candidate.get('phone', '(555) 012-3456')}",
+            f"> {self.candidate.get('location', 'San Francisco, CA')}",
+        ]
+        c_y = PAGE_HEIGHT - 170
+        for item in contact_items:
+            self.elements.append({
+                "id": f"c_item_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": item,
+                "x": 35,
+                "y": c_y,
+                "width": 185,
+                "height": 14,
+                "font_size": 9,
+                "font_name": "Courier",
+                "text_color": "#FEE715",
+                "z_index": 4,
+            })
+            c_y -= 18
+
+        # SYS.SKILLS Header
+        sk_y = c_y - 25
+        self.elements.append({
+            "id": "sk_sq",
+            "element_type": "shape",
+            "shape_type": "rectangle",
+            "page_id": "page-1",
+            "x": 35,
+            "y": sk_y + 2,
+            "width": 12,
+            "height": 12,
+            "fill_color": "#FEE715",
+            "border_width": 0,
+            "z_index": 4,
+        })
+        self.elements.append({
+            "id": "sk_hdr",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "SYS.SKILLS",
+            "x": 54,
+            "y": sk_y,
+            "width": 150,
+            "height": 16,
+            "font_size": 11,
+            "font_name": "Helvetica-Bold",
+            "text_color": "#ffffff",
+            "bold": True,
+            "z_index": 4,
+        })
+        skills = self.content.get("skills", [
+            {"name": "React & Node.js"},
+            {"name": "Python / FastAPI"},
+            {"name": "PostgreSQL"},
+            {"name": "AWS / Docker"},
+            {"name": "TypeScript"},
+        ])
+        s_item_y = sk_y - 22
+        for s in skills[:6]:
+            s_name = s.get("name", "Skill") if isinstance(s, dict) else str(s)
+            self.elements.append({
+                "id": f"sk_tag_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": f"[{s_name}]",
+                "x": 35,
+                "y": s_item_y,
+                "width": 185,
+                "height": 16,
+                "font_size": 9.5,
+                "font_name": "Courier-Bold",
+                "text_color": "#00F0FF",
+                "bold": True,
+                "z_index": 4,
+            })
+            s_item_y -= 22
+
+        # Right Column: SYS.SUMMARY
+        sum_hdr_y = PAGE_HEIGHT - 170
+        self.elements.append({
+            "id": "sum_sq",
+            "element_type": "shape",
+            "shape_type": "rectangle",
+            "page_id": "page-1",
+            "x": 240,
+            "y": sum_hdr_y + 2,
+            "width": 12,
+            "height": 12,
+            "fill_color": "#00F0FF",
+            "border_width": 0,
+            "z_index": 4,
+        })
+        self.elements.append({
+            "id": "sum_hdr",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "SYS.SUMMARY",
+            "x": 259,
+            "y": sum_hdr_y,
+            "width": 200,
+            "height": 16,
+            "font_size": 11,
+            "font_name": "Helvetica-Bold",
+            "text_color": "#ffffff",
+            "bold": True,
+            "z_index": 4,
+        })
+        summary_txt = self.content.get("summary", "Innovative engineer with 8+ years building scalable cloud systems...")
+        sum_h = estimate_text_height(summary_txt, 335, 9)
+        self.elements.append({
+            "id": "cyber_sum_txt",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": summary_txt,
+            "x": 240,
+            "y": sum_hdr_y - 12 - sum_h,
+            "width": 335,
+            "height": sum_h,
+            "font_size": 9,
+            "font_name": "Courier",
+            "text_color": "#e2e8f0",
+            "line_height": 1.4,
+            "z_index": 4,
+        })
+
+        # SYS.EXPERIENCE
+        exp_hdr_y = sum_hdr_y - 28 - sum_h
+        self.elements.append({
+            "id": "exp_sq",
+            "element_type": "shape",
+            "shape_type": "rectangle",
+            "page_id": "page-1",
+            "x": 240,
+            "y": exp_hdr_y + 2,
+            "width": 12,
+            "height": 12,
+            "fill_color": "#FF003C",
+            "border_width": 0,
+            "z_index": 4,
+        })
+        self.elements.append({
+            "id": "exp_hdr",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "SYS.EXPERIENCE",
+            "x": 259,
+            "y": exp_hdr_y,
+            "width": 200,
+            "height": 16,
+            "font_size": 11,
+            "font_name": "Helvetica-Bold",
+            "text_color": "#ffffff",
+            "bold": True,
+            "z_index": 4,
+        })
+
+        curr_y = exp_hdr_y - 12
+        experiences = self.content.get("experiences", [])
+        for e_idx, exp in enumerate(experiences[:2]):
+            r_txt = f"{exp.get('role', 'Lead Engineer')} · {exp.get('company', 'TechCorp Inc.')}"
+            d_txt = exp.get("duration", "2021 – Present")
+            curr_y -= 16
+            self.elements.append({
+                "id": f"cy_exp_r_{e_idx}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": r_txt,
+                "x": 240,
+                "y": curr_y,
+                "width": 335,
+                "height": 16,
+                "font_size": 10.5,
+                "font_name": "Helvetica-Bold",
+                "text_color": "#00F0FF",
+                "bold": True,
+                "z_index": 4,
+            })
+            curr_y -= 14
+            self.elements.append({
+                "id": f"cy_exp_d_{e_idx}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": d_txt,
+                "x": 240,
+                "y": curr_y,
+                "width": 335,
+                "height": 14,
+                "font_size": 8.5,
+                "font_name": "Courier",
+                "text_color": "#94a3b8",
+                "z_index": 4,
+            })
+            curr_y -= 6
+            bullets = exp.get("bullets", [])
+            for b_idx, bullet in enumerate(bullets[:3]):
+                b_text = bullet if bullet.startswith("•") else f"• {bullet}"
+                b_h = estimate_text_height(b_text, 335, 8.5)
+                curr_y -= b_h
+                self.elements.append({
+                    "id": f"cy_exp_b_{e_idx}_{b_idx}",
+                    "element_type": "text",
+                    "page_id": "page-1",
+                    "text": b_text,
+                    "x": 240,
+                    "y": curr_y,
+                    "width": 335,
+                    "height": b_h,
+                    "font_size": 8.5,
+                    "font_name": "Courier",
+                    "text_color": "#cbd5e1",
+                    "line_height": 1.35,
+                    "z_index": 4,
+                })
+                curr_y -= 4
+            curr_y -= 10
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 5. Retro Terminal Layout Solver
+    # ─────────────────────────────────────────────────────────────────────────
+    def _compile_retro_terminal_layout(self):
+        cand_name = self.candidate.get("name", "alex_mercer").lower().replace(" ", "_")
+        target_role = self.candidate.get("target_role", "Senior Software Engineer")
+
+        # Dark Terminal Background
+        self.elements.append({
+            "id": "bg_term",
+            "element_type": "shape",
+            "shape_type": "rectangle",
+            "page_id": "page-1",
+            "x": 0,
+            "y": 0,
+            "width": PAGE_WIDTH,
+            "height": PAGE_HEIGHT,
+            "fill_color": "#0C0C0C",
+            "border_width": 0,
+            "z_index": 0,
+        })
+        self.elements.append({
+            "id": "term_init",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "user@system:~$ ./init_resume.sh",
+            "x": 35,
+            "y": PAGE_HEIGHT - 45,
+            "width": 540,
+            "height": 14,
+            "font_size": 10,
+            "font_name": "Courier",
+            "text_color": "#22C55E",
+            "z_index": 2,
+        })
+        self.elements.append({
+            "id": "term_name",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": f"> {cand_name}",
+            "x": 35,
+            "y": PAGE_HEIGHT - 80,
+            "width": 540,
+            "height": 28,
+            "font_size": 22,
+            "font_name": "Courier-Bold",
+            "text_color": "#22C55E",
+            "bold": True,
+            "z_index": 2,
+        })
+        self.elements.append({
+            "id": "term_role",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": f"// {target_role}",
+            "x": 35,
+            "y": PAGE_HEIGHT - 105,
+            "width": 540,
+            "height": 16,
+            "font_size": 11,
+            "font_name": "Courier",
+            "text_color": "#86EFAC",
+            "z_index": 2,
+        })
+        contact_line = f"{self.candidate.get('email', 'alex@mercer.dev')}  |  {self.candidate.get('phone', '(555) 012-3456')}  |  {self.candidate.get('linkedin', 'linkedin.com/in/alex')}"
+        self.elements.append({
+            "id": "term_contact",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": contact_line,
+            "x": 35,
+            "y": PAGE_HEIGHT - 128,
+            "width": 540,
+            "height": 14,
+            "font_size": 9,
+            "font_name": "Courier",
+            "text_color": "#4ADE80",
+            "z_index": 2,
+        })
+        self.elements.append({
+            "id": "term_rule_top",
+            "element_type": "shape",
+            "shape_type": "line",
+            "page_id": "page-1",
+            "x": 35,
+            "y": PAGE_HEIGHT - 145,
+            "x2": 577,
+            "y2": PAGE_HEIGHT - 145,
+            "width": 542,
+            "height": 1,
+            "fill_color": "#16A34A",
+            "border_color": "#16A34A",
+            "border_width": 1,
+            "z_index": 2,
+        })
+
+        # Vertical splitter line between columns
+        self.elements.append({
+            "id": "term_col_split",
+            "element_type": "shape",
+            "shape_type": "line",
+            "page_id": "page-1",
+            "x": 235,
+            "y": 30,
+            "x2": 235,
+            "y2": PAGE_HEIGHT - 160,
+            "width": 1,
+            "height": PAGE_HEIGHT - 190,
+            "fill_color": "#16A34A",
+            "border_color": "#16A34A",
+            "border_width": 1,
+            "z_index": 2,
+        })
+
+        # Left Column: /* SUMMARY */
+        sum_y = PAGE_HEIGHT - 175
+        self.elements.append({
+            "id": "term_sum_hdr",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "/* SUMMARY */",
+            "x": 35,
+            "y": sum_y,
+            "width": 185,
+            "height": 16,
+            "font_size": 10.5,
+            "font_name": "Courier-Bold",
+            "text_color": "#22C55E",
+            "bold": True,
+            "z_index": 2,
+        })
+        summary_txt = self.content.get("summary", "Innovative engineer with 8+ years building scalable cloud systems...")
+        sum_h = estimate_text_height(summary_txt, 185, 8.5)
+        self.elements.append({
+            "id": "term_sum_txt",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": summary_txt,
+            "x": 35,
+            "y": sum_y - 12 - sum_h,
+            "width": 185,
+            "height": sum_h,
+            "font_size": 8.5,
+            "font_name": "Courier",
+            "text_color": "#D1D5DB",
+            "line_height": 1.35,
+            "z_index": 2,
+        })
+
+        # /* SKILLS */
+        sk_y = sum_y - 28 - sum_h
+        self.elements.append({
+            "id": "term_sk_hdr",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "/* SKILLS */",
+            "x": 35,
+            "y": sk_y,
+            "width": 185,
+            "height": 16,
+            "font_size": 10.5,
+            "font_name": "Courier-Bold",
+            "text_color": "#22C55E",
+            "bold": True,
+            "z_index": 2,
+        })
+        skills = self.content.get("skills", [
+            {"name": "React & Node.js", "level": 0.92},
+            {"name": "Python / FastAPI", "level": 0.88},
+            {"name": "PostgreSQL", "level": 0.85},
+            {"name": "AWS / Docker", "level": 0.90},
+            {"name": "TypeScript", "level": 0.95},
+        ])
+        s_y = sk_y - 20
+        for s in skills[:5]:
+            s_name = s.get("name", "Skill") if isinstance(s, dict) else str(s)
+            s_lvl = float(s.get("level", 0.85)) if isinstance(s, dict) else 0.85
+            self.elements.append({
+                "id": f"term_sk_t_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": f"> {s_name}",
+                "x": 35,
+                "y": s_y,
+                "width": 185,
+                "height": 14,
+                "font_size": 8.5,
+                "font_name": "Courier",
+                "text_color": "#86EFAC",
+                "z_index": 2,
+            })
+            s_y -= 8
+            self.elements.append({
+                "id": f"term_sk_bg_{uuid.uuid4().hex[:6]}",
+                "element_type": "shape",
+                "shape_type": "rectangle",
+                "page_id": "page-1",
+                "x": 35,
+                "y": s_y,
+                "width": 185,
+                "height": 4,
+                "fill_color": "#064E3B",
+                "border_width": 0,
+                "z_index": 2,
+            })
+            self.elements.append({
+                "id": f"term_sk_fill_{uuid.uuid4().hex[:6]}",
+                "element_type": "shape",
+                "shape_type": "rectangle",
+                "page_id": "page-1",
+                "x": 35,
+                "y": s_y,
+                "width": 185 * s_lvl,
+                "height": 4,
+                "fill_color": "#22C55E",
+                "border_width": 0,
+                "z_index": 3,
+            })
+            s_y -= 18
+
+        # Right Column: /* EXPERIENCE */
+        exp_y = PAGE_HEIGHT - 175
+        self.elements.append({
+            "id": "term_exp_hdr",
+            "element_type": "text",
+            "page_id": "page-1",
+            "text": "/* EXPERIENCE */",
+            "x": 255,
+            "y": exp_y,
+            "width": 320,
+            "height": 16,
+            "font_size": 10.5,
+            "font_name": "Courier-Bold",
+            "text_color": "#22C55E",
+            "bold": True,
+            "z_index": 2,
+        })
+        cur_y = exp_y - 16
+        experiences = self.content.get("experiences", [])
+        for e_idx, exp in enumerate(experiences[:2]):
+            cur_y -= 16
+            self.elements.append({
+                "id": f"term_exp_r_{e_idx}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": f"> {exp.get('role', 'Lead Engineer')} · {exp.get('company', 'TechCorp Inc.')}",
+                "x": 255,
+                "y": cur_y,
+                "width": 320,
+                "height": 16,
+                "font_size": 10,
+                "font_name": "Courier-Bold",
+                "text_color": "#F8FAFC",
+                "bold": True,
+                "z_index": 2,
+            })
+            cur_y -= 14
+            self.elements.append({
+                "id": f"term_exp_d_{e_idx}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": f"// {exp.get('duration', '2021 – Present')}",
+                "x": 255,
+                "y": cur_y,
+                "width": 320,
+                "height": 14,
+                "font_size": 8.5,
+                "font_name": "Courier",
+                "text_color": "#22C55E",
+                "z_index": 2,
+            })
+            cur_y -= 6
+            bullets = exp.get("bullets", [])
+            for b_idx, bullet in enumerate(bullets[:3]):
+                b_text = bullet if bullet.startswith("•") else f"• {bullet}"
+                b_h = estimate_text_height(b_text, 320, 8)
+                cur_y -= b_h
+                self.elements.append({
+                    "id": f"term_exp_b_{e_idx}_{b_idx}",
+                    "element_type": "text",
+                    "page_id": "page-1",
+                    "text": b_text,
+                    "x": 255,
+                    "y": cur_y,
+                    "width": 320,
+                    "height": b_h,
+                    "font_size": 8,
+                    "font_name": "Courier",
+                    "text_color": "#CBD5E1",
+                    "line_height": 1.35,
+                    "z_index": 2,
+                })
+                cur_y -= 4
+            cur_y -= 10
 
 
 def compile_blueprint_to_canvas(blueprint: Dict[str, Any]) -> List[Dict[str, Any]]:

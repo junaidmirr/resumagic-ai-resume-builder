@@ -380,7 +380,7 @@ def create_complete_resume(
     skills: Optional[List[Dict[str, Any]]] = None,
     educations: Optional[List[Dict[str, Any]]] = None,
     certifications: Optional[List[str]] = None,
-    include_qr_code: bool = True,
+    include_qr_code: bool = False,
     qr_url: str = "https://linkedin.com"
 ) -> Dict[str, Any]:
     """
@@ -508,14 +508,23 @@ def create_complete_resume(
             "accent": secondary_color,
             "background": "#ffffff",
         },
+        "include_qr_code": include_qr_code,
         "columns": {
             "sidebar": {
-                "sections": [
-                    {"type": "contact", "title": "Contact Details"},
-                    {"type": "skills", "title": "Core Competencies", "display": "progress_bars"},
-                    {"type": "certifications", "title": "Certifications"},
-                    {"type": "qr_code", "label": "Portfolio QR", "url": qr_url},
-                ]
+                "sections": (
+                    [
+                        {"type": "contact", "title": "Contact Details"},
+                        {"type": "skills", "title": "Core Competencies", "display": "progress_bars"},
+                        {"type": "certifications", "title": "Certifications"},
+                        {"type": "qr_code", "label": "Portfolio QR", "url": qr_url},
+                    ]
+                    if include_qr_code
+                    else [
+                        {"type": "contact", "title": "Contact Details"},
+                        {"type": "skills", "title": "Core Competencies", "display": "progress_bars"},
+                        {"type": "certifications", "title": "Certifications"},
+                    ]
+                )
             },
             "main": {
                 "sections": [

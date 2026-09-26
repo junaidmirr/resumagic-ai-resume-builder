@@ -27,6 +27,9 @@ export interface DesignPlan {
     description: string;
   }[];
   special_elements?: string[];
+  fallback_triggered?: boolean;
+  fallback_message?: string;
+  raw_plan?: any;
 }
 
 function cleanJSONResponse(raw: string): any {
@@ -282,6 +285,7 @@ export async function generateArchitectPlanDirect(
   userPrompt: string,
   refinement: string = "",
   previousPlan?: DesignPlan,
+  forceDefault: boolean = false,
 ): Promise<DesignPlan> {
   // 1. Primary: Query Backend Proxy Route (Uses Swirls AI as primary engine with Gemini fallback)
   try {
@@ -291,6 +295,7 @@ export async function generateArchitectPlanDirect(
       body: JSON.stringify({
         action: "plan",
         prompt: `${userPrompt}. Refinement: ${refinement}`,
+        force_default: forceDefault,
       }),
     });
     if (res.status === 400) {
@@ -305,11 +310,18 @@ export async function generateArchitectPlanDirect(
     }
     if (res.ok) {
       const data = await res.json();
+      if (data.status === "fallback" || data.fallback_triggered) {
+        const plan = data.plan?.plan || data.plan || createFallbackPlan(userPrompt, refinement);
+        plan.fallback_triggered = true;
+        plan.fallback_message = data.message || "AI failed to generate a custom plan. Would you like to use the default template or retry again?";
+        return plan;
+      }
       const plan = data.plan?.plan || data.plan;
       if (plan && plan.title) {
         console.log(
           `[AI-Architect] ✅ Plan received from Primary AI engine: ${plan.title}`,
         );
+        plan.fallback_triggered = false;
         return plan;
       }
     }
@@ -323,13 +335,16 @@ export async function generateArchitectPlanDirect(
       throw e;
     }
     console.warn(
-      "[AI-Architect] Backend plan call issue, proceeding to client fallback...",
+      "[AI-Architect] Backend plan call issue, flagging fallback...",
       e,
     );
   }
 
-  // 2. Client-Side Deterministic Design Engine Fallback
-  return createFallbackPlan(userPrompt, refinement);
+  // 2. Client-Side Deterministic Design Engine Fallback with fallback_triggered flag
+  const fallback = createFallbackPlan(userPrompt, refinement);
+  fallback.fallback_triggered = true;
+  fallback.fallback_message = "AI service was unreachable. Would you like to use the default template or retry again?";
+  return fallback;
 }
 
 export async function buildArchitectResumeDirect(
@@ -390,7 +405,7 @@ export async function buildArchitectResumeDirect(
 }
 
 export interface ArchitectStreamEvent {
-  type: "status" | "agent_start" | "agent_step" | "thought" | "complete" | "error";
+  type: "status" | "agent_start" | "agent_step" | "thought" | "complete" | "error" | "fallback_prompt";
   stage?: string;
   agent?: string;
   step_index?: number;
@@ -402,6 +417,7 @@ export interface ArchitectStreamEvent {
   quality_score?: number;
   symmetry_score?: number;
   action?: string;
+  fallback_triggered?: boolean;
 }
 
 export async function buildArchitectResumeWithStream(

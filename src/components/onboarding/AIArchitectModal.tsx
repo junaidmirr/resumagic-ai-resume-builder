@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Terminal,
   Brain,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAuthModal } from "./AuthModalContext";
@@ -26,6 +27,8 @@ import {
   generateArchitectPlanDirect,
   buildArchitectResumeDirect,
   buildArchitectResumeWithStream,
+  generateFallbackElements,
+  createFallbackPlan,
   type DesignPlan,
 } from "../../lib/aiArchitect";
 import type { EditorElement } from "../../types/editor";
@@ -65,6 +68,15 @@ export function AIArchitectModal({
   const [activeStep, setActiveStep] = useState<number>(1);
   const [liveMetrics, setLiveMetrics] = useState<{ quality?: number; symmetry?: number } | null>(null);
   const [streamMessage, setStreamMessage] = useState<string>("Connecting to Multi-Agent AI Pipeline...");
+
+  // Fallback decision prompt state
+  const [fallbackDialog, setFallbackDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onRetry: () => void;
+    onUseDefault: () => void;
+  } | null>(null);
 
   useEffect(() => {
     if (!loading) {
@@ -131,12 +143,52 @@ export function AIArchitectModal({
         refinement,
         plan || undefined,
       );
+
+      if (planResult.fallback_triggered) {
+        setLoading(false);
+        setFallbackDialog({
+          isOpen: true,
+          title: "AI Generation Failed",
+          message:
+            planResult.fallback_message ||
+            "The AI model failed to generate a custom design plan. Would you like to use the default template or retry again?",
+          onRetry: () => {
+            setFallbackDialog(null);
+            handleGeneratePlan(userPrompt, refinement);
+          },
+          onUseDefault: () => {
+            setFallbackDialog(null);
+            setPlan(planResult);
+            setStep("review");
+            setRefinementInput("");
+          },
+        });
+        return;
+      }
+
       setPlan(planResult);
       setStep("review");
       setRefinementInput("");
     } catch (err: any) {
       console.error("[AI-Architect] Plan error:", err);
-      alert(err.message || "Failed to generate design plan. Please try again.");
+      setLoading(false);
+      setFallbackDialog({
+        isOpen: true,
+        title: "AI Generation Failed",
+        message:
+          "The AI model encountered an issue. Would you like to use the default template or retry again?",
+        onRetry: () => {
+          setFallbackDialog(null);
+          handleGeneratePlan(userPrompt, refinement);
+        },
+        onUseDefault: () => {
+          setFallbackDialog(null);
+          setPlan(createFallbackPlan(userPrompt, refinement));
+          setStep("review");
+          setRefinementInput("");
+        },
+      });
+      return;
     } finally {
       setLoading(false);
     }
@@ -164,11 +216,16 @@ export function AIArchitectModal({
     setLiveMetrics(null);
     setStreamMessage("Connecting to Multi-Agent AI stream pipeline...");
 
+    let streamFallbackTriggered = false;
+
     try {
       const elements = await buildArchitectResumeWithStream(
         plan,
         prompt,
         (event) => {
+          if (event.type === "fallback_prompt" || event.fallback_triggered) {
+            streamFallbackTriggered = true;
+          }
           if (event.agent) setActiveAgent(event.agent);
           if (event.step_index) setActiveStep(event.step_index);
           if (event.message) setStreamMessage(event.message);
@@ -192,6 +249,32 @@ export function AIArchitectModal({
         },
       );
 
+      if (streamFallbackTriggered) {
+        setLoading(false);
+        setFallbackDialog({
+          isOpen: true,
+          title: "AI Synthesis Failed",
+          message:
+            "The AI streaming pipeline failed to generate customized elements. Would you like to use the default template or retry again?",
+          onRetry: () => {
+            setFallbackDialog(null);
+            handleProceedAndBuild();
+          },
+          onUseDefault: async () => {
+            setFallbackDialog(null);
+            if (user) {
+              await deductCredits(10).catch(console.error);
+              refreshCredits();
+            }
+            void trackFeature("aiArchitect");
+            void trackAiCreditsConsumed(10);
+            onSuccess(elements, plan.title || "AI Architect Resume");
+            onClose();
+          },
+        });
+        return;
+      }
+
       // ONLY DEBIT CREDITS ON SUCCESSFUL COMPLETION
       if (user) {
         await deductCredits(10).catch(console.error);
@@ -205,10 +288,29 @@ export function AIArchitectModal({
       onClose();
     } catch (err: any) {
       console.error("[AI-Architect] Build error:", err);
-      alert(
-        err.message || "Failed to build resume elements. Please try again.",
-      );
-      setStep("review");
+      setLoading(false);
+      setFallbackDialog({
+        isOpen: true,
+        title: "AI Synthesis Failed",
+        message:
+          "The AI model failed during synthesis. Would you like to use the default template or retry again?",
+        onRetry: () => {
+          setFallbackDialog(null);
+          handleProceedAndBuild();
+        },
+        onUseDefault: async () => {
+          setFallbackDialog(null);
+          const fallbackEls = generateFallbackElements(plan, prompt);
+          if (user) {
+            await deductCredits(10).catch(console.error);
+            refreshCredits();
+          }
+          void trackFeature("aiArchitect");
+          void trackAiCreditsConsumed(10);
+          onSuccess(fallbackEls, plan.title || "AI Architect Resume");
+          onClose();
+        },
+      });
     } finally {
       setLoading(false);
     }
@@ -590,6 +692,52 @@ export function AIArchitectModal({
             </>
           )}
         </div>
+
+        {/* Fallback Decision Modal Overlay */}
+        {fallbackDialog?.isOpen && (
+          <div className="absolute inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
+            <div className="bg-app-surface border border-amber-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-app-text">
+                    {fallbackDialog.title}
+                  </h3>
+                  <p className="text-xs text-app-text-muted leading-relaxed">
+                    {fallbackDialog.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-2.5 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setFallbackDialog(null)}
+                  className="px-3.5 py-2 text-xs font-semibold text-app-text-muted hover:text-app-text hover:bg-app-bg border border-app-border rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={fallbackDialog.onUseDefault}
+                  className="px-4 py-2 text-xs font-bold text-app-text bg-app-bg hover:bg-app-surface border border-app-border rounded-xl shadow-sm transition-all"
+                >
+                  Use Default Template
+                </button>
+                <button
+                  type="button"
+                  onClick={fallbackDialog.onRetry}
+                  className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl shadow-md shadow-indigo-500/20 flex items-center justify-center gap-1.5 transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Retry Again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -582,6 +582,7 @@ IMPORTANT RULES:
                     return {
                         "status": "success",
                         "agent": "planner",
+                        "fallback_triggered": False,
                         "plan": parsed_plan,
                     }
         except Exception as e:
@@ -626,6 +627,8 @@ IMPORTANT RULES:
         return {
             "status": "success",
             "agent": "planner",
+            "fallback_triggered": True,
+            "message": "AI generation failed to respond. Would you like to use the default template or retry again?",
             "plan": {
                 "role": role,
                 "candidate_name": candidate_name,
@@ -929,6 +932,13 @@ IMPORTANT RULES:
             plan = plan_result["plan"]
             role = plan.get('role', 'Professional')
             layout_style = plan.get('layout_style', 'modern_sidebar')
+            if plan_result.get("fallback_triggered"):
+                yield {
+                    "type": "fallback_prompt",
+                    "fallback_triggered": True,
+                    "message": "AI generation failed to respond. Would you like to use the default template or retry again?",
+                    "plan": plan
+                }
             yield {
                 "type": "agent_step",
                 "agent": "planner",

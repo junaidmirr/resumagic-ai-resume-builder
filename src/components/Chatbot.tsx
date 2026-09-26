@@ -10,11 +10,30 @@ import {
   Copy,
   Check,
   Square,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import type { EditorElement } from "../types/editor";
 import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
 import { fetchWithCaptcha } from "../lib/apiWithCaptcha";
+import {
+  createFallbackPlan,
+  generateFallbackElements,
+} from "../lib/aiArchitect";
+
+interface MessageAction {
+  label: string;
+  onClick: () => void;
+  variant?: "primary" | "secondary";
+}
+
+interface ChatMessage {
+  role: "user" | "bot";
+  text: string;
+  isSystem?: boolean;
+  actions?: MessageAction[];
+}
 
 interface ChatbotProps {
   elements?: EditorElement[];
@@ -26,9 +45,7 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
   const { alert } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [messages, setMessages] = useState<
-    { role: "user" | "bot"; text: string; isSystem?: boolean }[]
-  >([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "bot",
       text: "Hi! I'm your Resume AI Architect. I can scan your canvas and redesign it for you. Try asking me to 'Make it more modern' or 'Add a sleek sidebar'!",
@@ -77,9 +94,22 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
     ]);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg = input.trim();
+  const applyDefaultLayout = (promptText: string) => {
+    if (!onUpdateElements) return;
+    const fallbackPlan = createFallbackPlan(promptText || "Professional Resume");
+    const fallbackElements = generateFallbackElements(fallbackPlan, promptText || "");
+    onUpdateElements(fallbackElements);
+    setMessages((p) => [
+      ...p,
+      {
+        role: "bot",
+        text: "Default template layout has been applied to your canvas.",
+      },
+    ]);
+  };
+
+  const executeRequest = async (userMsg: string) => {
+    if (!userMsg.trim() || loading) return;
 
     if (credits < 10) {
       alert("Insufficient credits (10 required). Please recharge.");
@@ -90,7 +120,6 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
     setLoading(true);
     setStage("Planning...");
     setMessages((p) => [...p, { role: "user", text: userMsg }]);
-    setInput("");
 
     abortControllerRef.current = new AbortController();
 
@@ -132,6 +161,7 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
       }
 
       let result: any = null;
+      let streamFallbackTriggered = false;
       const contentType = resp.headers.get("Content-Type") || "";
 
       if (contentType.includes("text/event-stream") && resp.body) {
@@ -153,6 +183,9 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
             if (trimmed.startsWith("data:")) {
               try {
                 const event = JSON.parse(trimmed.slice(5).trim());
+                if (event.fallback_triggered || event.type === "fallback_prompt") {
+                  streamFallbackTriggered = true;
+                }
                 if (event.message || event.thought) {
                   const chunk = event.thought || event.message;
                   streamedThoughts += (streamedThoughts ? "\n" : "") + `> ${chunk}`;
@@ -181,12 +214,37 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         result = await resp.json();
       }
 
+      if (result?.fallback_triggered || streamFallbackTriggered) {
+        setMessages((p) => {
+          const copy = [...p];
+          const promptCopy = userMsg;
+          copy.push({
+            role: "bot",
+            text: "AI generation failed or fell back to default layout. Would you like to use the default template or retry again?",
+            actions: [
+              {
+                label: "Retry Again",
+                variant: "primary",
+                onClick: () => executeRequest(promptCopy),
+              },
+              {
+                label: "Use Default Template",
+                variant: "secondary",
+                onClick: () => applyDefaultLayout(promptCopy),
+              },
+            ],
+          });
+          return copy;
+        });
+        return;
+      }
+
       if (result?.status === "rejected") {
         setMessages((p) => [
           ...p,
           {
             role: "bot",
-            text: `⚠️ ${result.reason || result.error || "I am a dedicated Resume & Career AI. I can only assist with resume building and career development topics."}`,
+            text: result.reason || result.error || "I am a dedicated Resume & Career AI. I can only assist with resume building and career development topics.",
           },
         ]);
         return;
@@ -200,7 +258,7 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         setMessages((p) => {
           const copy = [...p];
           const lastIdx = copy.length - 1;
-          const finalNote = `Design execution complete! 🚀 Added ${result.added_elements.length} elements (Symmetry: ${result.symmetry_score || 95}/100). How does it look?`;
+          const finalNote = `Design execution complete. Added ${result.added_elements.length} elements (Symmetry: ${result.symmetry_score || 95}/100). How does it look?`;
           if (lastIdx >= 0 && copy[lastIdx].role === "bot") {
             copy[lastIdx] = {
               ...copy[lastIdx],
@@ -216,7 +274,7 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         setMessages((p) => {
           const copy = [...p];
           const lastIdx = copy.length - 1;
-          const finalNote = `Design execution complete! 🚀 Applied updated canvas layout. How does it look?`;
+          const finalNote = `Design execution complete. Applied updated canvas layout. How does it look?`;
           if (lastIdx >= 0 && copy[lastIdx].role === "bot") {
             copy[lastIdx] = {
               ...copy[lastIdx],
@@ -249,11 +307,24 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         console.log("AI Architect request aborted");
       } else {
         console.error("AI Architect Error:", err);
+        const promptCopy = userMsg;
         setMessages((p) => [
           ...p,
           {
             role: "bot",
-            text: `Error: ${err.message || "Failed to connect to the AI Architect. Is the backend running?"}`,
+            text: `AI generation failed: ${err.message || "Failed to connect to the AI Architect."}\n\nWould you like to retry again or use the default template?`,
+            actions: [
+              {
+                label: "Retry Again",
+                variant: "primary",
+                onClick: () => executeRequest(promptCopy),
+              },
+              {
+                label: "Use Default Template",
+                variant: "secondary",
+                onClick: () => applyDefaultLayout(promptCopy),
+              },
+            ],
           },
         ]);
       }
@@ -264,6 +335,13 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
         abortControllerRef.current = null;
       }
     }
+  };
+
+  const handleSend = () => {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    executeRequest(userMsg);
   };
 
   if (!isOpen) {
@@ -313,6 +391,28 @@ export function Chatbot({ elements = [], onUpdateElements }: ChatbotProps) {
               <div className="prose prose-sm dark:prose-invert whitespace-pre-wrap leading-relaxed">
                 {m.text}
               </div>
+              {m.actions && m.actions.length > 0 && (
+                <div className="mt-3 pt-2.5 border-t border-app-border/40 flex flex-wrap gap-2">
+                  {m.actions.map((act, actIdx) => (
+                    <button
+                      key={actIdx}
+                      onClick={act.onClick}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all ${
+                        act.variant === "primary"
+                          ? "bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white shadow-sm"
+                          : "bg-app-bg hover:bg-app-surface text-app-text border border-app-border"
+                      }`}
+                    >
+                      {act.variant === "primary" ? (
+                        <RotateCcw size={12} />
+                      ) : (
+                        <Sparkles size={12} />
+                      )}
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {m.role === "bot" && (
                 <button
                   onClick={() => {

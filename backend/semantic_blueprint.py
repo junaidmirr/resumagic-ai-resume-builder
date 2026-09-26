@@ -126,10 +126,10 @@ class MathematicalLayoutSolver:
             "z_index": 1,
         })
 
-        # Monogram in Sidebar
+        # Monogram in Sidebar (circle (x, y) is center)
         avatar_size = 54
-        avatar_x = sb_x + (sidebar_w - avatar_size) / 2
-        avatar_y = PAGE_HEIGHT - 35 - avatar_size
+        avatar_center_x = sb_x + sidebar_w / 2
+        avatar_center_y = PAGE_HEIGHT - 35 - avatar_size / 2
         cand_name = self.candidate.get("name", "ALEXANDER MORGAN")
         initials = "".join([part[0] for part in cand_name.split() if part])[:2].upper() or "AM"
 
@@ -138,11 +138,13 @@ class MathematicalLayoutSolver:
             "element_type": "shape",
             "shape_type": "circle",
             "page_id": "page-1",
-            "x": avatar_x,
-            "y": avatar_y,
+            "x": avatar_center_x,
+            "y": avatar_center_y,
             "width": avatar_size,
             "height": avatar_size,
             "fill_color": self.accent_color,
+            "border_width": 0,
+            "border_color": "transparent",
             "z_index": 5,
         })
         self.elements.append({
@@ -150,9 +152,9 @@ class MathematicalLayoutSolver:
             "element_type": "text",
             "page_id": "page-1",
             "text": initials,
-            "x": avatar_x,
-            "y": avatar_y + 14,
-            "width": avatar_size,
+            "x": sb_x,
+            "y": avatar_center_y - 12,
+            "width": sidebar_w,
             "height": 24,
             "font_size": 20,
             "font_name": "Helvetica-Bold",
@@ -292,6 +294,8 @@ class MathematicalLayoutSolver:
             "page_id": "page-1",
             "x": x,
             "y": y - 4,
+            "x2": x + w,
+            "y2": y - 4,
             "width": w,
             "height": 1.5,
             "fill_color": self.accent_color,
@@ -307,7 +311,7 @@ class MathematicalLayoutSolver:
             ("Mail", self.candidate.get("email", "alex@resumagic.ai")),
             ("Phone", self.candidate.get("phone", "+1 (555) 019-2834")),
             ("MapPin", self.candidate.get("location", "New York, NY")),
-            ("Linkedin", self.candidate.get("linkedin", "linkedin.com/in/profile")),
+            ("Globe", self.candidate.get("linkedin", "linkedin.com/in/profile")),
         ]
         for icon, txt in items:
             y = PAGE_HEIGHT - cursor_top - 14
@@ -383,6 +387,8 @@ class MathematicalLayoutSolver:
                 "width": w,
                 "height": 4.5,
                 "fill_color": "rgba(255,255,255,0.22)",
+                "border_width": 0,
+                "border_color": "transparent",
                 "border_radius": 2,
                 "z_index": 5,
             })
@@ -397,6 +403,8 @@ class MathematicalLayoutSolver:
                 "width": fill_w,
                 "height": 4.5,
                 "fill_color": self.accent_color,
+                "border_width": 0,
+                "border_color": "transparent",
                 "border_radius": 2,
                 "z_index": 6,
             })
@@ -504,6 +512,8 @@ class MathematicalLayoutSolver:
             "page_id": "page-1",
             "x": x,
             "y": y - 4,
+            "x2": x + w,
+            "y2": y - 4,
             "width": w,
             "height": 1.5,
             "fill_color": self.accent_color,
@@ -736,6 +746,8 @@ class MathematicalLayoutSolver:
             "page_id": "page-1",
             "x": sig_x,
             "y": y + 20,
+            "x2": sig_x + 140,
+            "y2": y + 20,
             "width": 140,
             "height": 1,
             "fill_color": "#94a3b8",

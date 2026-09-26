@@ -237,10 +237,7 @@ export function normalizeEditorElements(
     }
   }
 
-  // Step 3: Separate Background Shapes from Content Elements
-  const backgroundShapes: EditorElement[] = [];
-  const contentElements: EditorElement[] = [];
-
+  // Step 3: Normalize Background Shapes and Z-Indices
   normalized.forEach((el) => {
     const isFullSidebar =
       el.element_type === "shape" &&
@@ -255,104 +252,29 @@ export function normalizeEditorElements(
       el.height &&
       el.height > 60 &&
       el.y > 600;
-    const isZeroZIndex = el.z_index === 0 && el.element_type === "shape";
 
     if (isFullSidebar) {
-      // Guarantee exact sidebar coordinates
       el.x = 0;
       el.y = 0;
       el.height = 792;
       el.z_index = 0;
-      backgroundShapes.push(el);
     } else if (isTopBanner) {
-      el.z_index = 0;
-      backgroundShapes.push(el);
-    } else if (isZeroZIndex) {
-      backgroundShapes.push(el);
-    } else {
-      contentElements.push(el);
+      el.z_index = 1;
     }
   });
 
-  // Step 4: Intelligent De-collision per column
-  // Detect if two-column: elements on left (x < 210) vs main (x >= 210)
-  const isTwoCol =
-    contentElements.some((e) => e.x < 210 && e.element_type === "text") &&
-    contentElements.some((e) => e.x >= 210 && e.element_type === "text");
-
-  function deCollideColumn(elements: EditorElement[]) {
-    if (elements.length <= 1) return;
-
-    // Group elements into horizontal clusters (elements sharing the same baseline within ±4pt)
-    // E.g. [Title on left, Date on right] or [Skill bar background, Skill bar fill]
-    const clusters: EditorElement[][] = [];
-    const sorted = [...elements].sort((a, b) => b.y - a.y); // top-to-bottom (descending Y)
-
-    sorted.forEach((el) => {
-      const matchCluster = clusters.find((cluster) => {
-        const clusterY = cluster[0].y;
-        return Math.abs(clusterY - el.y) <= 4;
-      });
-      if (matchCluster) {
-        matchCluster.push(el);
-      } else {
-        clusters.push([el]);
-      }
-    });
-
-    // Walk clusters top to bottom (descending Y). Ensure top edge of next cluster sits below previous cluster's bottom edge.
-    for (let i = 0; i < clusters.length - 1; i++) {
-      const curCluster = clusters[i];
-      const nextCluster = clusters[i + 1];
-
-      // Current cluster bottom edge
-      const curMinY = Math.min(...curCluster.map((e) => e.y));
-      // Next cluster top edge
-      const nextMaxTop = Math.max(
-        ...nextCluster.map((e) => e.y + (e.height || 18)),
-      );
-
-      // Safe required gap between vertical blocks
-      const hasHeading = nextCluster.some(
-        (e) => (e as any).bold && (e as any).font_size >= 11,
-      );
-      const minGap = hasHeading ? 10 : 4;
-
-      if (nextMaxTop > curMinY - minGap) {
-        // Overlap detected! Shift next cluster downward
-        const shiftY = nextMaxTop - (curMinY - minGap);
-        nextCluster.forEach((el) => {
-          el.y = Math.round(el.y - shiftY);
-          if ((el as any).y2 !== undefined) {
-            (el as any).y2 = Math.round((el as any).y2 - shiftY);
-          }
-        });
-      }
-    }
-  }
-
-  if (isTwoCol) {
-    const leftEls = contentElements.filter((e) => e.x < 210);
-    const mainEls = contentElements.filter((e) => e.x >= 210);
-    deCollideColumn(leftEls);
-    deCollideColumn(mainEls);
-  } else {
-    deCollideColumn(contentElements);
-  }
-
-  // Step 5: Clamping bounds
-  const allResult = [...backgroundShapes, ...contentElements];
-  allResult.forEach((el) => {
+  // Step 4: Clamping bounds
+  normalized.forEach((el) => {
     el.x = Math.max(0, Math.min(612 - (el.width || 10), el.x));
-    // Background full-height sidebars stay at y=0
+    // Full-height sidebar background stays locked at y=0
     if (el.height && el.height >= 790) {
       el.y = 0;
     } else {
-      el.y = Math.max(15, Math.min(775, el.y));
+      el.y = Math.max(0, Math.min(792 - (el.height || 10), el.y));
     }
   });
 
-  return allResult;
+  return normalized;
 }
 
 export async function generateArchitectPlanDirect(

@@ -663,61 +663,14 @@ Output JSON with this structure:
     ) -> Dict[str, Any]:
         """
         ASSEMBLY AGENT: Final coordination and canvas placement.
-        Applies any necessary fixes based on review feedback.
         """
         final_elements = list(elements)
-
-        # Apply fixes if needed
-        if not review.get("approved", False) and review.get("issues"):
-            # If alignment is poor, standardize X coordinates
-            if any("align" in issue.lower() for issue in review["issues"]):
-                # Group elements by approximate X and align them
-                x_groups = {}
-                tolerance = 15
-
-                for el in final_elements:
-                    if el.get("element_type") != "text":
-                        continue
-                    x = el.get("x", 0)
-                    found = False
-                    for key in x_groups:
-                        if abs(key - x) <= tolerance:
-                            x_groups[key].append(el)
-                            found = True
-                            break
-                    if not found:
-                        x_groups[x] = [el]
-
-                # Align each group to the average X
-                for group_elements in x_groups.values():
-                    avg_x = sum(e.get("x", 0) for e in group_elements) / len(group_elements)
-                    avg_x = round(avg_x / 10) * 10  # Snap to 10pt grid
-                    for el in group_elements:
-                        el["x"] = avg_x
-
-        # Add special features if requested
-        special_features = plan.get("special_features", [])
-
-        if "metrics_chart" in special_features:
-            metrics = [
-                {"label": "Query Optimization", "value": 85, "stat": "+45%"},
-                {"label": "Automation Efficiency", "value": 90, "stat": "16h/wk"},
-                {"label": "Cost Reduction", "value": 75, "stat": "-35%"},
-            ]
-            chart_result = add_metric_chart.invoke({
-                "title": "Key Impact Metrics",
-                "metrics": metrics,
-                "x": 230,
-                "y": 80,
-            })
-            final_elements.extend(chart_result.get("added_elements", []))
-
         return {
             "status": "success",
             "agent": "assembly",
             "elements": final_elements,
             "element_count": len(final_elements),
-            "fixes_applied": not review.get("approved", True),
+            "fixes_applied": False,
             "message": "Resume assembled and ready for canvas",
         }
 

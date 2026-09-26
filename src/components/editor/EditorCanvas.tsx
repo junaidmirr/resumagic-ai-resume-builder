@@ -792,7 +792,14 @@ export function EditorCanvas({
                           style={{
                             ...baseStyle,
                             backgroundColor: el.fill_color || "#ffffff",
-                            border: `${(el.border_width || 2) * scale}px solid ${el.border_color || "#000000"}`,
+                            border:
+                              el.border_width && el.border_width > 0
+                                ? `${el.border_width * scale}px solid ${el.border_color || "#000000"}`
+                                : el.border_color &&
+                                    el.border_color !== "none" &&
+                                    el.border_color !== "transparent"
+                                  ? `${1 * scale}px solid ${el.border_color}`
+                                  : "none",
                             borderRadius: (el.border_radius || 0) * scale,
                           }}
                         >
@@ -938,7 +945,14 @@ export function EditorCanvas({
                             width: d,
                             height: d,
                             backgroundColor: el.fill_color || "#ffffff",
-                            border: `${(el.border_width || 2) * scale}px solid ${el.border_color || "#000000"}`,
+                            border:
+                              el.border_width && el.border_width > 0
+                                ? `${el.border_width * scale}px solid ${el.border_color || "#000000"}`
+                                : el.border_color &&
+                                    el.border_color !== "none" &&
+                                    el.border_color !== "transparent"
+                                  ? `${1 * scale}px solid ${el.border_color}`
+                                  : "none",
                             zIndex: el.z_index,
                           }}
                         >

@@ -371,11 +371,13 @@ USER REQUEST:
     return result
 
 GEMINI_MODELS = [
+    "gemini-3.8-flash",
     "gemini-flash-latest",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-flash-latest",
-    "gemini-pro-latest"
+    "gemini-pro-latest",
+    "gemini-3.1-pro-preview",
+    "gemini-2.5-pro",
 ]
+
 
 def _get_gemini_api_key():
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("VITE_GEMINI_API_KEY")
@@ -460,7 +462,7 @@ def _generate_with_model_fallback(contents):
     # Attempt primary gemini model with quick retry
     for attempt in range(2):
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
             res = requests.post(url, json=payload, headers=headers, timeout=8 if attempt == 0 else 12)
             if res.status_code == 200:
                 data = res.json()
@@ -470,13 +472,13 @@ def _generate_with_model_fallback(contents):
                     if parts and "text" in parts[0]:
                         text = parts[0]["text"]
                         if text:
-                            print(f"[Gemini REST Fallback] ✅ Success with REST model: gemini-flash-latest (attempt {attempt+1})")
+                            print(f"[Gemini REST Fallback] ✅ Success with REST model: gemini-3.8-flash (attempt {attempt+1})")
                             class ResponseWrapper:
                                 def __init__(self, t): self.text = t
                             return ResponseWrapper(text)
-            print(f"[Gemini REST Fallback] ⚠ Model gemini-flash-latest returned status {res.status_code}: {res.text[:120]}")
+            print(f"[Gemini REST Fallback] ⚠ Model gemini-3.8-flash returned status {res.status_code}: {res.text[:120]}")
         except Exception as e:
-            print(f"[Gemini REST Fallback] ⚠ Model gemini-flash-latest attempt {attempt+1} failed: {e}")
+            print(f"[Gemini REST Fallback] ⚠ Model gemini-3.8-flash attempt {attempt+1} failed: {e}")
             if attempt == 0:
                 time.sleep(0.5)
 

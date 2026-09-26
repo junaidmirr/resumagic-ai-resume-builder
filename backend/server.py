@@ -905,6 +905,7 @@ def ai_architect_stream():
         data = request.get_json(silent=True) or {}
         prompt = data.get('prompt', '')
         elements = data.get('elements', [])
+        plan = data.get('plan')
         mode = "edit" if (elements and len(elements) >= 5) else "create"
 
         if locally_blocked(prompt):
@@ -917,7 +918,7 @@ def ai_architect_stream():
 
         def generate_architect_events():
             try:
-                for event in run_multi_agent_architect_stream(prompt, existing_elements=elements if elements else None, mode=mode):
+                for event in run_multi_agent_architect_stream(prompt, existing_elements=elements if elements else None, plan=plan, mode=mode):
                     yield f"data: {json.dumps(event)}\n\n"
                 if uid:
                     deduct_user_credits(uid, 10, description="Streaming Multi-Agent Resume")
@@ -951,6 +952,7 @@ def ai_architect():
         data = request.get_json(silent=True) or {}
         prompt = data.get('prompt', '')
         elements = data.get('elements', [])
+        plan = data.get('plan')
         action = data.get('action', 'build')
         use_multi_agent = data.get('use_multi_agent', True)  # Enable by default
 
@@ -959,6 +961,35 @@ def ai_architect():
                 "status": "rejected",
                 "error": "Request blocked: Content violates career and resume safety policy."
             }), 400
+
+        # Plan generation with MultiAgentArchitect
+        if action == 'plan':
+            try:
+                from backend.multi_agent_architect import MultiAgentArchitect
+                architect = MultiAgentArchitect()
+                plan_res = architect.planner_agent(prompt)
+                plan_data = plan_res.get("plan", {})
+                frontend_plan = {
+                    "title": f"{plan_data.get('role', 'Professional')} Resume",
+                    "layout_type": plan_data.get("layout_style", "two_column_left_sidebar"),
+                    "theme_summary": f"Bespoke layout for {plan_data.get('role', 'Professional')} with {plan_data.get('colors', {}).get('primary', '#1e3a8a')} primary and {plan_data.get('colors', {}).get('secondary', '#dc2626')} secondary accents.",
+                    "color_palette": {
+                        "bg": "#ffffff",
+                        "primary": plan_data.get("colors", {}).get("primary", "#1e3a8a"),
+                        "secondary": plan_data.get("colors", {}).get("secondary", "#dc2626"),
+                        "text": "#0f172a",
+                        "accent": plan_data.get("colors", {}).get("accent", "#2563eb"),
+                    },
+                    "sections": [
+                        {"id": f"sec_{idx}", "title": s.title() if isinstance(s, str) else s.get("title", "Section"), "component_type": s if isinstance(s, str) else s.get("component_type", "section"), "description": f"Content for {s}"}
+                        for idx, s in enumerate(plan_data.get("sections", ["Summary", "Experience", "Skills", "Education"]))
+                    ],
+                    "special_elements": plan_data.get("special_features", []),
+                    "raw_plan": plan_data,
+                }
+                return jsonify({"status": "success", "plan": frontend_plan})
+            except Exception as plan_err:
+                print(f"[AI-Architect] MultiAgent planner failed, falling back to legacy: {plan_err}")
 
         # NEW: Multi-Agent Pipeline for full resume creation
         if use_multi_agent and action in ['build', 'create'] and (not elements or len(elements) < 5):
@@ -969,6 +1000,7 @@ def ai_architect():
                 result = run_multi_agent_architect(
                     user_prompt=prompt,
                     existing_elements=elements if elements else None,
+                    plan=plan,
                     mode="create"
                 )
 

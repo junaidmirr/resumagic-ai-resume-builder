@@ -970,6 +970,12 @@ def ai_architect():
                 plan_res = architect.planner_agent(prompt)
                 plan_data = plan_res.get("plan", {})
                 plan_colors = plan_data.get("colors", {})
+                combined_sections = plan_data.get("sections")
+                if not combined_sections:
+                    combined_sections = (plan_data.get("primary_sections") or []) + (plan_data.get("secondary_sections") or [])
+                if not combined_sections:
+                    combined_sections = ["Summary", "Experience", "Skills", "Education"]
+
                 frontend_plan = {
                     "title": f"{plan_data.get('role', 'Professional')} Resume",
                     "layout_type": plan_data.get("layout_style", "single_column_classic"),
@@ -979,6 +985,8 @@ def ai_architect():
                     "experience_style": plan_data.get("experience_style", "clean_split"),
                     "sidebar_has_bg": plan_data.get("sidebar_has_bg", False),
                     "sidebar_width_ratio": plan_data.get("sidebar_width_ratio", 0.32),
+                    "primary_sections": plan_data.get("primary_sections"),
+                    "secondary_sections": plan_data.get("secondary_sections"),
                     "theme_summary": f"Bespoke layout for {plan_data.get('role', 'Professional')} with {plan_colors.get('primary', '#0F172A')} primary and {plan_colors.get('accent', '#2563EB')} accents.",
                     "color_palette": {
                         "bg": plan_colors.get("background", "#ffffff"),
@@ -990,8 +998,13 @@ def ai_architect():
                         "muted": plan_colors.get("muted", "#64748B"),
                     },
                     "sections": [
-                        {"id": f"sec_{idx}", "title": s.title() if isinstance(s, str) else s.get("title", "Section"), "component_type": s if isinstance(s, str) else s.get("component_type", "section"), "description": f"Content for {s}"}
-                        for idx, s in enumerate(plan_data.get("sections", ["Summary", "Experience", "Skills", "Education"]))
+                        {
+                            "id": f"sec_{idx}",
+                            "title": s.get("title", s.get("type", "Section")).title() if isinstance(s, dict) else str(s).replace("_", " ").title(),
+                            "component_type": s.get("type", "section") if isinstance(s, dict) else str(s),
+                            "description": f"Content for {s.get('title') if isinstance(s, dict) else s}"
+                        }
+                        for idx, s in enumerate(combined_sections)
                     ],
                     "special_elements": plan_data.get("special_features", []),
                     "raw_plan": plan_data,

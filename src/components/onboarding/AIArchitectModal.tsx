@@ -20,6 +20,9 @@ import {
   Terminal,
   Brain,
   AlertTriangle,
+  Code,
+  Languages as LanguagesIcon,
+  Award,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAuthModal } from "./AuthModalContext";
@@ -463,15 +466,29 @@ export function AIArchitectModal({
                         {sec.component_type === "skill_loader" && (
                           <Sliders className="w-4 h-4 text-indigo-500 shrink-0" />
                         )}
-                        {sec.component_type === "chart" && (
+                        {(sec.component_type === "chart" || sec.component_type === "metric_highlight" || sec.component_type === "metrics") && (
                           <BarChart3 className="w-4 h-4 text-sky-500 shrink-0" />
                         )}
                         {sec.component_type === "qr_code" && (
                           <QrCode className="w-4 h-4 text-emerald-500 shrink-0" />
                         )}
+                        {sec.component_type === "projects" && (
+                          <Code className="w-4 h-4 text-amber-500 shrink-0" />
+                        )}
+                        {sec.component_type === "languages" && (
+                          <LanguagesIcon className="w-4 h-4 text-pink-500 shrink-0" />
+                        )}
+                        {sec.component_type === "awards" && (
+                          <Award className="w-4 h-4 text-amber-500 shrink-0" />
+                        )}
                         {sec.component_type !== "skill_loader" &&
                           sec.component_type !== "chart" &&
-                          sec.component_type !== "qr_code" && (
+                          sec.component_type !== "metric_highlight" &&
+                          sec.component_type !== "metrics" &&
+                          sec.component_type !== "qr_code" &&
+                          sec.component_type !== "projects" &&
+                          sec.component_type !== "languages" &&
+                          sec.component_type !== "awards" && (
                             <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
                           )}
                         <span className="text-xs font-bold text-app-text">

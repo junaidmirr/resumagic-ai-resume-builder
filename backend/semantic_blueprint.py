@@ -1030,7 +1030,9 @@ class MathematicalLayoutSolver:
 
     def _render_dynamic_education(self, x: float, w: float, cursor_top: float, title: str, decoration: str, gap: float) -> float:
         cursor_top = self._render_dynamic_heading(x, w, cursor_top, title or "Education & Credentials", decoration)
-        educations = self.content.get("educations", [])
+        educations = self.content.get("educations") or []
+        if not educations:
+            return cursor_top
         for edu_idx, edu in enumerate(educations[:2]):
             degree = edu.get("degree", "Degree")
             school = edu.get("school", "University")
@@ -1091,7 +1093,9 @@ class MathematicalLayoutSolver:
 
     def _render_dynamic_certifications(self, x: float, w: float, cursor_top: float, title: str, decoration: str, gap: float) -> float:
         cursor_top = self._render_dynamic_heading(x, w, cursor_top, title or "Certifications", decoration)
-        certs = self.content.get("certifications", [])
+        certs = self.content.get("certifications") or []
+        if not certs:
+            return cursor_top
         for c_idx, cert in enumerate(certs[:4]):
             c_text = cert if isinstance(cert, str) else cert.get("name", "Certification")
             self.elements.append({
@@ -1146,32 +1150,295 @@ class MathematicalLayoutSolver:
             })
         return cursor_top + qr_size + 20
 
+    def _render_dynamic_metrics(self, x: float, w: float, cursor_top: float, title: str, decoration: str, gap: float) -> float:
+        """Renders key impact metrics as horizontal bar chart cards."""
+        cursor_top = self._render_dynamic_heading(x, w, cursor_top, title or "Key Impact Highlights", decoration)
+        metrics = self.content.get("metrics", [])
+        if not metrics:
+            # Generate default metrics from experiences
+            metrics = [
+                {"label": "Operational Efficiency", "value": 85, "stat": "+35%"},
+                {"label": "Cost Savings Delivered", "value": 78, "stat": "$1.2M"},
+                {"label": "Team Productivity", "value": 92, "stat": "+28%"},
+            ]
+        for m_idx, m in enumerate(metrics[:4]):
+            label = m.get("label", f"Metric {m_idx + 1}")
+            val = min(100, max(10, int(m.get("value", 75))))
+            stat = m.get("stat", f"{val}%")
+            y_lbl = PAGE_HEIGHT - cursor_top - 13
+            self.elements.append({
+                "id": f"met_lbl_{m_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": f"{label}  ({stat})",
+                "x": x,
+                "y": y_lbl,
+                "width": w,
+                "height": 13,
+                "font_size": 8.5,
+                "font_name": "Helvetica",
+                "text_color": self.text_color,
+                "z_index": 3,
+            })
+            cursor_top += 14
+            bar_h = 4.0
+            y_bar = PAGE_HEIGHT - cursor_top - bar_h
+            self.elements.append({
+                "id": f"met_trk_{m_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "shape",
+                "shape_type": "rectangle",
+                "page_id": "page-1",
+                "x": x,
+                "y": y_bar,
+                "width": w,
+                "height": bar_h,
+                "border_radius": 2,
+                "fill_color": self.theme.get("border", "#E2E8F0"),
+                "z_index": 2,
+            })
+            fill_w = max(8.0, min(w, w * val / 100))
+            self.elements.append({
+                "id": f"met_fill_{m_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "shape",
+                "shape_type": "rectangle",
+                "page_id": "page-1",
+                "x": x,
+                "y": y_bar,
+                "width": fill_w,
+                "height": bar_h,
+                "border_radius": 2,
+                "fill_color": self.accent_color,
+                "z_index": 3,
+            })
+            cursor_top += 10
+        return cursor_top + gap
+
+    def _render_dynamic_projects(self, x: float, w: float, cursor_top: float, title: str, decoration: str, gap: float) -> float:
+        """Renders key projects with title, tech stack tag, and description."""
+        cursor_top = self._render_dynamic_heading(x, w, cursor_top, title or "Key Projects", decoration)
+        projects = self.content.get("projects", [])
+        if not projects:
+            return cursor_top
+        for p_idx, proj in enumerate(projects[:3]):
+            proj_name = proj.get("name", "Project")
+            tech = proj.get("tech", "")
+            desc = proj.get("description", "")
+            y_name = PAGE_HEIGHT - cursor_top - 14
+            self.elements.append({
+                "id": f"proj_name_{p_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": proj_name,
+                "x": x,
+                "y": y_name,
+                "width": w * 0.6,
+                "height": 14,
+                "font_size": 9.0,
+                "font_name": "Helvetica-Bold",
+                "text_color": self.primary_color,
+                "bold": True,
+                "z_index": 3,
+            })
+            if tech:
+                tag_w = min(w * 0.35, max(40, len(tech) * 5.2 + 14))
+                self.elements.append({
+                    "id": f"proj_tech_{p_idx}_{uuid.uuid4().hex[:6]}",
+                    "element_type": "shape",
+                    "shape_type": "rectangle",
+                    "page_id": "page-1",
+                    "x": x + w - tag_w,
+                    "y": y_name - 1,
+                    "width": tag_w,
+                    "height": 16,
+                    "border_radius": 3,
+                    "fill_color": self.theme.get("card_bg", "#F1F5F9"),
+                    "border_color": self.theme.get("border", "#E2E8F0"),
+                    "border_width": 1,
+                    "z_index": 2,
+                })
+                self.elements.append({
+                    "id": f"proj_tech_t_{p_idx}_{uuid.uuid4().hex[:6]}",
+                    "element_type": "text",
+                    "page_id": "page-1",
+                    "text": tech,
+                    "x": x + w - tag_w,
+                    "y": y_name + 1,
+                    "width": tag_w,
+                    "height": 12,
+                    "font_size": 7.5,
+                    "font_name": "Helvetica",
+                    "text_color": self.muted_color,
+                    "align": "center",
+                    "z_index": 3,
+                })
+            cursor_top += 16
+            if desc:
+                desc_h = estimate_text_height(desc, w - 6, 8.5, 1.35)
+                self.elements.append({
+                    "id": f"proj_desc_{p_idx}_{uuid.uuid4().hex[:6]}",
+                    "element_type": "text",
+                    "page_id": "page-1",
+                    "text": desc,
+                    "x": x + 4,
+                    "y": PAGE_HEIGHT - cursor_top - desc_h,
+                    "width": w - 4,
+                    "height": desc_h,
+                    "font_size": 8.5,
+                    "font_name": "Helvetica",
+                    "text_color": self.text_color,
+                    "line_height": 1.35,
+                    "z_index": 3,
+                })
+                cursor_top += desc_h + 4
+            cursor_top += 6
+        return cursor_top + gap
+
+    def _render_dynamic_languages(self, x: float, w: float, cursor_top: float, title: str, decoration: str, gap: float) -> float:
+        """Renders language proficiency as dot indicators."""
+        cursor_top = self._render_dynamic_heading(x, w, cursor_top, title or "Languages", decoration)
+        languages = self.content.get("languages", [])
+        if not languages:
+            return cursor_top
+        for l_idx, lang in enumerate(languages[:5]):
+            name = lang.get("name", "Language") if isinstance(lang, dict) else str(lang)
+            level = int(lang.get("level", 3)) if isinstance(lang, dict) else 3
+            proficiency = lang.get("proficiency", "") if isinstance(lang, dict) else ""
+            y_txt = PAGE_HEIGHT - cursor_top - 13
+            self.elements.append({
+                "id": f"lang_name_{l_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": name,
+                "x": x,
+                "y": y_txt,
+                "width": w * 0.5,
+                "height": 13,
+                "font_size": 8.5,
+                "font_name": "Helvetica-Bold",
+                "text_color": self.primary_color,
+                "z_index": 3,
+            })
+            dot_x = x + w * 0.55
+            dot_spacing = 12.0
+            for d in range(5):
+                self.elements.append({
+                    "id": f"lang_dot_{l_idx}_{d}_{uuid.uuid4().hex[:6]}",
+                    "element_type": "shape",
+                    "shape_type": "circle",
+                    "page_id": "page-1",
+                    "x": dot_x + d * dot_spacing,
+                    "y": y_txt + 3,
+                    "width": 7,
+                    "height": 7,
+                    "fill_color": self.accent_color if d < level else self.theme.get("border", "#E2E8F0"),
+                    "z_index": 3,
+                })
+            if proficiency:
+                self.elements.append({
+                    "id": f"lang_prof_{l_idx}_{uuid.uuid4().hex[:6]}",
+                    "element_type": "text",
+                    "page_id": "page-1",
+                    "text": proficiency,
+                    "x": dot_x + 5 * dot_spacing + 4,
+                    "y": y_txt,
+                    "width": w - (dot_x - x) - 5 * dot_spacing - 4,
+                    "height": 13,
+                    "font_size": 7.5,
+                    "font_name": "Helvetica",
+                    "text_color": self.muted_color,
+                    "z_index": 3,
+                })
+            cursor_top += 17
+        return cursor_top + gap
+
+    def _render_dynamic_awards(self, x: float, w: float, cursor_top: float, title: str, decoration: str, gap: float) -> float:
+        """Renders awards/honors as styled list items."""
+        cursor_top = self._render_dynamic_heading(x, w, cursor_top, title or "Awards & Honors", decoration)
+        awards = self.content.get("awards", [])
+        if not awards:
+            return cursor_top
+        for a_idx, award in enumerate(awards[:4]):
+            a_text = award if isinstance(award, str) else award.get("title", "Award")
+            a_year = award.get("year", "") if isinstance(award, dict) else ""
+            y_txt = PAGE_HEIGHT - cursor_top - 13
+            # Star accent dot
+            self.elements.append({
+                "id": f"award_dot_{a_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "shape",
+                "shape_type": "circle",
+                "page_id": "page-1",
+                "x": x + 1,
+                "y": y_txt + 4,
+                "width": 5,
+                "height": 5,
+                "fill_color": self.accent_color,
+                "z_index": 3,
+            })
+            self.elements.append({
+                "id": f"award_txt_{a_idx}_{uuid.uuid4().hex[:6]}",
+                "element_type": "text",
+                "page_id": "page-1",
+                "text": a_text,
+                "x": x + 12,
+                "y": y_txt,
+                "width": w - 12 - (50 if a_year else 0),
+                "height": 13,
+                "font_size": 8.5,
+                "font_name": "Helvetica",
+                "text_color": self.text_color,
+                "z_index": 3,
+            })
+            if a_year:
+                self.elements.append({
+                    "id": f"award_yr_{a_idx}_{uuid.uuid4().hex[:6]}",
+                    "element_type": "text",
+                    "page_id": "page-1",
+                    "text": str(a_year),
+                    "x": x + w - 45,
+                    "y": y_txt,
+                    "width": 45,
+                    "height": 13,
+                    "font_size": 8.0,
+                    "font_name": "Helvetica",
+                    "text_color": self.muted_color,
+                    "align": "right",
+                    "z_index": 3,
+                })
+            cursor_top += 16
+        return cursor_top + gap
+
     def _resolve_sections_for_zones(self, grid_type: str):
+        def _norm_sec_list(raw_list):
+            if not raw_list:
+                return []
+            res = []
+            for s in raw_list:
+                if isinstance(s, dict):
+                    res.append(s)
+                elif isinstance(s, str):
+                    res.append({"type": s.lower().replace(" ", "_"), "title": s.replace("_", " ").title()})
+            return res
+
         zones = self.blueprint.get("zones", {})
         columns = self.blueprint.get("columns", {})
 
-        pri = zones.get("primary_column")
-        sec = zones.get("secondary_column")
+        pri = _norm_sec_list(self.blueprint.get("primary_sections") or zones.get("primary_column"))
+        sec = _norm_sec_list(self.blueprint.get("secondary_sections") or zones.get("secondary_column"))
 
         if not pri and columns:
-            pri = columns.get("main", {}).get("sections", [])
-            sec = columns.get("sidebar", {}).get("sections", [])
+            pri = _norm_sec_list(columns.get("main", {}).get("sections", []))
+            sec = _norm_sec_list(columns.get("sidebar", {}).get("sections", []))
 
         if not pri and not sec:
             raw_secs = self.blueprint.get("sections", ["summary", "experience", "skills", "education"])
-            norm_secs = []
-            for s in raw_secs:
-                if isinstance(s, dict):
-                    norm_secs.append(s)
-                elif isinstance(s, str):
-                    norm_secs.append({"type": s.lower().replace(" ", "_"), "title": s.title()})
+            norm_secs = _norm_sec_list(raw_secs)
 
             if grid_type == "single_column":
                 pri = norm_secs
                 sec = []
             else:
-                pri = [s for s in norm_secs if s.get("type") in ["summary", "experience", "education", "projects"]]
-                sec = [s for s in norm_secs if s.get("type") in ["skills", "certifications", "qr_code", "contact", "languages"]]
+                pri = [s for s in norm_secs if s.get("type") in ["summary", "experience", "education", "projects", "metric_highlight", "metrics"]]
+                sec = [s for s in norm_secs if s.get("type") in ["skills", "certifications", "qr_code", "contact", "languages", "awards"]]
                 if not pri:
                     pri = norm_secs[:2]
                     sec = norm_secs[2:]
@@ -1190,6 +1457,14 @@ class MathematicalLayoutSolver:
             return self._render_dynamic_education(x, w, cursor_top, sec_title, decoration, gap)
         elif "cert" in st:
             return self._render_dynamic_certifications(x, w, cursor_top, sec_title, decoration, gap)
+        elif "metric" in st or "impact" in st or "highlight" in st:
+            return self._render_dynamic_metrics(x, w, cursor_top, sec_title, decoration, gap)
+        elif "project" in st:
+            return self._render_dynamic_projects(x, w, cursor_top, sec_title, decoration, gap)
+        elif "lang" in st:
+            return self._render_dynamic_languages(x, w, cursor_top, sec_title, decoration, gap)
+        elif "award" in st or "honor" in st:
+            return self._render_dynamic_awards(x, w, cursor_top, sec_title, decoration, gap)
         elif "qr" in st:
             return self._render_dynamic_qr_code(x, w, cursor_top, self.content.get("qr_url", "https://linkedin.com"), sec_title or "Scan Portfolio")
         elif "contact" in st:

@@ -414,6 +414,93 @@ def move_elements_to_make_space(
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# ENGINE CAPABILITY SPECIFICATION
+# Injected into the Planner Agent so the AI knows exactly what rendering
+# primitives, element types, and visual tools our engine supports.
+# ═════════════════════════════════════════════════════════════════════════════
+
+ENGINE_CAPABILITY_SPEC = """
+## RENDERING ENGINE CAPABILITIES
+
+You are designing for a mathematical layout engine that renders to a 612×792pt canvas (US Letter).
+Coordinate system: bottom-left origin (Y=0 at bottom edge, Y=792 at top edge).
+
+### ELEMENT TYPES YOU CAN USE
+
+1. **text** — Rich text blocks
+   Properties: font_size (7–24pt), font_name (Helvetica, Helvetica-Bold, Times-Roman, Times-Italic, Courier),
+   text_color (hex), bold, italic, underline, align (left|center|right|justify),
+   line_height (1.0–1.6), letter_spacing (0–2), width, height.
+   Use for: names, roles, summaries, bullet points, labels, headings, dates, contact info.
+
+2. **shape/rectangle** — Rectangles and rounded cards
+   Properties: fill_color, border_color, border_width, border_radius (0=sharp, 4–8=rounded card, 999=pill).
+   Use for: sidebar backgrounds, header banners, section cards, skill progress bar tracks,
+   progress bar fills, pill tag backgrounds, divider strips, accent blocks.
+
+3. **shape/circle** — Circles and dots
+   Properties: fill_color, width=height (diameter).
+   Use for: timeline milestone dots, bullet accent dots, language proficiency dots,
+   avatar placeholders, decorative elements.
+
+4. **shape/line** — Straight lines
+   Properties: fill_color, border_color, border_width, x/y → x2/y2.
+   Use for: horizontal dividers, vertical timeline tracks, underline rules,
+   section separators, accent stripes, grid lines.
+
+5. **image** — Raster images
+   Properties: image_path (base64 data URI or URL), width, height.
+   Sub-types:
+   - QR Code: Auto-generated from URL, renders as scannable image
+   - Icon: Set is_icon=true, icon_name="mail"|"phone"|"map-pin"|"linkedin"|"github"|"globe"|"briefcase"|"award"|"star"|"calendar"|"code"|"database"|"bar-chart"
+
+### SECTION TYPES THE SOLVER CAN RENDER
+
+Each section is placed by the mathematical solver at calculated coordinates with zero overlap:
+
+| Section Type       | What It Renders                                              |
+|--------------------|--------------------------------------------------------------|
+| summary            | Multi-line executive summary paragraph                       |
+| experience         | Job entries with role, company, duration, location, bullets  |
+| skills             | Skill items (pill tags, progress bars, or 2-col list)        |
+| education          | Degree, school, year, honors/GPA details                    |
+| certifications     | Bulleted certification list                                  |
+| metric_highlight   | Impact metrics with label, stat badge, and horizontal bar    |
+| projects           | Project entries with name, tech stack tag, description       |
+| languages          | Language proficiency with dot-level indicators (1–5 dots)    |
+| awards             | Award/honor entries with accent dot and optional year        |
+| contact            | Contact details (email, phone, location, linkedin)           |
+| qr_code            | Scannable QR code image with caption label                   |
+
+### LAYOUT GRIDS
+
+| Grid Type                  | Description                                         |
+|----------------------------|-----------------------------------------------------|
+| single_column              | Full-width single column, ATS-friendly, classic     |
+| two_column_left_sidebar    | 30-35% sidebar on left, 65-70% main content right   |
+| two_column_right_sidebar   | Main content left, 30-35% sidebar on right           |
+| balanced_two_column        | 50/50 Swiss grid, clean dual-column without sidebar  |
+| top_banner_split           | Full-width colored header banner + 2 columns below   |
+
+### VISUAL COMPONENTS
+
+| Component          | Options                                                      |
+|--------------------|--------------------------------------------------------------|
+| header_style       | centered_classic, modern_split, banner_bold, minimal_left    |
+| heading_decoration | underline_rule, left_accent_bar, pill_badge, boxed_header, numbered_minimal |
+| skills_style       | pill_tags (rounded badges), progress_bars (level meters), two_column_list |
+| experience_style   | timeline_track (dots + vertical line), card_blocks (bg cards), clean_split |
+
+### CONSTRAINTS
+- Maximum 2 experience entries (3 bullets each) to fit single page
+- Maximum 6-8 skills
+- sidebar_width_ratio: 0.28–0.38 for sidebar layouts, 0.50 for balanced
+- QR codes ONLY when user explicitly requests them
+- All text must be readable (minimum 7.5pt for labels, 8.5pt for body)
+"""
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # AGENT DEFINITIONS
 # ═════════════════════════════════════════════════════════════════════════════
 
@@ -497,124 +584,101 @@ USER REQUEST:
         PLANNER AGENT: Analyzes user requirements and acts as Lead Resume Art Director,
         designing a bespoke visual template blueprint and generating rich tailored content.
         """
-        system = """You are an elite Lead Resume Architect & Creative Graphic Director.
-Analyze the user's request and design a comprehensive, mathematically balanced resume blueprint.
-Generate realistic, high-impact resume content tailored specifically to the target role and user instructions.
+        system = f"""You are an elite Lead Resume Architect & Creative Graphic Director.
+You have access to a powerful mathematical rendering engine. Study its full capability specification below, then design a creative, unique resume blueprint tailored to the user's request.
 
-You have full creative authority over the resume's visual architecture:
-1. "layout_style": Choose the best grid for the role:
-   - "single_column_classic": Centered classic / Harvard style, full-width elegant dividers, ATS-friendly
-   - "two_column_left_sidebar": Modern sidebar on left with skills and credentials
-   - "two_column_right_sidebar": Asymmetric layout with sidebar on right
-   - "balanced_two_column": Clean 50/50 dual-column Swiss grid without heavy background blocks
-   - "top_banner_split": Bold colored top header banner with 2 columns below
-   - "minimalist_grid": Ultra-clean typography with subtle accent lines and tag pills
-   - "cyberpunk_edge": High-contrast dark tech aesthetic with neon accents
-   - "retro_terminal": Monospace terminal console aesthetic
+{ENGINE_CAPABILITY_SPEC}
 
-2. "header_style":
-   - "centered_classic": Centered name, centered role, centered contact line with bullet dots
-   - "modern_split": Name & role on left, contact items as badges on right
-   - "banner_bold": Full-width colored header block across top with contrasting white text
-   - "minimal_left": Clean left-aligned typography with vertical accent bar
+## YOUR TASK
 
-3. "heading_decoration":
-   - "underline_rule": Thin accent line below section title
-   - "left_accent_bar": Vertical colored accent pipe next to title
-   - "pill_badge": Rounded colored badge behind title
-   - "boxed_header": Clean rectangular card strip across section width
-   - "numbered_minimal": Numbered section titles like "01 / EXPERIENCE"
+Analyze the user's request and output a complete resume blueprint as raw JSON.
+Be creative — vary layouts, color palettes, heading decorations, and section compositions across different roles and prompts. Never default to the same design twice.
 
-4. "skills_style":
-   - "pill_tags": Rounded badge pills wrapping across rows
-   - "progress_bars": Calibrated horizontal level meters with percentage
-   - "two_column_list": Clean dual-column bullet list
+Think like an Art Director:
+- Corporate/executive roles → single_column or top_banner_split with underline_rule headings
+- Creative/design roles → balanced_two_column with pill_badge headings, vibrant accents
+- Tech/engineering roles → two_column_left_sidebar with timeline_track experience, progress_bars skills
+- Data/analytics roles → balanced_two_column or minimal_left header with pill_tags skills
+- Choose colors that match the industry (navy+gold for finance, teal+coral for healthcare, etc.)
 
-5. "experience_style":
-   - "timeline_track": Continuous vertical timeline connecting line with circle milestone dots
-   - "clean_split": Role & company on left, right-aligned date
-   - "card_blocks": Subtle rounded background card per job
+## ZONES ARCHITECTURE
 
-6. "colors":
-   Select a harmonious palette fitting the persona and industry (unless user requested specific colors):
-   - "primary": brand / heading color (e.g. #0F172A, #1E293B, #1E3A8A, #064E3B, #881337)
-   - "secondary": supporting / meta color (e.g. #475569, #7C3AED, #059669, #D97706)
-   - "accent": highlight / badge / bar color (e.g. #2563EB, #10B981, #DC2626, #F59E0B)
-   - "background": canvas background (#FFFFFF, or #0B132B for dark)
-   - "card_bg": card / tag background (#F8FAFC, #F1F5F9)
-   - "text": body text color (#1E293B)
-   - "muted": date / location text (#64748B)
+You decide which sections go in which column zone:
+- "primary_sections": Sections for the main/larger column (summary, experience, education, projects, metric_highlight)
+- "secondary_sections": Sections for the sidebar/smaller column (contact, skills, certifications, languages, awards, qr_code)
+- For single_column layouts, put all sections in "primary_sections" and leave "secondary_sections" empty.
 
-You must return valid raw JSON with this exact schema:
-{
+## OUTPUT SCHEMA (return ONLY valid raw JSON):
+
+{{{{
   "role": "Target Job Title",
-  "candidate_name": "Full Name from prompt or a realistic professional name",
-  "layout_style": "single_column_classic",
-  "header_style": "centered_classic",
-  "heading_decoration": "underline_rule",
-  "skills_style": "pill_tags",
-  "experience_style": "clean_split",
-  "sidebar_has_bg": false,
+  "candidate_name": "Full Name (from prompt or generate a realistic one)",
+  "layout_style": "single_column | two_column_left_sidebar | two_column_right_sidebar | balanced_two_column | top_banner_split",
+  "header_style": "centered_classic | modern_split | banner_bold | minimal_left",
+  "heading_decoration": "underline_rule | left_accent_bar | pill_badge | boxed_header | numbered_minimal",
+  "skills_style": "pill_tags | progress_bars | two_column_list",
+  "experience_style": "timeline_track | card_blocks | clean_split",
+  "sidebar_has_bg": true,
   "sidebar_width_ratio": 0.32,
-  "colors": {
+  "colors": {{{{
     "primary": "#0F172A",
     "secondary": "#475569",
     "accent": "#2563EB",
     "background": "#FFFFFF",
     "card_bg": "#F8FAFC",
     "text": "#1E293B",
-    "muted": "#64748B"
-  },
-  "summary": "Compelling 2-3 sentence executive professional summary with quantified metrics tailored to the role",
+    "muted": "#64748B",
+    "sidebar_bg": "#0F172A"
+  }}}},
+  "primary_sections": [
+    {{{{"type": "summary", "title": "Executive Summary"}}}},
+    {{{{"type": "experience", "title": "Professional Experience"}}}},
+    {{{{"type": "education", "title": "Education"}}}}
+  ],
+  "secondary_sections": [
+    {{{{"type": "contact", "title": "Contact"}}}},
+    {{{{"type": "skills", "title": "Technical Skills"}}}},
+    {{{{"type": "certifications", "title": "Certifications"}}}}
+  ],
+  "summary": "2-3 sentence executive summary with quantified metrics",
   "experiences": [
-    {
+    {{{{
       "role": "Job Title",
       "company": "Company Name",
       "duration": "2021 – Present",
       "location": "City, State",
-      "bullets": [
-        "Action verb + quantifiable achievement + business outcome",
-        "Action verb + quantifiable achievement + business outcome",
-        "Action verb + quantifiable achievement + business outcome"
-      ]
-    },
-    {
-      "role": "Previous Job Title",
-      "company": "Previous Company Name",
-      "duration": "2018 – 2021",
-      "location": "City, State",
-      "bullets": [
-        "Action verb + quantifiable achievement + business outcome",
-        "Action verb + quantifiable achievement + business outcome"
-      ]
-    }
+      "bullets": ["Achievement 1", "Achievement 2", "Achievement 3"]
+    }}}}
   ],
   "skills": [
-    {"name": "Key Skill 1", "level": 0.95},
-    {"name": "Key Skill 2", "level": 0.90},
-    {"name": "Key Skill 3", "level": 0.88},
-    {"name": "Key Skill 4", "level": 0.84},
-    {"name": "Key Skill 5", "level": 0.80}
+    {{{{"name": "Skill Name", "level": 0.95}}}}
   ],
   "education": [
-    {
-      "degree": "Degree and Major",
-      "school": "University Name",
-      "year": "Graduation Year",
-      "details": "Honors / GPA / Key coursework"
-    }
+    {{{{"degree": "Degree", "school": "University", "year": "2019", "details": "Honors"}}}}
   ],
-  "certifications": [
-    "Relevant Certification 1",
-    "Relevant Certification 2"
+  "certifications": ["Cert 1", "Cert 2"],
+  "projects": [
+    {{{{"name": "Project Name", "tech": "React, Node.js", "description": "Brief description"}}}}
   ],
-  "sections": ["summary", "experience", "skills", "education", "certifications"],
+  "languages": [
+    {{{{"name": "English", "level": 5, "proficiency": "Native"}}}},
+    {{{{"name": "Spanish", "level": 3, "proficiency": "Intermediate"}}}}
+  ],
+  "awards": [
+    {{{{"title": "Award Name", "year": "2023"}}}}
+  ],
+  "metrics": [
+    {{{{"label": "Revenue Growth", "value": 85, "stat": "+35%"}}}}
+  ],
   "special_features": [],
   "ats_compliant": true
-}
+}}}}
 
 IMPORTANT RULES:
-- ONLY include 'qr_code' in 'special_features' if user explicitly asks for QR code, barcode, or scan. Never include by default.
+- Only include sections that make sense for the role. Not every resume needs projects, languages, or awards.
+- ONLY include 'qr_code' in special_features or sections if user explicitly asks for QR/barcode/scan.
+- For sidebar layouts, put contact+skills+certs in secondary_sections. For single_column, use only primary_sections.
+- Be genuinely creative with color palettes — don't always use navy blue.
 - Return ONLY valid raw JSON."""
 
         response = self._create_llm_call(system, user_prompt)
@@ -868,6 +932,8 @@ IMPORTANT RULES:
                             "border": colors.get("border", "#E2E8F0"),
                         }
                     },
+                    "primary_sections": plan.get("primary_sections"),
+                    "secondary_sections": plan.get("secondary_sections"),
                     "columns": {
                         "sidebar": {
                             "sections": [
@@ -898,6 +964,10 @@ IMPORTANT RULES:
                         "skills": formatted_skills,
                         "educations": plan.get("education") or plan.get("educations"),
                         "certifications": plan.get("certifications"),
+                        "metrics": plan.get("metrics"),
+                        "projects": plan.get("projects"),
+                        "languages": plan.get("languages"),
+                        "awards": plan.get("awards"),
                         "qr_url": plan.get("qr_url", "https://linkedin.com"),
                     }
                 }

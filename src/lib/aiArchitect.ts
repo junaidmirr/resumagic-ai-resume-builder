@@ -32,6 +32,8 @@ export interface DesignPlan {
     component_type: string;
     description: string;
   }[];
+  primary_sections?: { type: string; title: string }[];
+  secondary_sections?: { type: string; title: string }[];
   special_elements?: string[];
   fallback_triggered?: boolean;
   fallback_message?: string;

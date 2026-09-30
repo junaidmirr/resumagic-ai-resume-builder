@@ -907,6 +907,7 @@ def ai_architect_stream():
         elements = data.get('elements', [])
         plan = data.get('plan')
         mode = "edit" if (elements and len(elements) >= 5) else "create"
+        use_creative_mode = data.get('creative_mode', True)  # Enable creative mode by default
 
         if locally_blocked(prompt):
             return jsonify({
@@ -914,10 +915,38 @@ def ai_architect_stream():
                 "error": "Request blocked: Content violates career and resume safety policy."
             }), 400
 
-        from backend.multi_agent_architect import run_multi_agent_architect_stream
-
         def generate_architect_events():
             try:
+                # Try Creative AI Architect first (pure AI, no templates)
+                if use_creative_mode and mode == "create":
+                    from backend.creative_architect import run_creative_architect_stream
+
+                    # Extract candidate data from plan if available
+                    candidate_data = None
+                    if plan:
+                        candidate_data = {
+                            "name": plan.get("candidate_name", "Alexander Chen"),
+                            "role": plan.get("role", "Senior Professional"),
+                            "experiences": plan.get("experiences", []),
+                            "skills": plan.get("skills", []),
+                        }
+
+                    creative_failed = False
+                    for event in run_creative_architect_stream(prompt, candidate_data):
+                        if event.get("fallback_triggered"):
+                            creative_failed = True
+                            # Don't yield error, just fall through to multi-agent
+                            break
+                        yield f"data: {json.dumps(event)}\n\n"
+
+                    if not creative_failed:
+                        if uid:
+                            deduct_user_credits(uid, 10, description="Creative AI Resume Design")
+                        return
+
+                # Fallback to Multi-Agent template-based system
+                from backend.multi_agent_architect import run_multi_agent_architect_stream
+
                 for event in run_multi_agent_architect_stream(prompt, existing_elements=elements if elements else None, plan=plan, mode=mode):
                     yield f"data: {json.dumps(event)}\n\n"
                 if uid:
@@ -1013,11 +1042,56 @@ def ai_architect():
             except Exception as plan_err:
                 print(f"[AI-Architect] MultiAgent planner failed, falling back to legacy: {plan_err}")
 
-        # NEW: Multi-Agent Pipeline for full resume creation
+        # NEW: CREATIVE AI ARCHITECT - Pure AI-generated designs (no templates)
+        use_creative_mode = data.get('creative_mode', True)  # Enable creative mode by default
+
+        if use_creative_mode and action in ['build', 'create'] and (not elements or len(elements) < 5):
+            try:
+                from backend.creative_architect import run_creative_architect
+                print("=" * 80)
+                print("[AI-Architect] 🎨 USING CREATIVE AI ARCHITECT (NO TEMPLATES)")
+                print(f"[AI-Architect] User prompt: '{prompt[:100]}...'")
+                print("=" * 80)
+
+                # Extract candidate data from plan if available
+                candidate_data = None
+                if plan:
+                    candidate_data = {
+                        "name": plan.get("candidate_name", "Alexander Chen"),
+                        "role": plan.get("role", "Senior Professional"),
+                        "experiences": plan.get("experiences", []),
+                        "skills": plan.get("skills", []),
+                    }
+                    print(f"[AI-Architect] Candidate data: {candidate_data}")
+
+                result = run_creative_architect(
+                    user_prompt=prompt,
+                    candidate_data=candidate_data
+                )
+
+                print(f"[AI-Architect] Creative architect result: status={result.get('status')}, elements={result.get('element_count', 0)}")
+
+                if result.get("status") == "success":
+                    if uid:
+                        deduct_user_credits(uid, 10, description="Creative AI Resume Design")
+                    print("[AI-Architect] ✅ SUCCESS - Returning creative design")
+                    return jsonify(result)
+                else:
+                    print(f"[AI-Architect] ⚠️ Creative mode failed: {result.get('error')}")
+                    print(f"[AI-Architect] Fallback triggered: {result.get('fallback_triggered')}")
+            except Exception as e:
+                print(f"[AI-Architect] ❌ Creative architect exception: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # FALLBACK: Multi-Agent Pipeline with templates
         if use_multi_agent and action in ['build', 'create'] and (not elements or len(elements) < 5):
             try:
                 from backend.multi_agent_architect import run_multi_agent_architect
-                print("[AI-Architect] 🚀 Using Multi-Agent Pipeline")
+                print("=" * 80)
+                print("[AI-Architect] 🚀 FALLBACK: Using Multi-Agent Pipeline (Template-Based)")
+                print(f"[AI-Architect] User prompt: '{prompt[:100]}...'")
+                print("=" * 80)
 
                 result = run_multi_agent_architect(
                     user_prompt=prompt,
@@ -1026,12 +1100,17 @@ def ai_architect():
                     mode="create"
                 )
 
+                print(f"[AI-Architect] Multi-agent result: status={result.get('status')}, elements={len(result.get('elements', []))}")
+
                 if result.get("status") == "success":
                     if uid:
                         deduct_user_credits(uid, 10, description="Multi-Agent Resume Creation")
+                    print("[AI-Architect] ✅ SUCCESS - Returning multi-agent design")
                     return jsonify(result)
             except Exception as e:
-                print(f"[AI-Architect] Multi-agent failed, falling back: {e}")
+                print(f"[AI-Architect] ❌ Multi-agent exception: {e}")
+                import traceback
+                traceback.print_exc()
                 # Fall through to legacy system
 
         # Editor mode: surgical modifications

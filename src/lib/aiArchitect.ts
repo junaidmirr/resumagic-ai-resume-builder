@@ -363,15 +363,16 @@ export async function buildArchitectResumeDirect(
     `[AI-Architect] 🚀 Generating graphics elements for plan: '${plan.title}'...`,
   );
 
-  // 1. Primary: Query Backend Proxy Route (Uses Swirls AI as primary engine with Gemini fallback)
+  // 1. Primary: Query Backend Proxy Route (Uses Creative AI Architect - pure AI, no templates)
   try {
     const res = await fetchWithCaptcha("/api/ai-architect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "build",
-        prompt: `Create resume for ${userPrompt}. Plan: ${plan.title}`,
+        prompt: `Create a completely unique, creative, and beautiful resume design from scratch. ${userPrompt}`,
         plan,
+        creative_mode: true,  // Enable pure AI creative mode (no templates)
       }),
     });
     if (res.status === 400) {
@@ -449,8 +450,9 @@ export async function buildArchitectResumeWithStream(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "build",
-        prompt: userPrompt || plan.title,
+        prompt: `Create a completely unique, creative, and beautiful resume design from scratch. ${userPrompt || plan.title}`,
         plan,
+        creative_mode: true,  // Enable pure AI creative mode (no templates)
       }),
     });
 
